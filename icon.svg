@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="100" fill="#040d1a"/>
+  <rect x="156" y="140" width="200" height="260" rx="12" fill="none" stroke="#00c8ff" stroke-width="12"/>
+  <clipPath id="tc"><rect x="156" y="140" width="200" height="260" rx="12"/></clipPath>
+  <rect x="156" y="270" width="200" height="130" fill="rgba(0,140,220,0.75)" clip-path="url(#tc)"/>
+  <path d="M156 270 Q206 252 256 270 Q306 288 356 270 L356 280 Q306 298 256 280 Q206 262 156 280Z" fill="#00c8ff" opacity="0.9"/>
+  <rect x="232" y="100" width="48" height="44" rx="6" fill="none" stroke="#00c8ff" stroke-width="8"/>
+  <rect x="232" y="396" width="48" height="36" rx="6" fill="none" stroke="#00c8ff" stroke-width="8"/>
+  <text x="256" y="480" font-family="Arial Black,sans-serif" font-size="38" font-weight="900" fill="#00c8ff" text-anchor="middle" letter-spacing="8">TASNI</text>
+  <path d="M305 195 a70,70 0 0,1 0,60" fill="none" stroke="#00ff9d" stroke-width="8" stroke-linecap="round" opacity="0.8"/>
+  <path d="M320 180 a95,95 0 0,1 0,90" fill="none" stroke="#00ff9d" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+</svg>
