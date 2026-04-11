@@ -1,17 +1,51 @@
 {
-  "name": "TASNI Water Monitor",
-  "short_name": "TASNI",
-  "description": "TASNI v2.1 Water Tank Level Monitor — live dashboard, MQTT, alerts, analytics.",
+  "name": "TASNI® Water Monitor",
+  "short_name": "TASNI Water",
+  "description": "Smart water tank level monitoring with MQTT",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#040d1a",
-  "theme_color": "#040d1a",
+  "background_color": "#060d1a",
+  "theme_color": "#060d1a",
   "orientation": "portrait-primary",
+  "categories": ["utilities", "productivity"],
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    {
+      "src": "icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
   ],
+  "screenshots": [],
   "shortcuts": [
-    { "name": "Tank Dashboard", "url": "./index.html", "description": "Live water level" },
-    { "name": "Alerts",         "url": "./index.html", "description": "View alert log" }
+    {
+      "name": "Dashboard",
+      "url": "./index.html",
+      "description": "Open water level dashboard"
+    }
   ]
 }
