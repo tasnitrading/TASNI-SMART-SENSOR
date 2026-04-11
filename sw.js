@@ -1,107 +1,20 @@
-// TASNI® Water Monitor — Service Worker v2.0
-const CACHE_NAME = 'tasni-water-v2';
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js',
-];
-
-// ============ INSTALL ============
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS).catch(() => {});
-    }).then(() => self.skipWaiting())
-  );
+const CACHE='tasni-v2';
+const ASSETS=['./index.html','./manifest.json','./icon.svg'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET') return;
+  if(e.request.url.includes('/sensor-reading')||e.request.url.includes('/save-')) return;
+  e.respondWith(caches.match(e.request).then(cached=>{
+    const net=fetch(e.request).then(res=>{if(res.ok){const c=res.clone();caches.open(CACHE).then(ch=>ch.put(e.request,c));}return res;}).catch(()=>cached);
+    return cached||net;
+  }));
 });
-
-// ============ ACTIVATE ============
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+self.addEventListener('push',e=>{
+  const d=e.data?e.data.json():{title:'TASNI Alert',body:'Water level update'};
+  e.waitUntil(self.registration.showNotification(d.title||'TASNI Alert',{body:d.body||'',icon:'./icon.svg',badge:'./icon.svg',tag:'tasni-alert',requireInteraction:!!d.critical,data:{url:'./'}}));
 });
-
-// ============ FETCH — cache-first for app shell ============
-self.addEventListener('fetch', (event) => {
-  const url = event.request.url;
-
-  // Skip non-GET and external APIs
-  if (event.request.method !== 'GET') return;
-  if (url.includes('emqx') || url.includes('mqtt')) return;
-
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fresh = fetch(event.request).then((response) => {
-        if (response && response.status === 200 && response.type !== 'opaque') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => cached);
-      return cached || fresh;
-    })
-  );
-});
-
-// ============ PUSH NOTIFICATIONS ============
-self.addEventListener('push', (event) => {
-  let data = { title: 'TASNI® Water Monitor', body: 'Tank level alert!', type: 'info' };
-  if (event.data) {
-    try { data = { ...data, ...event.data.json() }; }
-    catch { data.body = event.data.text(); }
-  }
-
-  const options = {
-    body: data.body,
-    icon: 'icon-192.png',
-    badge: 'icon-72.png',
-    tag: 'tasni-water-alert',
-    renotify: true,
-    requireInteraction: data.type === 'danger',
-    vibrate: data.type === 'danger' ? [200,100,200,100,400] : [200,100,200],
-    data: { url: self.registration.scope, type: data.type },
-    actions: [
-      { action: 'open',    title: '📊 Open App' },
-      { action: 'dismiss', title: '✕ Dismiss'   },
-    ],
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
-});
-
-// ============ NOTIFICATION CLICK ============
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  if (event.action === 'dismiss') return;
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if (client.url.includes(self.registration.scope) && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(event.notification.data?.url || self.registration.scope);
-      }
-    })
-  );
-});
-
-// ============ BACKGROUND SYNC (optional) ============
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'tasni-sync') {
-    event.waitUntil(
-      clients.matchAll().then((clients) => {
-        clients.forEach((c) => c.postMessage({ type: 'sync' }));
-      })
-    );
-  }
+self.addEventListener('notificationclick',e=>{
+  e.notification.close();
+  e.waitUntil(clients.matchAll({type:'window'}).then(list=>{for(const c of list){if('focus' in c)return c.focus();}if(clients.openWindow)return clients.openWindow('./');} ));
 });
