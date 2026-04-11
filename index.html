@@ -2,1596 +2,946 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#060d1a">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#040d1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TASNI Water">
+<meta name="apple-mobile-web-app-title" content="TASNI">
 <link rel="manifest" href="manifest.json">
-<title>TASNI® Water Monitor</title>
-
-<!-- Fonts -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
-
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<title>TASNI Water Monitor v2.1</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
 <style>
-  /* ============ CSS VARIABLES ============ */
-  :root {
-    --cyan:    #2DD4BF;
-    --cyan2:   #06b6d4;
-    --magenta: #e879f9;
-    --purple:  #7c3aed;
-    --navy:    #060d1a;
-    --navy2:   #0a1628;
-    --navy3:   #0f2040;
-    --glass:   rgba(13,25,50,0.72);
-    --glass2:  rgba(45,212,191,0.08);
-    --border:  rgba(45,212,191,0.18);
-    --text:    #e2f0ff;
-    --muted:   rgba(180,210,240,0.5);
-    --danger:  #f87171;
-    --warn:    #fbbf24;
-    --good:    #34d399;
-    --water-top: rgba(45,212,191,0.9);
-    --water-bot: rgba(6,182,212,0.7);
-    --tank-h:  340px;
-  }
-
-  /* ============ RESET ============ */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body {
-    height: 100%; overflow-x: hidden;
-    background: var(--navy);
-    color: var(--text);
-    font-family: 'Rajdhani', sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* ============ BACKGROUND ============ */
-  .bg-grid {
-    position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background-image:
-      linear-gradient(rgba(45,212,191,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(45,212,191,0.04) 1px, transparent 1px);
-    background-size: 40px 40px;
-  }
-  .bg-glow {
-    position: fixed; z-index: 0; pointer-events: none;
-    border-radius: 50%; filter: blur(80px); opacity: 0.18;
-  }
-  .bg-glow.g1 { width:500px;height:500px; top:-100px; left:-150px; background: var(--purple); }
-  .bg-glow.g2 { width:400px;height:400px; bottom:-80px; right:-100px; background: var(--cyan); }
-  .bg-glow.g3 { width:300px;height:300px; top:40%; left:40%; background: var(--magenta); opacity:0.10; }
-
-  /* ============ APP WRAPPER ============ */
-  #app {
-    position: relative; z-index: 1;
-    min-height: 100vh;
-    max-width: 460px;
-    margin: 0 auto;
-    padding: 0 0 80px;
-    display: flex; flex-direction: column;
-  }
-
-  /* ============ HEADER ============ */
-  .header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 20px 12px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(6,13,26,0.8);
-    backdrop-filter: blur(20px);
-    position: sticky; top: 0; z-index: 100;
-  }
-  .logo {
-    display: flex; align-items: center; gap: 10px;
-    font-family: 'Orbitron', monospace; font-weight: 900;
-    font-size: 1.25rem; letter-spacing: 0.05em;
-    color: var(--cyan);
-    text-shadow: 0 0 20px rgba(45,212,191,0.5);
-  }
-  .logo-icon {
-    width: 32px; height: 32px;
-    background: linear-gradient(135deg, var(--cyan), var(--purple));
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; font-weight: 900; color: #fff;
-    box-shadow: 0 0 12px rgba(45,212,191,0.4);
-  }
-  .header-sub {
-    font-size: 0.65rem; color: var(--muted); letter-spacing: 0.15em;
-    text-transform: uppercase; font-family: 'Rajdhani'; font-weight: 300;
-  }
-  .header-right { display:flex; align-items:center; gap:10px; }
-  .conn-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: var(--danger);
-    box-shadow: 0 0 8px var(--danger);
-    transition: all 0.4s;
-    animation: pulse-dot 2s infinite;
-  }
-  .conn-dot.connected { background: var(--good); box-shadow: 0 0 8px var(--good); }
-  .conn-dot.connecting { background: var(--warn); box-shadow: 0 0 8px var(--warn); animation: pulse-dot 0.8s infinite; }
-  @keyframes pulse-dot {
-    0%,100% { opacity:1; transform: scale(1); }
-    50% { opacity:0.5; transform: scale(0.8); }
-  }
-  .btn-icon {
-    background: var(--glass2); border: 1px solid var(--border);
-    color: var(--cyan); border-radius: 8px;
-    width: 36px; height: 36px;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 1rem; transition: all 0.2s;
-    backdrop-filter: blur(10px);
-  }
-  .btn-icon:hover { background: rgba(45,212,191,0.15); transform: scale(1.05); }
-  .btn-icon:active { transform: scale(0.95); }
-
-  /* ============ DEVICE INFO BAR ============ */
-  .device-bar {
-    margin: 16px 20px 0;
-    padding: 10px 16px;
-    background: var(--glass);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 0.8rem;
-    backdrop-filter: blur(12px);
-  }
-  .device-id {
-    font-family: 'Orbitron', monospace; font-size: 0.7rem; letter-spacing: 0.1em;
-    color: var(--cyan); font-weight: 600;
-  }
-  .last-seen { color: var(--muted); font-size: 0.72rem; }
-  .signal-bars { display:flex; align-items:flex-end; gap:2px; }
-  .bar {
-    width: 4px; border-radius: 2px; background: var(--border);
-    transition: background 0.3s;
-  }
-  .bar:nth-child(1) { height:6px; }
-  .bar:nth-child(2) { height:10px; }
-  .bar:nth-child(3) { height:14px; }
-  .bar:nth-child(4) { height:18px; }
-  .signal-bars.good .bar { background: var(--good); }
-  .signal-bars.ok .bar:nth-child(1), .signal-bars.ok .bar:nth-child(2), .signal-bars.ok .bar:nth-child(3) { background: var(--warn); }
-  .signal-bars.weak .bar:nth-child(1) { background: var(--danger); }
-
-  /* ============ MAIN CONTENT ============ */
-  .content { padding: 20px; flex: 1; }
-
-  /* ============ TANK SECTION ============ */
-  .tank-section {
-    display: flex; flex-direction: column; align-items: center;
-    margin-bottom: 24px;
-  }
-  .tank-label {
-    font-family: 'Orbitron', monospace; font-size: 0.65rem;
-    letter-spacing: 0.2em; color: var(--muted);
-    text-transform: uppercase; margin-bottom: 12px;
-  }
-  .tank-outer {
-    position: relative;
-    width: 200px;
-    height: var(--tank-h);
-  }
-  /* Tank SVG container */
-  .tank-svg-wrap {
-    width: 100%; height: 100%;
-    position: relative;
-  }
-  /* Percentage readout */
-  .tank-pct-overlay {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    pointer-events: none; z-index: 10;
-  }
-  .tank-pct-num {
-    font-family: 'Orbitron', monospace;
-    font-size: 2.8rem; font-weight: 900;
-    line-height: 1;
-    color: #fff;
-    text-shadow: 0 0 30px rgba(45,212,191,0.9), 0 2px 4px rgba(0,0,0,0.5);
-    transition: all 0.5s;
-  }
-  .tank-pct-sym {
-    font-family: 'Orbitron', monospace;
-    font-size: 1rem; color: var(--cyan);
-    letter-spacing: 0.1em;
-    margin-top: 2px;
-  }
-  .tank-status-badge {
-    margin-top: 6px;
-    font-size: 0.62rem; letter-spacing: 0.18em;
-    text-transform: uppercase; font-weight: 600;
-    padding: 2px 8px; border-radius: 20px;
-    border: 1px solid currentColor;
-  }
-  .tank-status-badge.full    { color: var(--cyan);   border-color: rgba(45,212,191,0.4); }
-  .tank-status-badge.normal  { color: var(--good);   border-color: rgba(52,211,153,0.4); }
-  .tank-status-badge.low     { color: var(--warn);   border-color: rgba(251,191,36,0.4); }
-  .tank-status-badge.critical { color: var(--danger); border-color: rgba(248,113,113,0.4); }
-
-  /* ============ WATER TANK SVG ============ */
-  .tank-body {
-    filter: drop-shadow(0 0 24px rgba(45,212,191,0.3));
-  }
-  .water-fill { transition: height 1.2s cubic-bezier(0.4,0,0.2,1), y 1.2s cubic-bezier(0.4,0,0.2,1); }
-
-  /* ============ DROPLETS ============ */
-  .droplet-container {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none; overflow: hidden; border-radius: 0 0 16px 16px;
-  }
-  .drop {
-    position: absolute;
-    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-    background: linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(45,212,191,0.7));
-    animation: fall linear infinite;
-    opacity: 0;
-  }
-  @keyframes fall {
-    0%   { opacity: 0; transform: translateY(-20px) scale(0.6); }
-    10%  { opacity: 0.9; }
-    90%  { opacity: 0.7; }
-    100% { opacity: 0; transform: translateY(var(--tank-h)) scale(0.4); }
-  }
-  .splash {
-    position: absolute; bottom: 0;
-    border-radius: 50%;
-    border: 1px solid rgba(45,212,191,0.6);
-    animation: splash-out 0.5s ease-out forwards;
-    opacity: 0;
-  }
-  @keyframes splash-out {
-    0% { width:4px;height:4px; opacity:0.8; transform:translate(-50%,-50%); }
-    100% { width:30px;height:8px; opacity:0; transform:translate(-50%,-50%) scaleY(0.5); }
-  }
-
-  /* ============ WAVE ANIMATION ============ */
-  .wave-path { animation: wave-move 3s linear infinite; }
-  .wave-path2 { animation: wave-move 2.3s linear infinite reverse; opacity:0.5; }
-  @keyframes wave-move {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-
-  /* ============ STATS GRID ============ */
-  .stats-grid {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 12px; margin-bottom: 20px;
-  }
-  .stat-card {
-    background: var(--glass);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 16px;
-    backdrop-filter: blur(12px);
-    position: relative; overflow: hidden;
-    transition: transform 0.2s, border-color 0.2s;
-  }
-  .stat-card::before {
-    content: ''; position: absolute;
-    top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-    opacity: 0; transition: opacity 0.3s;
-  }
-  .stat-card:hover::before { opacity: 1; }
-  .stat-card:hover { transform: translateY(-2px); border-color: rgba(45,212,191,0.35); }
-  .stat-icon {
-    font-size: 1.4rem; margin-bottom: 8px;
-    filter: drop-shadow(0 0 6px rgba(45,212,191,0.5));
-  }
-  .stat-label {
-    font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 4px;
-  }
-  .stat-value {
-    font-family: 'Orbitron', monospace; font-size: 1.3rem; font-weight: 700;
-    color: var(--text); line-height: 1;
-  }
-  .stat-value.cyan { color: var(--cyan); text-shadow: 0 0 10px rgba(45,212,191,0.4); }
-  .stat-value.warn { color: var(--warn); }
-  .stat-value.danger { color: var(--danger); }
-  .stat-value.good { color: var(--good); }
-  .stat-unit { font-size: 0.7rem; color: var(--muted); margin-left:2px; font-family:'Rajdhani'; }
-
-  /* ============ ALERT HISTORY ============ */
-  .section-title {
-    font-family: 'Orbitron', monospace; font-size: 0.7rem;
-    letter-spacing: 0.15em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 12px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section-title::after {
-    content:''; flex:1; height:1px;
-    background: linear-gradient(90deg, var(--border), transparent);
-  }
-  .alert-list { display: flex; flex-direction: column; gap: 8px; }
-  .alert-item {
-    background: var(--glass);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 14px;
-    display: flex; align-items: center; gap: 12px;
-    backdrop-filter: blur(8px);
-    animation: slide-in 0.4s ease-out;
-  }
-  @keyframes slide-in {
-    from { opacity:0; transform: translateX(-12px); }
-    to   { opacity:1; transform: translateX(0); }
-  }
-  .alert-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-  .alert-dot.warn { background:var(--warn); box-shadow:0 0 6px var(--warn); }
-  .alert-dot.danger { background:var(--danger); box-shadow:0 0 6px var(--danger); }
-  .alert-dot.good { background:var(--good); box-shadow:0 0 6px var(--good); }
-  .alert-dot.info { background:var(--cyan); box-shadow:0 0 6px var(--cyan); }
-  .alert-msg { flex:1; font-size:0.82rem; color:var(--text); }
-  .alert-time { font-size:0.65rem; color:var(--muted); font-family:'Orbitron',monospace; }
-
-  /* ============ BOTTOM NAV ============ */
-  .bottom-nav {
-    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-    width: 100%; max-width: 460px;
-    background: rgba(6,13,26,0.9); backdrop-filter: blur(20px);
-    border-top: 1px solid var(--border);
-    display: flex; z-index: 100;
-  }
-  .nav-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center;
-    padding: 10px 4px 12px;
-    cursor: pointer; transition: all 0.2s;
-    color: var(--muted); font-size: 0.62rem;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    gap: 4px; border: none; background: none;
-    font-family: 'Rajdhani', sans-serif;
-  }
-  .nav-item .nav-icon { font-size: 1.3rem; transition: all 0.2s; }
-  .nav-item.active { color: var(--cyan); }
-  .nav-item.active .nav-icon { filter: drop-shadow(0 0 6px var(--cyan)); transform: scale(1.1); }
-  .nav-item:hover { color: var(--text); }
-
-  /* ============ PANELS ============ */
-  .panel { display: none; }
-  .panel.active { display: flex; flex-direction: column; }
-
-  /* ============ SETTINGS PANEL ============ */
-  .settings-section {
-    background: var(--glass); border: 1px solid var(--border);
-    border-radius: 16px; padding: 20px; margin-bottom: 16px;
-    backdrop-filter: blur(12px);
-  }
-  .settings-section h3 {
-    font-family: 'Orbitron', monospace; font-size: 0.75rem;
-    letter-spacing: 0.12em; color: var(--cyan); margin-bottom: 16px;
-  }
-  .field-group { margin-bottom: 14px; }
-  .field-label {
-    font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 6px; display: block;
-  }
-  .field-input {
-    width: 100%; background: rgba(255,255,255,0.05);
-    border: 1.5px solid var(--border); border-radius: 10px;
-    padding: 10px 14px;
-    color: var(--text); font-family: 'Rajdhani', sans-serif;
-    font-size: 0.95rem; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .field-input:focus {
-    border-color: var(--cyan);
-    box-shadow: 0 0 0 3px rgba(45,212,191,0.12);
-  }
-  .field-input::placeholder { color: rgba(180,210,240,0.3); }
-  .toggle-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 0; border-bottom: 1px solid var(--border);
-  }
-  .toggle-row:last-child { border-bottom: none; }
-  .toggle-info { flex: 1; }
-  .toggle-title { font-size: 0.88rem; font-weight: 500; color: var(--text); }
-  .toggle-desc  { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
-  .toggle {
-    width: 44px; height: 24px; border-radius: 12px;
-    background: rgba(255,255,255,0.1); border: 1px solid var(--border);
-    position: relative; cursor: pointer; transition: background 0.3s;
-    flex-shrink: 0;
-  }
-  .toggle::after {
-    content: ''; position: absolute;
-    width: 18px; height: 18px; border-radius: 50%; top: 2px; left: 2px;
-    background: var(--muted); transition: all 0.3s;
-  }
-  .toggle.on { background: rgba(45,212,191,0.3); border-color: var(--cyan); }
-  .toggle.on::after { transform: translateX(20px); background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
-
-  .btn-primary {
-    width: 100%; padding: 14px;
-    background: linear-gradient(135deg, var(--cyan), var(--purple));
-    border: none; border-radius: 12px; cursor: pointer;
-    color: #fff; font-family: 'Orbitron', monospace;
-    font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; transition: all 0.2s;
-    box-shadow: 0 4px 20px rgba(45,212,191,0.3);
-    margin-top: 4px;
-  }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(45,212,191,0.45); }
-  .btn-primary:active { transform: translateY(0); }
-  .btn-danger {
-    width: 100%; padding: 12px;
-    background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3);
-    border-radius: 12px; cursor: pointer; color: var(--danger);
-    font-family: 'Orbitron', monospace; font-size: 0.75rem;
-    letter-spacing: 0.08em; transition: all 0.2s; margin-top: 8px;
-  }
-  .btn-danger:hover { background: rgba(248,113,113,0.2); }
-
-  /* ============ SETUP OVERLAY ============ */
-  #setup-overlay {
-    position: fixed; inset: 0; z-index: 999;
-    background: var(--navy);
-    display: flex; align-items: center; justify-content: center;
-    padding: 24px;
-    animation: fade-in 0.5s ease-out;
-  }
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  #setup-overlay.hidden {
-    animation: fade-out 0.4s ease-in forwards;
-    pointer-events: none;
-  }
-  @keyframes fade-out {
-    to { opacity: 0; transform: translateY(-20px); }
-  }
-  .setup-card {
-    width: 100%; max-width: 400px;
-    background: var(--glass);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 32px 28px;
-    backdrop-filter: blur(20px);
-    box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 60px rgba(45,212,191,0.08);
-  }
-  .setup-logo {
-    text-align: center; margin-bottom: 28px;
-  }
-  .setup-logo .logo-big {
-    font-family: 'Orbitron', monospace; font-size: 2rem; font-weight: 900;
-    color: var(--cyan); text-shadow: 0 0 30px rgba(45,212,191,0.6);
-    letter-spacing: 0.08em;
-  }
-  .setup-logo .logo-sub {
-    font-size: 0.75rem; color: var(--muted); letter-spacing: 0.2em;
-    text-transform: uppercase; margin-top: 4px;
-  }
-  .setup-title {
-    font-family: 'Orbitron', monospace; font-size: 0.85rem;
-    color: var(--text); letter-spacing: 0.1em; margin-bottom: 6px;
-  }
-  .setup-hint {
-    font-size: 0.78rem; color: var(--muted); margin-bottom: 24px; line-height: 1.5;
-  }
-
-  /* ============ TOAST NOTIFICATIONS ============ */
-  #toast-container {
-    position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
-    width: calc(100% - 40px); max-width: 420px;
-    z-index: 9000; display: flex; flex-direction: column; gap: 8px;
-    pointer-events: none;
-  }
-  .toast {
-    background: var(--glass); border-radius: 12px;
-    backdrop-filter: blur(20px);
-    padding: 12px 16px;
-    display: flex; align-items: center; gap: 10px;
-    animation: toast-in 0.35s ease-out forwards;
-    pointer-events: auto; cursor: pointer;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  }
-  .toast.info    { border: 1px solid rgba(45,212,191,0.4); }
-  .toast.warn    { border: 1px solid rgba(251,191,36,0.5); }
-  .toast.danger  { border: 1px solid rgba(248,113,113,0.5); }
-  .toast.success { border: 1px solid rgba(52,211,153,0.4); }
-  .toast-icon { font-size: 1.2rem; }
-  .toast-msg { flex: 1; font-size: 0.85rem; font-weight: 500; line-height: 1.4; }
-  .toast.out { animation: toast-out 0.3s ease-in forwards; }
-  @keyframes toast-in  { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes toast-out { to{opacity:0;transform:translateY(-10px)} }
-
-  /* ============ RIPPLE ON CONNECT ============ */
-  .conn-ring {
-    position: absolute; border-radius: 50%; border: 1px solid var(--cyan);
-    opacity: 0; animation: ring-expand 2s ease-out infinite;
-  }
-  @keyframes ring-expand {
-    0%   { width:10px;height:10px; opacity:0.6; transform:translate(-50%,-50%); }
-    100% { width:60px;height:60px; opacity:0; transform:translate(-50%,-50%); }
-  }
-
-  /* ============ CHART AREA ============ */
-  .chart-wrap {
-    background: var(--glass); border: 1px solid var(--border);
-    border-radius: 16px; padding: 16px; margin-bottom: 20px;
-    backdrop-filter: blur(12px);
-  }
-  .mini-chart {
-    width:100%; height:80px; position:relative; overflow:hidden;
-  }
-  .chart-line {
-    fill: none; stroke: var(--cyan); stroke-width: 2;
-    filter: drop-shadow(0 0 4px var(--cyan));
-  }
-  .chart-area {
-    fill: url(#chartGrad); opacity: 0.3;
-  }
-
-  /* ============ SCROLLBAR ============ */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  /* ============ UTILITY ============ */
-  .hidden { display: none !important; }
-  .text-cyan { color: var(--cyan); }
-  .mono { font-family: 'Orbitron', monospace; }
+:root{
+  --bg:#040d1a;--surf:rgba(8,22,50,.90);--surf2:rgba(3,12,32,.94);
+  --border:rgba(45,212,191,.11);--brite:rgba(45,212,191,.28);
+  --pri:#2DD4BF;--pdim:rgba(45,212,191,.15);--purple:#7c3aed;
+  --ok:#34d399;--warn:#fbbf24;--danger:#f87171;
+  --text:#cce7ff;--muted:rgba(180,220,255,.45);
+  --mono:'Share Tech Mono',monospace;--sans:'Rajdhani',sans-serif;--head:'Orbitron',monospace;
+  --r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);max-width:480px;margin:0 auto;display:flex;flex-direction:column;position:relative}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(45,212,191,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(45,212,191,.03) 1px,transparent 1px);background-size:44px 44px}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 70% 50% at 15% 10%,rgba(124,58,237,.06) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 85% 85%,rgba(45,212,191,.05) 0%,transparent 60%)}
+header{flex-shrink:0;position:relative;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(4,13,26,.97);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+.brand{font-family:var(--head);font-size:18px;font-weight:900;letter-spacing:.06em;color:var(--pri);text-shadow:0 0 20px rgba(45,212,191,.4)}
+.brand small{display:block;font-family:var(--sans);font-size:9px;letter-spacing:3px;color:var(--muted);margin-top:-1px;font-weight:400}
+.conn-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surf2);font-size:10px;font-weight:700;letter-spacing:1.5px;cursor:pointer;transition:all .2s;user-select:none;font-family:var(--head)}
+.dot{width:8px;height:8px;border-radius:50%;background:#333;transition:all .3s}
+.pill-local .dot{background:var(--pri);box-shadow:0 0 8px var(--pri)}
+.pill-mqtt  .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.pill-both  .dot{background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pdot 1.8s infinite}
+.pill-demo  .dot{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+@keyframes pdot{0%,100%{transform:scale(1)}50%{transform:scale(1.4);opacity:.6}}
+main{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;z-index:1;padding-bottom:70px;scroll-behavior:smooth}
+main::-webkit-scrollbar{width:3px}
+main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
+.tab{display:none;padding:14px 14px 4px;animation:fadeIn .2s ease}
+.tab.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,.2),transparent)}
+.card-title{font-size:10px;font-weight:700;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:14px;font-family:var(--head)}
+/* Tank */
+.tank-section{display:flex;align-items:center;gap:20px;padding:18px 16px 14px}
+.tank-wrap{position:relative;flex-shrink:0}
+.pipe-top{width:22px;height:12px;margin:0 auto 0;position:relative;left:16px;background:var(--surf2);border:1px solid var(--border);border-bottom:none;border-radius:4px 4px 0 0}
+.pipe-bot{width:18px;height:10px;margin:0 auto;position:relative;left:-22px;background:var(--surf2);border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px}
+.tank-body{width:115px;height:215px;position:relative;border:2px solid rgba(45,212,191,.35);border-radius:5px 5px 8px 8px;overflow:hidden;background:rgba(0,8,25,.92);box-shadow:0 0 0 1px rgba(45,212,191,.06),inset 0 0 24px rgba(0,0,0,.5)}
+.tank-body::after{content:'';position:absolute;top:5%;left:7%;width:7px;height:38%;background:linear-gradient(to bottom,rgba(255,255,255,.1),transparent);border-radius:4px;z-index:5;pointer-events:none}
+.gline{position:absolute;left:0;right:0;height:1px;background:rgba(45,212,191,.07);z-index:2}
+.tmarks{position:absolute;right:-38px;top:0;height:100%;display:flex;flex-direction:column;justify-content:space-between}
+.tm{font-family:var(--mono);font-size:9px;color:var(--muted);line-height:1;display:flex;align-items:center;gap:4px}
+.tm::before{content:'';width:6px;height:1px;background:var(--border)}
+/* WATER FILL — div based, CSS height transition works reliably on all mobile browsers */
+.water-fill{position:absolute;bottom:0;left:0;right:0;height:0%;transition:height 1.6s cubic-bezier(.4,0,.2,1),background .8s ease;z-index:3;background:linear-gradient(to top,rgba(0,100,200,.95),rgba(0,160,240,.8),rgba(45,212,191,.55))}
+.wave{position:absolute;top:-11px;left:-8%;width:116%;height:22px;border-radius:45%;background:inherit}
+.wave-a{animation:wa 2.8s ease-in-out infinite}
+.wave-b{animation:wb 3.8s ease-in-out infinite;opacity:.5;top:-8px;height:16px}
+@keyframes wa{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(4%) scaleY(.75)}}
+@keyframes wb{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(-5%) scaleY(.8)}}
+.bubble{position:absolute;border-radius:50%;background:rgba(255,255,255,.3);animation:bup 3.5s ease-in infinite}
+@keyframes bup{0%{transform:translateY(0) scale(1);opacity:.7}100%{transform:translateY(-230px) scale(.2);opacity:0}}
+/* Falling droplets */
+.drp{position:absolute;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:rgba(45,212,191,.85);z-index:10;animation:drpfall linear infinite;opacity:0;top:0}
+@keyframes drpfall{0%{opacity:0;transform:translateY(-4px)}15%{opacity:.9}85%{opacity:.7}100%{opacity:0;transform:translateY(230px)}}
+/* Tank info */
+.tank-info{flex:1;min-width:0}
+.tank-name-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:6px;font-family:var(--head)}
+.level-num{font-family:var(--mono);font-size:50px;line-height:1;color:var(--pri);text-shadow:0 0 28px rgba(45,212,191,.5);transition:color .5s}
+.level-num .pct{font-size:20px;color:var(--muted)}
+.level-bar{height:5px;background:rgba(45,212,191,.08);border-radius:3px;margin:8px 0;overflow:hidden}
+.level-bar-fill{height:100%;border-radius:3px;transition:width 1.6s cubic-bezier(.4,0,.2,1);box-shadow:0 0 8px rgba(45,212,191,.4)}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.b-ok  {background:rgba(52,211,153,.1);color:var(--ok);border:1px solid rgba(52,211,153,.25)}
+.b-low {background:rgba(251,191,36,.1);color:var(--warn);border:1px solid rgba(251,191,36,.25)}
+.b-crit{background:rgba(248,113,113,.12);color:var(--danger);border:1px solid rgba(248,113,113,.28);animation:sblink 1s step-end infinite}
+.b-full{background:rgba(45,212,191,.1);color:var(--pri);border:1px solid rgba(45,212,191,.28)}
+.b-off {background:rgba(80,80,100,.12);color:var(--muted);border:1px solid rgba(80,80,100,.18)}
+@keyframes sblink{50%{opacity:.4}}
+.vol-row{font-family:var(--mono);font-size:14px;margin-bottom:2px}
+.vol-total{font-size:11px;color:var(--muted)}
+.upd-lbl{font-size:10px;color:var(--muted);margin-top:8px;font-family:var(--mono)}
+.trend-lbl{font-size:13px;margin-top:4px}
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.stat-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;font-family:var(--head)}
+.stat-val{font-family:var(--mono);font-size:20px;color:var(--pri)}
+.stat-unit{font-size:11px;color:var(--muted)}
+/* Chips */
+.chips{display:flex;gap:8px;margin-bottom:12px}
+.chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1.5px;border:1px solid var(--border);color:var(--muted);transition:all .3s;font-family:var(--head)}
+.chip .cd{width:5px;height:5px;border-radius:50%;background:#333;transition:all .3s}
+.chip.on{border-color:var(--ok);color:var(--ok)}
+.chip.on .cd{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+/* Chart */
+.chart-box{position:relative;height:175px}
+/* Usage bars */
+.ubar-row{margin:8px 0}
+.ubar-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
+.ubar{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.ubar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,rgba(45,212,191,.7),var(--ok));transition:width 1s}
+/* Forecast */
+.fc-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.fc-row:last-child{border-bottom:none}
+.fc-val{font-family:var(--mono);color:var(--pri)}
+/* Alerts */
+.notif-bar{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(0,50,120,.5),rgba(0,30,80,.7));border:1px solid rgba(45,212,191,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.notif-bar .nb-i{font-size:26px}
+.alert-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.alert-item:last-child{border-bottom:none}
+.adot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.ac .adot{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+.aw .adot{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.ai .adot{background:var(--pri);box-shadow:0 0 6px var(--pri)}
+.al-msg{font-size:13px;font-weight:500;line-height:1.45}
+.al-time{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+/* Forms */
+.tog-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border)}
+.tog-row:last-child{border-bottom:none}
+.tog-lbl{font-size:14px;font-weight:600}
+.tog-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.tslider{position:absolute;inset:0;border-radius:12px;background:rgba(80,80,110,.3);border:1px solid rgba(80,80,110,.35);cursor:pointer;transition:.3s}
+.tslider::before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#666;top:2px;left:2px;transition:.3s}
+.toggle input:checked+.tslider{background:rgba(45,212,191,.18);border-color:var(--pri)}
+.toggle input:checked+.tslider::before{transform:translateX(20px);background:var(--pri);box-shadow:0 0 8px var(--pri)}
+.form-grp{margin-bottom:14px}
+.form-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:block;font-family:var(--head)}
+.form-in{width:100%;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s}
+.form-in:focus{border-color:var(--pri);box-shadow:0 0 0 2px var(--pdim)}
+.form-row{display:flex;gap:10px}
+.form-row .form-grp{flex:1}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:9px;border:none;font-family:var(--head);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s}
+.btn-p{background:linear-gradient(135deg,var(--purple),var(--pri));color:#fff}
+.btn-p:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(45,212,191,.3)}
+.btn-o{background:transparent;color:var(--pri);border:1px solid var(--brite)}
+.btn-d{background:rgba(248,113,113,.1);color:var(--danger);border:1px solid rgba(248,113,113,.25)}
+.btn-sm{padding:6px 14px;font-size:11px}
+.btn-full{width:100%;margin-top:8px}
+/* Accordion */
+.acc-h{display:flex;align-items:center;justify-content:space-between;padding:12px 0;cursor:pointer;border-bottom:1px solid var(--border);font-size:15px;font-weight:600;user-select:none}
+.acc-arr{color:var(--muted);transition:transform .3s;font-size:12px}
+.acc-h.open .acc-arr{transform:rotate(180deg)}
+.acc-b{display:none;padding:14px 0 4px}
+.acc-b.open{display:block}
+/* Tips */
+.tip-hero{background:linear-gradient(135deg,rgba(0,60,130,.6),rgba(0,20,60,.85));border:1px solid rgba(45,212,191,.2);border-radius:var(--r);padding:20px;margin-bottom:12px;position:relative;overflow:hidden}
+.tip-hero::after{content:'💧';position:absolute;right:14px;top:10px;font-size:40px;opacity:.18}
+.tip-cat{display:inline-block;padding:2px 9px;border-radius:10px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:rgba(45,212,191,.1);color:var(--pri);border:1px solid rgba(45,212,191,.2);margin-bottom:10px;font-family:var(--head)}
+.tip-txt{font-size:14px;line-height:1.65;font-weight:500}
+.tip-card{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:var(--surf2);position:relative;overflow:hidden}
+.tip-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(to bottom,var(--pri),var(--ok))}
+.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.ach{text-align:center;padding:12px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surf2);transition:all .3s;opacity:.35}
+.ach.earned{border-color:rgba(45,212,191,.3);background:rgba(45,212,191,.07);opacity:1}
+.ach-icon{font-size:26px;margin-bottom:5px}
+.ach-name{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--pri);font-family:var(--head)}
+.ach-desc{font-size:9px;color:var(--muted);margin-top:2px}
+/* Misc */
+.demo-bar{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--warn);text-align:center;margin-bottom:10px;font-family:var(--head)}
+.sec-hd{font-size:10px;font-weight:700;letter-spacing:3px;color:var(--muted);text-transform:uppercase;padding:6px 0 8px;border-bottom:1px solid var(--border);margin-bottom:12px;font-family:var(--head)}
+.info-box{background:rgba(45,212,191,.05);border:1px solid rgba(45,212,191,.15);border-radius:8px;padding:10px 14px;font-size:11px;line-height:1.65;color:var(--muted);margin-bottom:10px}
+.info-box strong{color:var(--pri)}
+/* Toast */
+#toast-wrap{position:fixed;top:70px;left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:440px;z-index:9000;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:var(--surf2);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:9px;animation:tin .3s ease-out;pointer-events:auto;cursor:pointer;box-shadow:0 6px 28px rgba(0,0,0,.4);font-size:13px;font-weight:500}
+.toast.info  {border:1px solid rgba(45,212,191,.4)}
+.toast.warn  {border:1px solid rgba(251,191,36,.5)}
+.toast.danger{border:1px solid rgba(248,113,113,.5)}
+.toast.ok    {border:1px solid rgba(52,211,153,.4)}
+.toast.out   {animation:tout .3s ease-in forwards}
+@keyframes tin {from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes tout{to{opacity:0;transform:translateY(-8px)}}
+/* Nav */
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:rgba(4,13,26,.98);backdrop-filter:blur(24px);border-top:1px solid var(--border);z-index:50}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 4px 8px;border:none;background:none;color:var(--muted);cursor:pointer;transition:color .2s;gap:3px;position:relative}
+.nb.active{color:var(--pri)}
+.nb.active::before{content:'';position:absolute;top:0;left:18%;right:18%;height:2px;background:var(--pri);border-radius:0 0 2px 2px;box-shadow:0 0 10px var(--pri)}
+.nb svg{width:20px;height:20px}
+.nb-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:var(--head)}
+.nb-badge{position:absolute;top:5px;right:calc(50% - 16px);width:16px;height:16px;border-radius:50%;background:var(--danger);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 8px var(--danger)}
+/* Modal */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.9);backdrop-filter:blur(12px);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal-ov.hidden{display:none}
+.modal{background:#050e20;border:1px solid var(--brite);border-radius:22px 22px 0 0;padding:22px 20px 36px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto}
+.modal::-webkit-scrollbar{width:3px}
+.modal::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
+.modal-handle{width:38px;height:4px;background:var(--brite);border-radius:2px;margin:0 auto 22px}
+.modal-title{font-family:var(--head);font-size:20px;font-weight:900;letter-spacing:.06em;color:var(--pri);margin-bottom:4px}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.55}
+@supports(padding-bottom:env(safe-area-inset-bottom)){nav{padding-bottom:env(safe-area-inset-bottom)}main{padding-bottom:calc(70px + env(safe-area-inset-bottom))}}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
+<div id="toast-wrap"></div>
 
-<!-- Background -->
-<div class="bg-grid"></div>
-<div class="bg-glow g1"></div>
-<div class="bg-glow g2"></div>
-<div class="bg-glow g3"></div>
-
-<!-- Toast container -->
-<div id="toast-container"></div>
-
-<!-- ============ SETUP OVERLAY ============ -->
-<div id="setup-overlay">
-  <div class="setup-card">
-    <div class="setup-logo">
-      <div class="logo-big">TASNI®</div>
-      <div class="logo-sub">Water Monitor — Setup</div>
+<!-- SETUP MODAL -->
+<div class="modal-ov" id="connModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">CONNECT DEVICE</div>
+    <div class="modal-sub">Enter your TASNI v2.1 ESP32 details. Local WiFi and MQTT are both optional.</div>
+    <div class="sec-hd">LOCAL WIFI (SAME NETWORK)</div>
+    <div class="form-grp"><label class="form-lbl">ESP32 IP Address</label><input class="form-in" id="s-ip" type="text" placeholder="e.g. 192.168.1.100" autocomplete="off"></div>
+    <p style="font-size:11px;color:var(--muted);margin-top:-8px;margin-bottom:14px">Find the IP on the OLED at boot, or in your router's DHCP list.</p>
+    <div class="sec-hd">MQTT REMOTE (FROM ANYWHERE)</div>
+    <div class="info-box"><strong>⚠️ Browser MQTT</strong><br>ESP32 publishes on port <strong>8883 (TLS)</strong>. Browsers need WebSocket MQTT. Configure your broker's WS/WSS listener. Topic: <strong>tasni-water/+/state</strong></div>
+    <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="s-broker" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com" autocomplete="off"></div>
+    <div class="form-row">
+      <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port" type="number" value="8084"></div>
+      <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="s-mquser" type="text" placeholder="tasni_water"></div>
     </div>
-    <div class="setup-title">MQTT Broker Configuration</div>
-    <div class="setup-hint">Enter your EMQX cloud credentials once. These are saved securely on your device and never leave it.</div>
-
-    <div class="field-group">
-      <label class="field-label">Broker Host</label>
-      <input class="field-input" id="s-host" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com" autocomplete="off" autocorrect="off" spellcheck="false">
-    </div>
-    <div class="field-group">
-      <label class="field-label">Port (WebSocket)</label>
-      <input class="field-input" id="s-port" type="number" placeholder="8084" value="8084">
-    </div>
-    <div class="field-group">
-      <label class="field-label">Username</label>
-      <input class="field-input" id="s-user" type="text" placeholder="tasni_water" autocomplete="off">
-    </div>
-    <div class="field-group">
-      <label class="field-label">Password</label>
-      <input class="field-input" id="s-pass" type="password" placeholder="••••••••">
-    </div>
-    <div class="field-group">
-      <label class="field-label">Topic</label>
-      <input class="field-input" id="s-topic" type="text" placeholder="tasni-water/E2A4/state" autocomplete="off">
-    </div>
-    <div class="field-group">
-      <label class="field-label">Device ID</label>
-      <input class="field-input" id="s-devid" type="text" placeholder="E2A4" autocomplete="off">
-    </div>
-
-    <button class="btn-primary" onclick="saveSetup()">⚡ CONNECT & LAUNCH</button>
+    <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="s-mqpass" type="password" placeholder="••••••••"></div>
+    <div class="form-grp"><label class="form-lbl">MQTT Topic</label><input class="form-in" id="s-topic" type="text" placeholder="tasni-water/E2A4/state"></div>
+    <div class="form-grp"><label class="form-lbl">Tank Display Name</label><input class="form-in" id="s-name" type="text" value="Main Tank"></div>
+    <button class="btn btn-p btn-full" onclick="applySetup()">⚡ CONNECT</button>
+    <button class="btn btn-o btn-full" style="margin-top:10px" onclick="useDemoMode()">🎮 TRY DEMO MODE</button>
   </div>
 </div>
 
-<!-- ============ MAIN APP ============ -->
-<div id="app">
-  <!-- Header -->
-  <header class="header">
-    <div>
-      <div class="logo">
-        <div class="logo-icon">T</div>
-        TASNI®
-      </div>
-      <div class="header-sub">Water Intelligence System</div>
-    </div>
-    <div class="header-right">
-      <div style="position:relative;width:20px;height:20px;display:flex;align-items:center;justify-content:center;">
-        <div class="conn-dot" id="conn-dot"></div>
-      </div>
-      <button class="btn-icon" onclick="switchPanel('settings')" title="Settings">⚙️</button>
-    </div>
-  </header>
+<header>
+  <div class="brand">TASNI®<small>WATER MONITOR v2.1</small></div>
+  <div class="conn-pill" id="connPill" onclick="document.getElementById('connModal').classList.remove('hidden')">
+    <div class="dot" id="dotInd"></div><span id="connLbl">OFFLINE</span>
+  </div>
+</header>
 
-  <!-- Device Bar -->
-  <div class="device-bar">
-    <div>
-      <div class="device-id" id="hdr-device-id">DEV-????</div>
-      <div class="last-seen">Last update: <span id="last-seen-time">--</span></div>
+<main>
+  <!-- DASHBOARD -->
+  <div class="tab active" id="tab-dashboard">
+    <div class="demo-bar hidden" id="demoBanner">⚠ DEMO MODE — Simulated Data</div>
+    <div class="chips">
+      <div class="chip" id="chip-local"><div class="cd"></div>LOCAL WIFI</div>
+      <div class="chip" id="chip-mqtt"><div class="cd"></div>MQTT</div>
     </div>
-    <div class="signal-bars" id="signal-bars">
-      <div class="bar"></div><div class="bar"></div>
-      <div class="bar"></div><div class="bar"></div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="tank-section">
+        <div class="tank-wrap">
+          <div class="pipe-top"></div>
+          <div class="tank-body" id="tankBody">
+            <div class="gline" style="bottom:75%"></div>
+            <div class="gline" style="bottom:50%"></div>
+            <div class="gline" style="bottom:25%"></div>
+            <div class="water-fill" id="waterFill" style="height:0%">
+              <div class="wave wave-a"></div>
+              <div class="wave wave-b"></div>
+              <div class="bubble" style="left:18%;width:4px;height:4px;animation-delay:0s;animation-duration:3.2s"></div>
+              <div class="bubble" style="left:50%;width:3px;height:3px;animation-delay:1.3s;animation-duration:4.1s"></div>
+              <div class="bubble" style="left:74%;width:5px;height:5px;animation-delay:2.2s;animation-duration:3.7s"></div>
+            </div>
+            <div class="drp" style="left:30%;width:4px;height:6px;animation-duration:1.8s;animation-delay:0s"></div>
+            <div class="drp" style="left:50%;width:3px;height:5px;animation-duration:2.2s;animation-delay:.7s"></div>
+            <div class="drp" style="left:66%;width:4px;height:6px;animation-duration:1.5s;animation-delay:1.3s"></div>
+          </div>
+          <div class="pipe-bot"></div>
+          <div class="tmarks" style="right:-38px">
+            <span class="tm">100%</span><span class="tm">75%</span>
+            <span class="tm">50%</span><span class="tm">25%</span><span class="tm">0%</span>
+          </div>
+        </div>
+        <div class="tank-info">
+          <div class="tank-name-lbl" id="tankNameLbl">MAIN TANK</div>
+          <div class="level-num" id="levelNum">--<span class="pct">%</span></div>
+          <div class="level-bar"><div class="level-bar-fill" id="lvlBar" style="width:0%"></div></div>
+          <span class="badge b-off" id="statusBadge">OFFLINE</span>
+          <div class="vol-row"><span id="volL">---</span> <span class="vol-total">/ <span id="totalVol">---</span> L</span></div>
+          <div class="trend-lbl" id="trendLbl"></div>
+          <div class="upd-lbl" id="updLbl">No data yet</div>
+        </div>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-lbl">Usage Rate</div><div class="stat-val"><span id="usageRate">--</span><span class="stat-unit"> L/hr</span></div></div>
+      <div class="stat"><div class="stat-lbl">Est. Empty In</div><div class="stat-val" id="estEmpty" style="font-size:17px">--</div></div>
+      <div class="stat"><div class="stat-lbl">Sensor Dist.</div><div class="stat-val"><span id="distCm">--</span><span class="stat-unit"> cm</span></div></div>
+      <div class="stat"><div class="stat-lbl">Device Uptime</div><div class="stat-val" id="uptimeVal" style="font-size:17px">--</div></div>
+      <div class="stat"><div class="stat-lbl">WiFi RSSI</div><div class="stat-val"><span id="rssiVal">--</span><span class="stat-unit"> dBm</span></div></div>
+      <div class="stat"><div class="stat-lbl">Boot Count</div><div class="stat-val" id="bootVal">--</div></div>
     </div>
   </div>
 
-  <!-- Content area -->
-  <div class="content">
+  <!-- ANALYTICS -->
+  <div class="tab" id="tab-analytics">
+    <div class="card"><div class="card-title">24-Hour Level History</div><div class="chart-box"><canvas id="histChart"></canvas></div></div>
+    <div class="card">
+      <div class="card-title">Usage by Time of Day</div>
+      <div class="ubar-row"><div class="ubar-lbl"><span>🌅 Morning (6–12)</span><span id="u-morn">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-morn" style="width:0%"></div></div></div>
+      <div class="ubar-row"><div class="ubar-lbl"><span>☀️ Afternoon (12–18)</span><span id="u-aft">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-aft" style="width:0%"></div></div></div>
+      <div class="ubar-row"><div class="ubar-lbl"><span>🌆 Evening (18–24)</span><span id="u-eve">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-eve" style="width:0%"></div></div></div>
+      <div class="ubar-row"><div class="ubar-lbl"><span>🌙 Night (0–6)</span><span id="u-ngt">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-ngt" style="width:0%"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Forecast</div>
+      <div class="fc-row"><span>Current Level</span><span class="fc-val" id="fc-cur">--</span></div>
+      <div class="fc-row" style="font-size:11px;color:var(--muted)"><span>At current usage rate…</span></div>
+      <div class="fc-row"><span>In 24 hours</span><span class="fc-val" id="fc-24">--</span></div>
+      <div class="fc-row"><span>In 3 days</span><span class="fc-val" id="fc-3d">--</span></div>
+      <div class="fc-row"><span>Tank empty in</span><span class="fc-val" id="fc-emp">--</span></div>
+    </div>
+  </div>
 
-    <!-- ===== DASHBOARD PANEL ===== -->
-    <div class="panel active" id="panel-dashboard">
+  <!-- ALERTS -->
+  <div class="tab" id="tab-alerts">
+    <div class="notif-bar" id="notifBar">
+      <div class="nb-i">🔔</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:600;margin-bottom:2px">Enable Push Notifications</div><div style="font-size:11px;color:var(--muted)">Get alerts even when app is in background</div></div>
+      <button class="btn btn-p btn-sm" onclick="askNotif()">ENABLE</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Alert Thresholds</div>
+      <div class="tog-row"><div><div class="tog-lbl">🔴 Critical (&lt;10%)</div><div class="tog-sub">Sound + Push + Telegram</div></div><label class="toggle"><input type="checkbox" id="t-crit" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">🟡 Low (&lt;30%)</div><div class="tog-sub">Push notification + Sound</div></div><label class="toggle"><input type="checkbox" id="t-low" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">📉 Sudden Drop (&gt;10%)</div><div class="tog-sub">Possible leak detection</div></div><label class="toggle"><input type="checkbox" id="t-drop" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">✅ Refilled (&gt;90%)</div><div class="tog-sub">Notify when refill completes</div></div><label class="toggle"><input type="checkbox" id="t-fill" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">💧 Full Tank (isFull)</div><div class="tog-sub">Sensor reads ≤10 cm</div></div><label class="toggle"><input type="checkbox" id="t-full" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">🔊 Sound Alerts</div><div class="tog-sub">Audio tones for critical/full events</div></div><label class="toggle"><input type="checkbox" id="t-sound" checked><div class="tslider"></div></label></div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">Alert Log<button class="btn btn-d btn-sm" style="padding:4px 10px;font-size:10px" onclick="clearAlerts()">CLEAR</button></div>
+      <div id="alertLog"><div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div></div>
+    </div>
+  </div>
 
-      <!-- Tank -->
-      <div class="tank-section">
-        <div class="tank-label">Tank Level Monitor</div>
-        <div class="tank-outer" id="tank-outer">
-          <!-- SVG Tank -->
-          <svg class="tank-body" viewBox="0 0 200 340" xmlns="http://www.w3.org/2000/svg" width="200" height="340">
-            <defs>
-              <!-- Tank clip path -->
-              <clipPath id="tankClip">
-                <rect x="18" y="20" width="164" height="296" rx="14" ry="14"/>
-              </clipPath>
-              <!-- Water gradient -->
-              <linearGradient id="waterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#2DD4BF" stop-opacity="0.95"/>
-                <stop offset="100%" stop-color="#0891b2" stop-opacity="0.85"/>
-              </linearGradient>
-              <!-- Tank body gradient -->
-              <linearGradient id="tankGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#0f2040" stop-opacity="1"/>
-                <stop offset="50%" stop-color="#0a1628" stop-opacity="1"/>
-                <stop offset="100%" stop-color="#0f2040" stop-opacity="1"/>
-              </linearGradient>
-              <!-- Chart gradient -->
-              <linearGradient id="chartGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#2DD4BF" stop-opacity="0.5"/>
-                <stop offset="100%" stop-color="#2DD4BF" stop-opacity="0"/>
-              </linearGradient>
-              <!-- Highlight -->
-              <linearGradient id="hlGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="white" stop-opacity="0.07"/>
-                <stop offset="50%" stop-color="white" stop-opacity="0.13"/>
-                <stop offset="100%" stop-color="white" stop-opacity="0.03"/>
-              </linearGradient>
-              <!-- Glow filter -->
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="3" result="blur"/>
-                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-              </filter>
-              <!-- Wave paths -->
-            </defs>
-
-            <!-- Tank bg -->
-            <rect x="18" y="20" width="164" height="296" rx="14" ry="14" fill="url(#tankGrad)" stroke="rgba(45,212,191,0.25)" stroke-width="1.5"/>
-
-            <!-- Water fill (clipped) -->
-            <g clip-path="url(#tankClip)">
-              <!-- Water rect - will be animated by JS -->
-              <rect id="water-rect" x="18" y="220" width="164" height="96" fill="url(#waterGrad)" class="water-fill"/>
-              <!-- Wave 1 -->
-              <g id="wave-group">
-                <path id="wave1" fill="rgba(45,212,191,0.6)" class="wave-path"/>
-                <path id="wave2" fill="rgba(6,182,212,0.4)" class="wave-path2"/>
-              </g>
-            </g>
-
-            <!-- Tank outline over water -->
-            <rect x="18" y="20" width="164" height="296" rx="14" ry="14" fill="none" stroke="rgba(45,212,191,0.35)" stroke-width="1.5"/>
-            <!-- Highlight shine -->
-            <rect x="24" y="26" width="40" height="284" rx="8" ry="8" fill="url(#hlGrad)"/>
-
-            <!-- Level markers -->
-            <line x1="12" y1="95"  x2="22" y2="95"  stroke="rgba(45,212,191,0.4)" stroke-width="1"/>
-            <line x1="12" y1="168" x2="22" y2="168" stroke="rgba(45,212,191,0.4)" stroke-width="1"/>
-            <line x1="12" y1="242" x2="22" y2="242" stroke="rgba(45,212,191,0.4)" stroke-width="1"/>
-            <text x="8" y="99"  font-size="7" fill="rgba(45,212,191,0.5)" text-anchor="middle" font-family="Orbitron">75</text>
-            <text x="8" y="172" font-size="7" fill="rgba(45,212,191,0.5)" text-anchor="middle" font-family="Orbitron">50</text>
-            <text x="8" y="246" font-size="7" fill="rgba(45,212,191,0.5)" text-anchor="middle" font-family="Orbitron">25</text>
-
-            <!-- Pipe top -->
-            <rect x="84" y="2" width="32" height="22" rx="4" ry="4" fill="rgba(45,212,191,0.12)" stroke="rgba(45,212,191,0.3)" stroke-width="1"/>
-            <!-- Outlet bottom -->
-            <rect x="72" y="314" width="56" height="16" rx="4" ry="4" fill="rgba(45,212,191,0.12)" stroke="rgba(45,212,191,0.3)" stroke-width="1"/>
-            <!-- Bottom cap -->
-            <rect x="18" y="308" width="164" height="8" rx="0" ry="0" fill="rgba(45,212,191,0.15)" clip-path="url(#tankClip)"/>
-          </svg>
-
-          <!-- Droplet container overlaid on the tank -->
-          <div class="droplet-container" id="droplet-container"></div>
-
-          <!-- Percentage overlay -->
-          <div class="tank-pct-overlay">
-            <div class="tank-pct-num" id="tank-pct">--</div>
-            <div class="tank-pct-sym">% FULL</div>
-            <div class="tank-status-badge normal" id="tank-badge">NORMAL</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Stats Grid -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon">💧</div>
-          <div class="stat-label">Distance</div>
-          <div class="stat-value cyan" id="stat-dist">--<span class="stat-unit">cm</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">📊</div>
-          <div class="stat-label">Volume</div>
-          <div class="stat-value cyan" id="stat-vol">--<span class="stat-unit">L</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">🌡️</div>
-          <div class="stat-label">Temperature</div>
-          <div class="stat-value" id="stat-temp">--<span class="stat-unit">°C</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">📶</div>
-          <div class="stat-label">RSSI</div>
-          <div class="stat-value" id="stat-rssi">--<span class="stat-unit">dBm</span></div>
-        </div>
-      </div>
-
-      <!-- Mini History Chart -->
-      <div class="chart-wrap">
-        <div class="section-title">Level History</div>
-        <div class="mini-chart">
-          <svg width="100%" height="80" viewBox="0 0 400 80" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="chartGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#2DD4BF" stop-opacity="0.35"/>
-                <stop offset="100%" stop-color="#2DD4BF" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <path id="chart-area" class="chart-area" fill="url(#chartGrad2)"/>
-            <path id="chart-line" class="chart-line" d=""/>
-          </svg>
-        </div>
-      </div>
-
-      <!-- Alert History -->
-      <div class="section-title">Recent Alerts</div>
-      <div class="alert-list" id="alert-list">
-        <div class="alert-item">
-          <div class="alert-dot info"></div>
-          <div class="alert-msg">Waiting for first data...</div>
-          <div class="alert-time">--:--</div>
-        </div>
+  <!-- SETTINGS -->
+  <div class="tab" id="tab-settings">
+    <div class="card">
+      <div class="acc-h" onclick="toggleAcc(this)"><span>📡 WiFi — Send to Device</span><span class="acc-arr">▾</span></div>
+      <div class="acc-b">
+        <div class="form-grp"><label class="form-lbl">ESP32 IP Address</label><input class="form-in" id="c-ip" type="text" placeholder="192.168.1.100"></div>
+        <div class="form-grp"><label class="form-lbl">WiFi SSID</label><input class="form-in" id="c-ssid" type="text"></div>
+        <div class="form-grp"><label class="form-lbl">WiFi Password</label><input class="form-in" id="c-pass" type="password"></div>
+        <button class="btn btn-p btn-full" onclick="saveWifi()">Send WiFi to Device</button>
       </div>
     </div>
-
-    <!-- ===== SETTINGS PANEL ===== -->
-    <div class="panel" id="panel-settings">
-      <div class="settings-section">
-        <h3>🔗 MQTT Connection</h3>
-        <div class="field-group">
-          <label class="field-label">Broker Host</label>
-          <input class="field-input" id="c-host" type="text" autocomplete="off" spellcheck="false">
-        </div>
-        <div class="field-group">
-          <label class="field-label">Port</label>
-          <input class="field-input" id="c-port" type="number">
-        </div>
-        <div class="field-group">
-          <label class="field-label">Username</label>
-          <input class="field-input" id="c-user" type="text" autocomplete="off">
-        </div>
-        <div class="field-group">
-          <label class="field-label">Password</label>
-          <input class="field-input" id="c-pass" type="password">
-        </div>
-        <div class="field-group">
-          <label class="field-label">Topic</label>
-          <input class="field-input" id="c-topic" type="text">
-        </div>
-        <div class="field-group">
-          <label class="field-label">Device ID</label>
-          <input class="field-input" id="c-devid" type="text">
-        </div>
-        <button class="btn-primary" onclick="saveCredentials()">💾 SAVE & RECONNECT</button>
-      </div>
-
-      <div class="settings-section">
-        <h3>🔔 Notifications & Sound</h3>
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-title">Sound Alerts</div>
-            <div class="toggle-desc">Play audio when level is critical or full</div>
-          </div>
-          <div class="toggle on" id="tog-sound" onclick="toggleSetting('sound')"></div>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-title">Push Notifications</div>
-            <div class="toggle-desc">Browser notifications for alerts</div>
-          </div>
-          <div class="toggle on" id="tog-push" onclick="toggleSetting('push')"></div>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-title">Droplet Animation</div>
-            <div class="toggle-desc">Animated droplets when filling</div>
-          </div>
-          <div class="toggle on" id="tog-drops" onclick="toggleSetting('drops')"></div>
-        </div>
-        <div class="field-group" style="margin-top:14px">
-          <label class="field-label">Low Level Threshold (%)</label>
-          <input class="field-input" id="c-low-thresh" type="number" min="5" max="40" value="20">
-        </div>
-        <div class="field-group">
-          <label class="field-label">Full Level Threshold (%)</label>
-          <input class="field-input" id="c-high-thresh" type="number" min="80" max="100" value="95">
-        </div>
-        <button class="btn-primary" onclick="saveAlertSettings()" style="margin-top:4px">💾 SAVE SETTINGS</button>
-      </div>
-
-      <div class="settings-section">
-        <h3>ℹ️ Device Info</h3>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-title">Firmware</div></div>
-          <div style="font-family:'Orbitron',monospace;font-size:0.75rem;color:var(--cyan)" id="fw-ver">--</div>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-title">Device ID</div></div>
-          <div style="font-family:'Orbitron',monospace;font-size:0.75rem;color:var(--cyan)" id="info-devid">--</div>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-title">Uptime</div></div>
-          <div style="font-family:'Orbitron',monospace;font-size:0.75rem;color:var(--muted)" id="info-uptime">--</div>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-title">IP Address</div></div>
-          <div style="font-family:'Orbitron',monospace;font-size:0.75rem;color:var(--muted)" id="info-ip">--</div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h3>⚠️ Danger Zone</h3>
-        <button class="btn-danger" onclick="clearAllData()">🗑️ Clear All Data & Reset</button>
+    <div class="card">
+      <div class="acc-h" onclick="toggleAcc(this)"><span>✈️ Telegram Bot</span><span class="acc-arr">▾</span></div>
+      <div class="acc-b">
+        <div class="form-grp"><label class="form-lbl">Bot Token</label><input class="form-in" id="c-tgtoken" type="text" placeholder="1234567890:ABCDEF..."></div>
+        <div class="form-grp"><label class="form-lbl">Chat ID</label><input class="form-in" id="c-tgchat" type="text" placeholder="-1001234567890"></div>
+        <button class="btn btn-p btn-full" onclick="saveTelegram()">Save Telegram to Device</button>
       </div>
     </div>
-
-    <!-- ===== ALERTS PANEL ===== -->
-    <div class="panel" id="panel-alerts">
-      <div class="section-title">All Alerts</div>
-      <div class="alert-list" id="alert-list-full">
-        <div class="alert-item">
-          <div class="alert-dot info"></div>
-          <div class="alert-msg">No alerts yet.</div>
-          <div class="alert-time">--:--</div>
+    <div class="card">
+      <div class="acc-h" onclick="toggleAcc(this)"><span>📏 Sensor Calibration</span><span class="acc-arr">▾</span></div>
+      <div class="acc-b">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.55">Distance sensor reads from TOP down to water surface. Set measured distances when tank is fully empty and fully full.</p>
+        <div class="form-row">
+          <div class="form-grp"><label class="form-lbl">Empty (cm)</label><input class="form-in" id="c-empty" type="number" placeholder="125"></div>
+          <div class="form-grp"><label class="form-lbl">Full (cm)</label><input class="form-in" id="c-full" type="number" placeholder="10"></div>
         </div>
+        <div class="form-grp"><label class="form-lbl">Tank Capacity (L)</label><input class="form-in" id="c-vol" type="number" placeholder="1000"></div>
+        <div class="form-grp"><label class="form-lbl">Tank Name</label><input class="form-in" id="c-tname" type="text" placeholder="Main Tank"></div>
+        <button class="btn btn-o btn-full" style="margin-bottom:8px" onclick="captureEmpty()">📷 Capture Current as EMPTY</button>
+        <button class="btn btn-p btn-full" onclick="saveCalib()">Save Calibration to Device</button>
       </div>
     </div>
+    <div class="card">
+      <div class="acc-h" onclick="toggleAcc(this)"><span>📊 Google Sheets</span><span class="acc-arr">▾</span></div>
+      <div class="acc-b">
+        <div class="form-grp"><label class="form-lbl">Deployment ID</label><input class="form-in" id="c-shid" type="text" placeholder="AKfycbx..."></div>
+        <div class="form-grp"><label class="form-lbl">Sheet Name</label><input class="form-in" id="c-shname" type="text" placeholder="WaterLogs"></div>
+        <div class="tog-row" style="margin-top:4px"><div><div class="tog-lbl">Enable Auto-Sync</div><div class="tog-sub">Upload data every hour</div></div><label class="toggle"><input type="checkbox" id="c-shenable"><div class="tslider"></div></label></div>
+        <button class="btn btn-p btn-full" style="margin-top:12px" onclick="saveSheets()">Save Sheets to Device</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="acc-h" onclick="toggleAcc(this)"><span>🌐 MQTT Remote Broker</span><span class="acc-arr">▾</span></div>
+      <div class="acc-b">
+        <div class="info-box"><strong>ESP32 topic:</strong> <code style="color:var(--ok)">tasni-water/{deviceID}/state</code><br>Port on device: <strong>8883 (TLS)</strong>. Browser connects via WebSocket.</div>
+        <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="c-mqb" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com"></div>
+        <div class="form-row">
+          <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp" type="number" placeholder="8084"></div>
+          <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser" type="text"></div>
+        </div>
+        <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="c-mqpass" type="password"></div>
+        <div class="form-grp"><label class="form-lbl">Topic (blank = wildcard)</label><input class="form-in" id="c-mqtopic" type="text" placeholder="tasni-water/+/state"></div>
+        <button class="btn btn-p btn-full" onclick="saveMQTT()">Connect MQTT</button>
+        <button class="btn btn-d btn-full" style="margin-top:8px" onclick="disconnMQTT()">Disconnect MQTT</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;padding:6px 0 16px">
+      <button class="btn btn-o btn-sm" style="flex:1" onclick="document.getElementById('connModal').classList.remove('hidden')">🔄 Reconnect</button>
+      <button class="btn btn-d btn-sm" style="flex:1" onclick="resetApp()">🗑 Clear All Data</button>
+    </div>
+  </div>
 
-  </div><!-- /content -->
+  <!-- TIPS -->
+  <div class="tab" id="tab-tips">
+    <div class="tip-hero">
+      <div class="tip-cat" id="tipCat">CONSERVATION</div>
+      <div class="tip-txt" id="tipTxt">Loading…</div>
+      <button class="btn btn-o btn-sm" style="margin-top:14px" onclick="nextTip()">Next Tip →</button>
+    </div>
+    <div class="sec-hd">ALL TIPS</div>
+    <div id="allTips"></div>
+    <div class="sec-hd" style="margin-top:18px">ACHIEVEMENTS</div>
+    <div class="ach-grid" id="achGrid"></div>
+  </div>
+</main>
 
-  <!-- Bottom Nav -->
-  <nav class="bottom-nav">
-    <button class="nav-item active" id="nav-dashboard" onclick="switchPanel('dashboard')">
-      <span class="nav-icon">🌊</span>Dashboard
-    </button>
-    <button class="nav-item" id="nav-alerts" onclick="switchPanel('alerts')">
-      <span class="nav-icon">🔔</span>Alerts
-    </button>
-    <button class="nav-item" id="nav-settings" onclick="switchPanel('settings')">
-      <span class="nav-icon">⚙️</span>Settings
-    </button>
-  </nav>
-</div><!-- /app -->
-
-<!-- MQTT.js from CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+<nav>
+  <button class="nb active" id="nb-dashboard" onclick="goTab('dashboard',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span class="nb-lbl">Tank</span>
+  </button>
+  <button class="nb" id="nb-analytics" onclick="goTab('analytics',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span class="nb-lbl">Analytics</span>
+  </button>
+  <button class="nb" id="nb-alerts" onclick="goTab('alerts',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+    <div class="nb-badge hidden" id="alertBadge">0</div>
+    <span class="nb-lbl">Alerts</span>
+  </button>
+  <button class="nb" id="nb-settings" onclick="goTab('settings',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    <span class="nb-lbl">Settings</span>
+  </button>
+  <button class="nb" id="nb-tips" onclick="goTab('tips',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    <span class="nb-lbl">Tips</span>
+  </button>
+</nav>
 
 <script>
-// ===================================================
-// STATE
-// ===================================================
-const STORAGE_KEY = 'tasni_wm_config';
-const ALERTS_KEY  = 'tasni_wm_alerts';
-let mqttClient = null;
-let levelHistory = [];
-let allAlerts = [];
-let currentLevel = 0;
-let settings = {};
-let audioCtx = null;
-let dropletInterval = null;
-let reconnectTimer = null;
-let lastAlertLevel = -1;
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+const CFG_KEY='tasni_cfg';
+let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'{}');
+const S={m:0,vol:0,total:1000,s:'Offline',dist:0,t:'',usage:0,up:0,rssi:0,boot:0,isFull:0,name:'Main Tank',history:Array(24).fill(0),connected:false,lastUpdate:null};
+let alerts=JSON.parse(localStorage.getItem('tasni_alerts')||'[]');
+let unread=0,demoMode=false,pollingTimer=null,mqttClient=null,chart=null,tipIdx=0,audioCtx=null;
+// MQTT keep-alive state
+let _mqttCfg=null,_hbTimer=null,_wdTimer=null,_lastAck=0,_silent=false;
 
-// ===================================================
-// INIT
-// ===================================================
-window.addEventListener('load', () => {
-  loadSettings();
-  const cfg = loadConfig();
-  if (!cfg) {
-    document.getElementById('setup-overlay').style.display = 'flex';
+// ═══════════════════════════════════════════
+//  TIPS & ACHIEVEMENTS
+// ═══════════════════════════════════════════
+const TIPS=[
+  {cat:'CONSERVATION',txt:'A dripping tap wastes up to 15 liters per day. Check all taps and fittings regularly.'},
+  {cat:'SAVINGS',txt:'Rainwater harvesting can reduce your water bill by 30%. A collection barrel makes a big difference.'},
+  {cat:'HABIT',txt:'Shorter showers save up to 10 liters per minute. Aim for under 5 minutes.'},
+  {cat:'GARDEN',txt:'Water plants early morning or late evening — evaporation is 30% lower than at midday.'},
+  {cat:'LEAKS',txt:'A leaking toilet wastes 200 liters daily without you noticing. Listen for running water after flushing.'},
+  {cat:'HABIT',txt:'Turning off the tap while brushing teeth saves 6 liters per minute.'},
+  {cat:'SAVINGS',txt:'Small changes add up to 50,000 liters saved per person annually.'},
+  {cat:'GARDEN',txt:'Mulching around plants reduces soil evaporation by up to 70%.'},
+  {cat:'LEAKS',txt:'Hidden leaks account for 12% of water usage. Check meter readings overnight to spot them.'},
+  {cat:'APPLIANCES',txt:'A dishwasher uses 6× less water than hand washing when run full.'},
+  {cat:'HABIT',txt:'Sweeping driveways instead of hosing saves over 300 liters per clean.'},
+  {cat:'SAVINGS',txt:'Greywater recycling systems can reclaim 30–50% of household water.'},
+  {cat:'APPLIANCES',txt:'Washing machines should always run full loads — never run half loads.'},
+  {cat:'GARDEN',txt:'Collected rainwater is free, chemical-free, and naturally soft — perfect for plants.'},
+  {cat:'CONSERVATION',txt:'Every drop you save helps ensure water availability for future generations.'},
+];
+const ACHIEVEMENTS=[
+  {icon:'💧',name:'First Drop',desc:'Started monitoring'},
+  {icon:'📊',name:'Analyst',desc:'Viewed analytics'},
+  {icon:'🔔',name:'Alert Ready',desc:'Notifications on'},
+  {icon:'☁️',name:'Cloud Sync',desc:'MQTT connected'},
+  {icon:'⚙️',name:'Configured',desc:'Settings saved'},
+  {icon:'🌱',name:'Eco Warrior',desc:'Read all tips'},
+];
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+window.addEventListener('load',()=>{
+  loadFormValues(); initChart(); renderTips(); renderAchievements(); renderAlertLog(); checkNotifPerm();
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  unlockAch(0);
+  if(!cfg.ip&&!cfg.broker){
+    document.getElementById('connModal').classList.remove('hidden');
   } else {
-    dismissSetup();
-    populateSettingsForm(cfg);
-    connectMQTT(cfg);
+    document.getElementById('connModal').classList.add('hidden');
+    startConnections();
   }
-  loadAlerts();
-  renderAlerts();
-
-  // Request notification permission
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
-
-  // Register service worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
-
-  startDroplets();
+  document.addEventListener('touchstart',()=>{if(!audioCtx)getAudioCtx();},{once:true});
+  document.addEventListener('click',()=>{if(!audioCtx)getAudioCtx();},{once:true});
+  requestWakeLock();
 });
 
-// ===================================================
-// CONFIG STORAGE
-// ===================================================
-function loadConfig() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+// ═══════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════
+function saveCfg(u){Object.assign(cfg,u);localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+function loadFormValues(){
+  const sv=(id,v)=>{if(v!=null&&v!==''&&document.getElementById(id))document.getElementById(id).value=v;};
+  sv('s-ip',cfg.ip);sv('s-broker',cfg.broker);sv('s-port',cfg.port||8084);
+  sv('s-mquser',cfg.mquser);sv('s-name',cfg.tankName||'Main Tank');sv('s-topic',cfg.topic||'');
+  sv('c-ip',cfg.ip);sv('c-ssid',cfg.ssid);sv('c-tgtoken',cfg.tgToken);sv('c-tgchat',cfg.tgChat);
+  sv('c-empty',cfg.emptyDist||125);sv('c-full',cfg.fullDist||10);sv('c-vol',cfg.volume||1000);sv('c-tname',cfg.tankName||'Main Tank');
+  sv('c-shid',cfg.sheetsId);sv('c-shname',cfg.sheetsName);sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8084);
+  sv('c-mquser',cfg.mquser);sv('c-mqtopic',cfg.topic||'');
+  if(cfg.tankName)document.getElementById('tankNameLbl').textContent=cfg.tankName.toUpperCase();
 }
 
-function saveConfig(cfg) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+// ═══════════════════════════════════════════
+//  CONNECTIONS
+// ═══════════════════════════════════════════
+function applySetup(){
+  const ip=g('s-ip'),broker=g('s-broker'),port=parseInt(g('s-port'))||8084;
+  const mquser=g('s-mquser'),mqpass=g('s-mqpass'),name=g('s-name')||'Main Tank';
+  const topic=g('s-topic')||'tasni-water/+/state';
+  saveCfg({ip,broker,port,mquser,mqpass,tankName:name,topic});
+  document.getElementById('tankNameLbl').textContent=name.toUpperCase();
+  document.getElementById('connModal').classList.add('hidden');
+  startConnections();
+}
+function useDemoMode(){
+  demoMode=true;
+  document.getElementById('connModal').classList.add('hidden');
+  document.getElementById('demoBanner').classList.remove('hidden');
+  startDemo();
+}
+function startConnections(){
+  demoMode=false;
+  document.getElementById('demoBanner').classList.add('hidden');
+  if(cfg.ip) startPoll(cfg.ip);
+  if(cfg.broker) _connectMQTT({host:cfg.broker,port:cfg.port||8084,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
 }
 
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem('tasni_wm_settings');
-    const def = { sound: true, push: true, drops: true, lowThresh: 20, highThresh: 95 };
-    settings = raw ? { ...def, ...JSON.parse(raw) } : def;
-  } catch {
-    settings = { sound: true, push: true, drops: true, lowThresh: 20, highThresh: 95 };
-  }
-  applySettingsUI();
+// ═══════════════════════════════════════════
+//  LOCAL WIFI POLL
+// ═══════════════════════════════════════════
+function startPoll(ip){
+  if(pollingTimer)clearInterval(pollingTimer);
+  fetchSensor(ip);
+  pollingTimer=setInterval(()=>fetchSensor(ip),2500);
+}
+async function fetchSensor(ip){
+  try{
+    const r=await fetch(`http://${ip}/sensor-reading`,{signal:AbortSignal.timeout(3000)});
+    if(!r.ok)throw new Error();
+    const d=await r.json();
+    setChip('chip-local',true); ingest(d,false);
+  }catch{setChip('chip-local',false);}
+  updatePill();
 }
 
-function saveSettings() {
-  localStorage.setItem('tasni_wm_settings', JSON.stringify(settings));
-}
+// ═══════════════════════════════════════════
+//  MQTT — ALWAYS-ALIVE ENGINE
+// ═══════════════════════════════════════════
+function _connectMQTT(mc){_mqttCfg=mc;_silent=false;_doConnect(mc);}
 
-function loadAlerts() {
-  try {
-    const raw = localStorage.getItem(ALERTS_KEY);
-    allAlerts = raw ? JSON.parse(raw) : [];
-  } catch { allAlerts = []; }
-}
-
-function pushAlert(msg, type) {
-  const ts = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  const alert = { msg, type, ts, time: Date.now() };
-  allAlerts.unshift(alert);
-  if (allAlerts.length > 50) allAlerts = allAlerts.slice(0, 50);
-  localStorage.setItem(ALERTS_KEY, JSON.stringify(allAlerts));
-  renderAlerts();
-  showToast(msg, type);
-  if (settings.sound) playAlertSound(type);
-  if (settings.push) sendPushNotification(msg, type);
-}
-
-// ===================================================
-// SETUP FLOW
-// ===================================================
-function saveSetup() {
-  const host  = document.getElementById('s-host').value.trim();
-  const port  = parseInt(document.getElementById('s-port').value) || 8084;
-  const user  = document.getElementById('s-user').value.trim();
-  const pass  = document.getElementById('s-pass').value;
-  const topic = document.getElementById('s-topic').value.trim();
-  const devid = document.getElementById('s-devid').value.trim() || 'E2A4';
-
-  if (!host) { showToast('Enter broker hostname', 'warn'); return; }
-  if (!user) { showToast('Enter username', 'warn'); return; }
-
-  const cfg = { host, port, user, pass, topic: topic || `tasni-water/${devid}/state`, devid };
-  saveConfig(cfg);
-  dismissSetup();
-  populateSettingsForm(cfg);
-  document.getElementById('hdr-device-id').textContent = `DEV-${devid}`;
-  connectMQTT(cfg);
-}
-
-function dismissSetup() {
-  const el = document.getElementById('setup-overlay');
-  el.classList.add('hidden');
-  setTimeout(() => el.style.display = 'none', 400);
-}
-
-// ===================================================
-// SETTINGS FORM
-// ===================================================
-function populateSettingsForm(cfg) {
-  document.getElementById('c-host').value  = cfg.host  || '';
-  document.getElementById('c-port').value  = cfg.port  || 8084;
-  document.getElementById('c-user').value  = cfg.user  || '';
-  document.getElementById('c-pass').value  = cfg.pass  || '';
-  document.getElementById('c-topic').value = cfg.topic || '';
-  document.getElementById('c-devid').value = cfg.devid || '';
-  document.getElementById('hdr-device-id').textContent = `DEV-${cfg.devid || '????'}`;
-  document.getElementById('info-devid').textContent = cfg.devid || '--';
-}
-
-function saveCredentials() {
-  const cfg = {
-    host:  document.getElementById('c-host').value.trim(),
-    port:  parseInt(document.getElementById('c-port').value) || 8084,
-    user:  document.getElementById('c-user').value.trim(),
-    pass:  document.getElementById('c-pass').value,
-    topic: document.getElementById('c-topic').value.trim(),
-    devid: document.getElementById('c-devid').value.trim(),
-  };
-  saveConfig(cfg);
-  _silentReconn = false;
-  _doConnect(cfg);
-  showToast('Credentials saved & reconnecting...', 'success');
-}
-
-function saveAlertSettings() {
-  settings.lowThresh  = parseInt(document.getElementById('c-low-thresh').value)  || 20;
-  settings.highThresh = parseInt(document.getElementById('c-high-thresh').value) || 95;
-  saveSettings();
-  showToast('Alert settings saved!', 'success');
-}
-
-function applySettingsUI() {
-  ['sound','push','drops'].forEach(k => {
-    const el = document.getElementById(`tog-${k}`);
-    if (el) el.className = `toggle ${settings[k] ? 'on' : ''}`;
-  });
-  const lt = document.getElementById('c-low-thresh');
-  const ht = document.getElementById('c-high-thresh');
-  if (lt) lt.value = settings.lowThresh;
-  if (ht) ht.value = settings.highThresh;
-}
-
-function toggleSetting(key) {
-  settings[key] = !settings[key];
-  saveSettings();
-  applySettingsUI();
-  if (key === 'drops') {
-    settings.drops ? startDroplets() : stopDroplets();
+function _doConnect(mc){
+  if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
+  clearInterval(_hbTimer);clearTimeout(_wdTimer);
+  setChip('chip-mqtt',false);updatePill();
+  const rawHost=(mc.host||'').replace(/^wss?:\/\//,'');
+  const proto=(mc.port===8084||mc.port===443||mc.port===8083)?'wss':'ws';
+  const url=`${proto}://${rawHost}:${mc.port}/mqtt`;
+  const cid=`tasni_web_${Date.now().toString(36)}`;
+  try{
+    mqttClient=mqtt.connect(url,{clientId:cid,username:mc.user||undefined,password:mc.pass||undefined,keepalive:25,reconnectPeriod:3000,connectTimeout:12000,clean:true});
+    mqttClient.on('connect',()=>{
+      _lastAck=Date.now();
+      const t=mc.topic||'tasni-water/+/state';
+      mqttClient.subscribe(t,{qos:1});
+      setChip('chip-mqtt',true);updatePill();unlockAch(3);
+      if(!_silent){push('ai','☁️ MQTT connected to '+rawHost);showToast('MQTT connected!','ok');}
+      else{showToast('🔄 Reconnected','ok',2000);}
+      _silent=true;
+      _startHB(mc);
+    });
+    mqttClient.on('message',(_t,pl)=>{
+      _lastAck=Date.now();
+      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT JSON:',e);}
+    });
+    mqttClient.on('reconnect',()=>{setChip('chip-mqtt',false);updatePill();});
+    mqttClient.on('close',()=>{setChip('chip-mqtt',false);updatePill();});
+    mqttClient.on('offline',()=>{setChip('chip-mqtt',false);updatePill();});
+    mqttClient.on('error',(e)=>{console.warn('MQTT error:',e.message);});
+  }catch(e){
+    setChip('chip-mqtt',false);updatePill();
+    showToast('MQTT init failed: '+e.message,'danger');
+    setTimeout(()=>_mqttCfg&&_doConnect(_mqttCfg),5000);
   }
 }
-
-function clearAllData() {
-  if (!confirm('Clear all saved data and reset the app?')) return;
-  localStorage.clear();
-  location.reload();
+function _startHB(mc){
+  clearInterval(_hbTimer);
+  _hbTimer=setInterval(()=>{
+    if(!mqttClient||!mqttClient.connected)return;
+    mqttClient.publish('tasni-water/web/ping',JSON.stringify({ts:Date.now()}),{qos:0});
+    clearTimeout(_wdTimer);
+    _wdTimer=setTimeout(()=>{
+      if(Date.now()-_lastAck>40000&&_mqttCfg){console.warn('TASNI watchdog: hard reconnect');_doConnect(_mqttCfg);}
+    },40000);
+  },25000);
 }
-
-// ===================================================
-// MQTT — ALWAYS-ALIVE ENGINE
-// ===================================================
-let _mqttCfg       = null;   // cached config for reconnects
-let _heartbeatTimer = null;  // pings broker every 25s
-let _watchdogTimer  = null;  // kills+restarts if no ping-ack in 40s
-let _lastPingAck    = 0;     // timestamp of last successful message/connack
-let _connState      = 'disconnected';
-let _silentReconn   = false; // suppress "Connected" toast on auto-reconnects
-
-function connectMQTT(cfg) {
-  _mqttCfg = cfg;
-  _silentReconn = false;
-  _doConnect(cfg);
-}
-
-function _doConnect(cfg) {
-  // Tear down any existing client cleanly
-  if (mqttClient) {
-    try { mqttClient.end(true); } catch(_) {}
-    mqttClient = null;
+// Reconnect on page visible
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&_mqttCfg){
+    if(!mqttClient||!mqttClient.connected)_doConnect(_mqttCfg);
+    else _startHB(_mqttCfg);
+    requestWakeLock();
   }
-  clearInterval(_heartbeatTimer);
-  clearTimeout(_watchdogTimer);
+});
+window.addEventListener('online',()=>{
+  if(_mqttCfg&&(!mqttClient||!mqttClient.connected)){showToast('📶 Network restored','info',2500);_doConnect(_mqttCfg);}
+});
+async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await navigator.wakeLock.request('screen');}catch(_){}}
 
-  setConnStatus('connecting');
-
-  const proto    = (cfg.port === 8084 || cfg.port === 443) ? 'wss' : 'ws';
-  const url      = `${proto}://${cfg.host}:${cfg.port}/mqtt`;
-  const clientId = `tasni_web_${Date.now().toString(36)}`;
-
-  const opts = {
-    clientId,
-    username:        cfg.user,
-    password:        cfg.pass,
-    keepalive:       25,          // send PINGREQ every 25 s (server sees activity)
-    reconnectPeriod: 3000,        // mqtt.js built-in retry every 3 s
-    connectTimeout:  12000,
-    clean:           true,
-    will: {                       // LWT so broker knows when we drop
-      topic:   cfg.topic + '/status',
-      payload: JSON.stringify({ online: false, client: clientId }),
-      qos:     1,
-      retain:  true,
-    },
-  };
-
-  try {
-    mqttClient = mqtt.connect(url, opts);
-
-    // ── Connected ──────────────────────────────────
-    mqttClient.on('connect', () => {
-      _lastPingAck = Date.now();
-      setConnStatus('connected');
-      mqttClient.subscribe(cfg.topic, { qos: 1 });
-      if (!_silentReconn) {
-        pushAlert(`Connected to ${cfg.host}`, 'info');
-      } else {
-        showToast('🔄 Reconnected automatically', 'success', 2500);
-      }
-      _silentReconn = true;   // all future auto-reconnects are silent
-      _startHeartbeat(cfg);
-    });
-
-    // ── Message received ───────────────────────────
-    mqttClient.on('message', (topic, payload) => {
-      _lastPingAck = Date.now();           // proof broker is alive
-      try {
-        const data = JSON.parse(payload.toString());
-        handlePayload(data);
-      } catch (e) { console.warn('JSON parse error', e); }
-    });
-
-    // ── Reconnecting (built-in mqtt.js retry) ──────
-    mqttClient.on('reconnect', () => {
-      setConnStatus('connecting');
-    });
-
-    // ── Closed / offline ──────────────────────────
-    mqttClient.on('close',   () => { setConnStatus('disconnected'); });
-    mqttClient.on('offline', () => { setConnStatus('disconnected'); });
-
-    // ── Error ─────────────────────────────────────
-    mqttClient.on('error', (e) => {
-      setConnStatus('disconnected');
-      console.warn('MQTT error', e.message);
-      // mqtt.js will retry automatically via reconnectPeriod
-    });
-
-  } catch(e) {
-    setConnStatus('disconnected');
-    showToast('MQTT init failed: ' + e.message, 'danger');
-    // Hard retry after 5 s
-    setTimeout(() => _mqttCfg && _doConnect(_mqttCfg), 5000);
-  }
+// ═══════════════════════════════════════════
+//  MQTT FIELD MAP — firmware publishToCloud()
+//  Fields: device,name,level,volume,status,dist,trend,
+//          usage,empty,full,total,rssi,heap,uptime,
+//          cal,boot,ts,fw,isFull
+// ═══════════════════════════════════════════
+function ingestMQTT(d){
+  ingest({
+    m:    d.level??d.m,       vol:  d.volume??d.vol,
+    total:d.total,            s:    d.status??d.s,
+    dist: d.dist,             t:    d.trend??d.t,
+    usage:d.usage,            up:   d.uptime??d.up,
+    rssi: d.rssi,             boot: d.boot,
+    isFull:d.isFull,          name: d.name,
+  },true);
+}
+function setChip(id,on){document.getElementById(id).classList.toggle('on',on);}
+function updatePill(){
+  const lc=document.getElementById('chip-local').classList.contains('on');
+  const mc=document.getElementById('chip-mqtt').classList.contains('on');
+  const pill=document.getElementById('connPill');
+  pill.className='conn-pill';
+  if(lc&&mc)    {pill.classList.add('pill-both'); document.getElementById('connLbl').textContent='BOTH';}
+  else if(lc)   {pill.classList.add('pill-local');document.getElementById('connLbl').textContent='LOCAL';}
+  else if(mc)   {pill.classList.add('pill-mqtt'); document.getElementById('connLbl').textContent='MQTT';}
+  else if(demoMode){pill.classList.add('pill-demo');document.getElementById('connLbl').textContent='DEMO';}
+  else          {document.getElementById('connLbl').textContent='OFFLINE';}
 }
 
-// ── Heartbeat: publish a tiny ping every 25 s ──────────────────────────────
-// If we get no ack within 40 s (broker silently dropped us) → hard reconnect
-function _startHeartbeat(cfg) {
-  clearInterval(_heartbeatTimer);
-  clearTimeout(_watchdogTimer);
-
-  _heartbeatTimer = setInterval(() => {
-    if (!mqttClient || !mqttClient.connected) return;
-
-    // Publish a small keepalive to our own topic (ignored by firmware)
-    mqttClient.publish(
-      `tasni-water/${cfg.devid || 'web'}/ping`,
-      JSON.stringify({ ts: Date.now() }),
-      { qos: 0, retain: false },
-    );
-
-    // Watchdog: if 40 s pass with zero incoming traffic → hard reconnect
-    clearTimeout(_watchdogTimer);
-    _watchdogTimer = setTimeout(() => {
-      const gap = Date.now() - _lastPingAck;
-      if (gap > 40000 && _mqttCfg) {
-        console.warn('TASNI watchdog: no broker ack in 40s — hard reconnect');
-        setConnStatus('connecting');
-        _doConnect(_mqttCfg);
-      }
-    }, 40000);
-
-  }, 25000);
+// ═══════════════════════════════════════════
+//  DATA INGEST
+// ═══════════════════════════════════════════
+function ingest(d,fromMQTT=false){
+  const prev=S.m;
+  if(d.m     !=null)S.m     =parseInt(d.m);
+  if(d.vol   !=null)S.vol   =parseFloat(d.vol);
+  if(d.total !=null)S.total =parseFloat(d.total);
+  if(d.s     !=null)S.s     =d.s;
+  if(d.dist  !=null)S.dist  =parseFloat(d.dist);
+  if(d.t     !=null)S.t     =d.t;
+  if(d.usage !=null)S.usage =parseFloat(d.usage);
+  if(d.up    !=null)S.up    =parseInt(d.up);
+  if(d.rssi  !=null)S.rssi  =parseInt(d.rssi);
+  if(d.boot  !=null)S.boot  =parseInt(d.boot);
+  if(d.isFull!=null)S.isFull=parseInt(d.isFull);
+  if(d.name  !=null)S.name  =d.name;
+  if(!fromMQTT){S.history.shift();S.history.push(S.m);}
+  S.connected=true;S.lastUpdate=new Date();
+  checkAlerts(prev,S.m,S.isFull);
+  renderDash();renderChart();renderAnalytics();
 }
 
-// ── Page Visibility API: reconnect immediately when tab/app comes back ──────
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    const cfg = _mqttCfg || loadConfig();
-    if (!cfg) return;
-    const isLive = mqttClient && mqttClient.connected;
-    if (!isLive) {
-      console.log('TASNI: page visible, broker disconnected — reconnecting');
-      _doConnect(cfg);
+// ═══════════════════════════════════════════
+//  ALERT ENGINE
+// ═══════════════════════════════════════════
+function checkAlerts(prev,cur,isFull){
+  if(!prev&&!cur)return;
+  if(prev>=10&&cur<10   &&ck('t-crit'))push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
+  else if(prev>=30&&cur<30&&ck('t-low'))push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
+  if(prev-cur>=10        &&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
+  if(prev<90&&cur>=90    &&ck('t-fill'))push('ai','✅ REFILLED: Tank is now above 90%.');
+  if(!S._wasFull&&isFull===1&&ck('t-full'))push('ai','💧 FULL TANK: Sensor reads water within 10 cm!',true);
+  S._wasFull=isFull===1;
+}
+function push(type,msg,critical=false){
+  const a={type,msg,time:new Date().toISOString()};
+  alerts.unshift(a);if(alerts.length>60)alerts=alerts.slice(0,60);
+  localStorage.setItem('tasni_alerts',JSON.stringify(alerts));
+  unread++;const b=document.getElementById('alertBadge');
+  b.textContent=unread;b.classList.remove('hidden');
+  if(Notification.permission==='granted')new Notification('TASNI Alert',{body:msg,icon:'icon.svg'});
+  showToast(msg,type==='ac'?'danger':type==='aw'?'warn':'info');
+  if(ck('t-sound'))playSound(type,critical);
+}
+function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
+
+// ═══════════════════════════════════════════
+//  SOUND (Web Audio API — no files needed)
+// ═══════════════════════════════════════════
+function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function playSound(type,critical){
+  try{
+    const ctx=getAudioCtx(),t=ctx.currentTime;
+    const play=(freq,start,dur,wave='sine',vol=.18)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type=wave;o.frequency.value=freq;
+      g.gain.setValueAtTime(0,t+start);
+      g.gain.linearRampToValueAtTime(vol,t+start+.02);
+      g.gain.exponentialRampToValueAtTime(.001,t+start+dur);
+      o.start(t+start);o.stop(t+start+dur+.05);
+    };
+    if(type==='ac'||critical){
+      // Critical: urgent descending sawtooth
+      [880,660,440,330].forEach((f,i)=>play(f,i*.2,.18,'sawtooth',.2));
+    } else if(type==='ai'){
+      // Info/refilled: ascending chime
+      [523,659,784,1047].forEach((f,i)=>play(f,i*.13,.25,'sine',.16));
     } else {
-      // Re-arm heartbeat after coming back from background
-      _startHeartbeat(cfg);
+      // Warn: double beep
+      [660,660].forEach((f,i)=>play(f,i*.28,.22,'sine',.2));
+    }
+  }catch(e){console.warn('Audio:',e);}
+}
+
+// ═══════════════════════════════════════════
+//  RENDER DASH — tank level via CSS height
+// ═══════════════════════════════════════════
+function renderDash(){
+  const pct=Math.max(0,Math.min(100,S.m));
+  const fill=document.getElementById('waterFill');
+
+  // ── TANK LEVEL UPDATE ──
+  // Uses CSS `height` on a <div> — this is the fix.
+  // SVG attribute animation (y/height attrs) does NOT work via CSS transition.
+  // div.style.height transitions reliably on all mobile browsers including WebView.
+  fill.style.height=pct+'%';
+
+  // Water colour by level
+  if(S.isFull===1||pct>=100)
+    fill.style.background='linear-gradient(to top,rgba(0,180,120,.95),rgba(0,220,140,.75),rgba(52,211,153,.5))';
+  else if(pct<10)
+    fill.style.background='linear-gradient(to top,rgba(180,30,50,.95),rgba(248,113,113,.6))';
+  else if(pct<30)
+    fill.style.background='linear-gradient(to top,rgba(160,100,0,.95),rgba(251,191,36,.6))';
+  else
+    fill.style.background='linear-gradient(to top,rgba(0,100,200,.95),rgba(0,160,240,.8),rgba(45,212,191,.55))';
+
+  // Level number
+  if(S.isFull===1){
+    set('levelNum','FULL<span class="pct" style="font-size:16px"> TANK</span>');
+  }else{
+    set('levelNum',pct+'<span class="pct">%</span>');
+  }
+  // Progress bar
+  const bar=document.getElementById('lvlBar');
+  bar.style.width=pct+'%';
+  bar.style.background=pct<10?'linear-gradient(90deg,#7a0000,#f87171)':pct<30?'linear-gradient(90deg,#806600,#fbbf24)':'linear-gradient(90deg,var(--purple),var(--pri))';
+
+  set('volL',S.vol.toFixed(0));set('totalVol',S.total);set('distCm',S.dist.toFixed(1));
+  set('usageRate',S.usage.toFixed(1));set('uptimeVal',fmtUp(S.up));
+  set('rssiVal',S.rssi||'--');set('bootVal',S.boot||'--');set('trendLbl',S.t);
+  if(S.name)document.getElementById('tankNameLbl').textContent=S.name.toUpperCase();
+
+  // Status badge
+  const b=document.getElementById('statusBadge');b.className='badge';
+  if(S.isFull===1)    {b.textContent='FULL TANK';b.classList.add('b-full');}
+  else if(!S.connected){b.textContent='OFFLINE';  b.classList.add('b-off');}
+  else if(pct<10)     {b.textContent='CRITICAL';  b.classList.add('b-crit');}
+  else if(pct<30)     {b.textContent='LOW';        b.classList.add('b-low');}
+  else                {b.textContent=S.s||'NORMAL';b.classList.add('b-ok');}
+
+  document.getElementById('estEmpty').textContent=S.usage>0?fmtHrs(S.vol/S.usage):'∞';
+  if(S.lastUpdate)set('updLbl','Updated '+S.lastUpdate.toLocaleTimeString());
+  const pc=document.getElementById('fc-cur');
+  if(pc){
+    pc.textContent=pct+'%';
+    if(S.usage>0){
+      const pph=(S.usage/S.total)*100;
+      document.getElementById('fc-24').textContent=Math.max(0,pct-pph*24).toFixed(0)+'%';
+      document.getElementById('fc-3d').textContent=Math.max(0,pct-pph*72).toFixed(0)+'%';
+      document.getElementById('fc-emp').textContent=fmtHrs(S.vol/S.usage);
     }
   }
-});
-
-// ── Online event: device got WiFi back ──────────────────────────────────────
-window.addEventListener('online', () => {
-  const cfg = _mqttCfg || loadConfig();
-  if (cfg && (!mqttClient || !mqttClient.connected)) {
-    showToast('📶 Network restored — reconnecting', 'info', 2500);
-    _doConnect(cfg);
-  }
-});
-
-// ── Wake Lock: keep screen/CPU alive on supported browsers ──────────────────
-async function requestWakeLock() {
-  if (!('wakeLock' in navigator)) return;
-  try {
-    await navigator.wakeLock.request('screen');
-  } catch(_) {}
-}
-requestWakeLock();
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') requestWakeLock();
-});
-
-function setConnStatus(state) {
-  _connState = state;
-  const dot = document.getElementById('conn-dot');
-  dot.className = 'conn-dot';
-  if (state === 'connected')  dot.classList.add('connected');
-  if (state === 'connecting') dot.classList.add('connecting');
-  // Update header subtitle so user always knows what's happening
-  const sub = document.querySelector('.header-sub');
-  if (sub) {
-    sub.textContent = state === 'connected'
-      ? 'Live · Water Intelligence'
-      : state === 'connecting'
-        ? 'Connecting...'
-        : 'Offline — retrying';
-  }
 }
 
-// ===================================================
-// PAYLOAD HANDLER
-// ===================================================
-function handlePayload(data) {
-  // Accept various field names
-  const level   = data.level   ?? data.percent ?? data.pct        ?? null;
-  const dist    = data.dist    ?? data.distance ?? data.cm         ?? null;
-  const vol     = data.vol     ?? data.volume   ?? data.liters     ?? null;
-  const temp    = data.temp    ?? data.temperature ?? null;
-  const rssi    = data.rssi    ?? data.wifi_rssi   ?? null;
-  const fw      = data.fw      ?? data.firmware    ?? data.version ?? null;
-  const uptime  = data.uptime  ?? null;
-  const ip      = data.ip      ?? null;
-
-  // Update last seen
-  document.getElementById('last-seen-time').textContent =
-    new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-
-  // Update signal
-  if (rssi !== null) updateSignal(rssi);
-
-  // Level
-  if (level !== null) {
-    const pct = Math.max(0, Math.min(100, parseFloat(level)));
-    updateTank(pct);
-    checkAlerts(pct);
-    trackHistory(pct);
-  }
-
-  // Stats
-  if (dist  !== null) setStatEl('stat-dist', Math.round(dist));
-  if (vol   !== null) setStatEl('stat-vol',  parseFloat(vol).toFixed(1));
-  if (temp  !== null) setStatEl('stat-temp', parseFloat(temp).toFixed(1));
-  if (rssi  !== null) {
-    const rssiEl = document.getElementById('stat-rssi');
-    rssiEl.firstChild.textContent = rssi;
-    rssiEl.className = `stat-value ${rssi > -60 ? 'good' : rssi > -75 ? 'warn' : 'danger'}`;
-  }
-
-  // Device info
-  if (fw)     document.getElementById('fw-ver').textContent = fw;
-  if (uptime) document.getElementById('info-uptime').textContent = formatUptime(uptime);
-  if (ip)     document.getElementById('info-ip').textContent = ip;
-}
-
-function setStatEl(id, val) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.firstChild.textContent = val;
-}
-
-function formatUptime(secs) {
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  return `${h}h ${m}m`;
-}
-
-// ===================================================
-// TANK ANIMATION
-// ===================================================
-const TANK_TOP_Y  = 20;
-const TANK_BOT_Y  = 316;
-const TANK_HEIGHT = TANK_BOT_Y - TANK_TOP_Y;  // 296
-
-function updateTank(pct) {
-  currentLevel = pct;
-  document.getElementById('tank-pct').textContent = Math.round(pct);
-
-  // Water rect: y goes down from top as pct decreases
-  const waterH = (pct / 100) * TANK_HEIGHT;
-  const waterY = TANK_BOT_Y - waterH;
-  const rect = document.getElementById('water-rect');
-  rect.setAttribute('y', waterY);
-  rect.setAttribute('height', waterH + 2);
-
-  // Wave paths at water surface
-  updateWaves(waterY, waterH);
-
-  // Badge
-  const badge = document.getElementById('tank-badge');
-  if (pct >= 95) {
-    badge.textContent = 'FULL'; badge.className = 'tank-status-badge full';
-    document.getElementById('tank-pct').style.textShadow = '0 0 30px rgba(45,212,191,0.9)';
-  } else if (pct >= 40) {
-    badge.textContent = 'NORMAL'; badge.className = 'tank-status-badge normal';
-    document.getElementById('tank-pct').style.textShadow = '0 0 30px rgba(52,211,153,0.7)';
-  } else if (pct >= 20) {
-    badge.textContent = 'LOW'; badge.className = 'tank-status-badge low';
-    document.getElementById('tank-pct').style.textShadow = '0 0 30px rgba(251,191,36,0.7)';
-  } else {
-    badge.textContent = 'CRITICAL'; badge.className = 'tank-status-badge critical';
-    document.getElementById('tank-pct').style.textShadow = '0 0 30px rgba(248,113,113,0.7)';
-  }
-}
-
-function updateWaves(waterY, waterH) {
-  if (waterH < 4) {
-    document.getElementById('wave1').setAttribute('d', '');
-    document.getElementById('wave2').setAttribute('d', '');
-    return;
-  }
-  const w1 = buildWavePath(waterY, 8, 0);
-  const w2 = buildWavePath(waterY, 5, Math.PI);
-  document.getElementById('wave1').setAttribute('d', w1);
-  document.getElementById('wave2').setAttribute('d', w2);
-}
-
-function buildWavePath(y, amp, phase) {
-  // Wide enough to animate (2x width)
-  const pts = [];
-  const steps = 24;
-  const segW = 400 / steps;
-  for (let i = 0; i <= steps * 2; i++) {
-    const x = (i / steps) * 200;
-    const dy = amp * Math.sin((i / steps) * Math.PI * 2 + phase);
-    pts.push(`${i === 0 ? 'M' : 'L'} ${x},${y + dy}`);
-  }
-  pts.push(`L 400,${TANK_BOT_Y} L 18,${TANK_BOT_Y} Z`);
-  return pts.join(' ');
-}
-
-// ===================================================
-// DROPLETS
-// ===================================================
-function startDroplets() {
-  if (!settings.drops) return;
-  stopDroplets();
-  dropletInterval = setInterval(spawnDroplet, 600);
-}
-
-function stopDroplets() {
-  if (dropletInterval) { clearInterval(dropletInterval); dropletInterval = null; }
-  document.getElementById('droplet-container').innerHTML = '';
-}
-
-function spawnDroplet() {
-  if (!settings.drops) return;
-  const container = document.getElementById('droplet-container');
-  const drop = document.createElement('div');
-  drop.className = 'drop';
-  const size = 4 + Math.random() * 6;
-  const xPos = 20 + Math.random() * 160; // within tank (18px margin each side)
-  const dur  = 1.2 + Math.random() * 1.4;
-  drop.style.cssText = `
-    width:${size}px; height:${size * 1.4}px;
-    left:${xPos}px; top:10px;
-    animation-duration:${dur}s;
-    animation-delay:${Math.random() * 0.4}s;
-  `;
-  container.appendChild(drop);
-  setTimeout(() => drop.remove(), (dur + 0.5) * 1000);
-}
-
-// ===================================================
-// HISTORY CHART
-// ===================================================
-function trackHistory(pct) {
-  levelHistory.push(pct);
-  if (levelHistory.length > 50) levelHistory.shift();
-  updateChart();
-}
-
-function updateChart() {
-  const pts = levelHistory;
-  if (pts.length < 2) return;
-  const w = 400, h = 80, pad = 4;
-  const xStep = (w - pad * 2) / (pts.length - 1);
-
-  const coords = pts.map((v, i) => {
-    const x = pad + i * xStep;
-    const y = h - pad - ((v / 100) * (h - pad * 2));
-    return [x, y];
+// ═══════════════════════════════════════════
+//  ANALYTICS
+// ═══════════════════════════════════════════
+function renderAnalytics(){
+  const h=S.history;if(!h||h.length<4)return;
+  const q=Math.floor(h.length/4);
+  const segs=[h.slice(0,q),h.slice(q,q*2),h.slice(q*2,q*3),h.slice(q*3)];
+  const vals=segs.map(seg=>seg.reduce((s,v,i)=>i>0&&seg[i-1]>v?s+(seg[i-1]-v):s,0));
+  const mx=Math.max(...vals,1);
+  ['morn','aft','eve','ngt'].forEach((id,i)=>{
+    const l=((vals[i]/100)*S.total).toFixed(0);
+    set('u-'+id,l+' L');
+    document.getElementById('b-'+id).style.width=(vals[i]/mx*100)+'%';
   });
-
-  const linePath  = coords.map((c,i) => `${i?'L':'M'}${c[0]},${c[1]}`).join(' ');
-  const areaPath  = linePath + ` L${coords[coords.length-1][0]},${h} L${pad},${h} Z`;
-
-  document.getElementById('chart-line').setAttribute('d', linePath);
-  document.getElementById('chart-area').setAttribute('d', areaPath);
+}
+function renderChart(){if(!chart)return;chart.data.datasets[0].data=[...S.history];chart.update('none');}
+function renderAlertLog(){
+  const el=document.getElementById('alertLog');
+  if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div>';return;}
+  el.innerHTML=alerts.slice(0,30).map(a=>`
+    <div class="alert-item ${a.type}">
+      <div class="adot"></div>
+      <div><div class="al-msg">${a.msg}</div><div class="al-time">${new Date(a.time).toLocaleString()}</div></div>
+    </div>`).join('');
 }
 
-// ===================================================
-// ALERTS
-// ===================================================
-function checkAlerts(pct) {
-  const low  = settings.lowThresh  || 20;
-  const high = settings.highThresh || 95;
-
-  if (pct <= low && lastAlertLevel !== 'low') {
-    lastAlertLevel = 'low';
-    pushAlert(`⚠️ Low water level: ${Math.round(pct)}%`, 'warn');
-  } else if (pct >= high && lastAlertLevel !== 'high') {
-    lastAlertLevel = 'high';
-    pushAlert(`💧 Tank full: ${Math.round(pct)}%`, 'info');
-  } else if (pct > low + 5 && pct < high - 5) {
-    lastAlertLevel = 'normal';
-  }
+// ═══════════════════════════════════════════
+//  CHART.JS
+// ═══════════════════════════════════════════
+function initChart(){
+  const ctx=document.getElementById('histChart').getContext('2d');
+  const labels=Array.from({length:24},(_,i)=>{const h=new Date();h.setHours(h.getHours()-(23-i));return h.getHours()+':00';});
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{label:'Level %',data:Array(24).fill(0),
+      borderColor:'#2DD4BF',
+      backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,'rgba(45,212,191,.3)');g.addColorStop(1,'rgba(45,212,191,0)');return g;},
+      borderWidth:2,fill:true,tension:.4,pointRadius:2,pointBackgroundColor:'#2DD4BF',pointHoverRadius:5,
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,titleColor:'#2DD4BF',bodyColor:'#cce7ff',callbacks:{label:c=>` ${c.parsed.y.toFixed(0)}% level`}}},
+      scales:{x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},maxTicksLimit:6}},y:{min:0,max:100,grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},callback:v=>v+'%'}}}}
+  });
 }
 
-function renderAlerts() {
-  const list = document.getElementById('alert-list');
-  const listFull = document.getElementById('alert-list-full');
-  const recent = allAlerts.slice(0, 5);
+// ═══════════════════════════════════════════
+//  SETTINGS HANDLERS
+// ═══════════════════════════════════════════
+async function saveWifi(){
+  const ip=g('c-ip'),ssid=g('c-ssid'),password=g('c-pass');
+  saveCfg({ip,ssid});unlockAch(4);
+  if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','✅ WiFi sent to device at '+ip);}catch{push('aw','⚠️ Could not reach device. Saved locally.');}}
+  if(ip)startPoll(ip);
+}
+async function saveTelegram(){
+  const ip=cfg.ip,token=g('c-tgtoken'),chatid=g('c-tgchat');
+  saveCfg({tgToken:token,tgChat:chatid});
+  if(ip&&token){try{await fetch(`http://${ip}/save-telegram`,{method:'POST',body:new URLSearchParams({token,chatid})});push('ai','✅ Telegram saved to device.');}catch{push('aw','⚠️ Settings saved locally.');}}
+}
+async function saveCalib(){
+  const ip=cfg.ip,empty=g('c-empty'),full=g('c-full'),volume=g('c-vol'),name=g('c-tname')||'Main Tank';
+  saveCfg({emptyDist:empty,fullDist:full,volume,tankName:name});
+  S.total=parseFloat(volume)||1000;
+  document.getElementById('tankNameLbl').textContent=name.toUpperCase();
+  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});push('ai','✅ Calibration saved. Empty='+empty+'cm Full='+full+'cm Vol='+volume+'L');}catch{push('aw','⚠️ Calibration saved locally.');}}
+}
+async function captureEmpty(){
+  if(!cfg.ip){push('aw','⚠️ Enter device IP first.');return;}
+  try{const r=await fetch(`http://${cfg.ip}/capture-empty`);const d=await r.json();
+    if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);push('ai','📷 Empty captured: '+d.empty.toFixed(1)+' cm');}
+    else push('aw','⚠️ '+(d.msg||'Sensor error'));
+  }catch{push('aw','⚠️ Could not reach device at '+cfg.ip);}
+}
+async function saveSheets(){
+  const ip=cfg.ip,deploymentid=g('c-shid'),sheetname=g('c-shname'),enabled=document.getElementById('c-shenable').checked;
+  saveCfg({sheetsId:deploymentid,sheetsName:sheetname});
+  if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});push('ai','✅ Sheets saved to device.');}catch{push('aw','⚠️ Settings saved locally.');}}
+}
+function saveMQTT(){
+  const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8084,mquser=g('c-mquser'),mqpass=g('c-mqpass');
+  const topic=g('c-mqtopic')||'tasni-water/+/state';
+  saveCfg({broker:host,port,mquser,mqpass,topic});
+  if(host){_silent=false;_connectMQTT({host,port,user:mquser,pass:mqpass,topic});}
+}
+function disconnMQTT(){
+  if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
+  _mqttCfg=null;clearInterval(_hbTimer);clearTimeout(_wdTimer);
+  setChip('chip-mqtt',false);updatePill();push('ai','ℹ️ MQTT disconnected.');
+}
+function resetApp(){if(!confirm('Clear all local data?'))return;localStorage.clear();alerts=[];renderAlertLog();location.reload();}
 
-  const makeItem = (a) => `
-    <div class="alert-item">
-      <div class="alert-dot ${a.type}"></div>
-      <div class="alert-msg">${a.msg}</div>
-      <div class="alert-time">${a.ts}</div>
-    </div>`;
-
-  if (recent.length === 0) {
-    const empty = '<div class="alert-item"><div class="alert-dot info"></div><div class="alert-msg">No alerts yet.</div><div class="alert-time">--:--</div></div>';
-    list.innerHTML = empty;
-    listFull.innerHTML = empty;
-  } else {
-    list.innerHTML = recent.map(makeItem).join('');
-    listFull.innerHTML = allAlerts.map(makeItem).join('');
-  }
+// ═══════════════════════════════════════════
+//  DEMO MODE
+// ═══════════════════════════════════════════
+function startDemo(){
+  let lvl=72,dir=-1;
+  const tick=()=>{
+    lvl+=dir*(Math.random()*1.5);
+    if(lvl<=3)dir=1;if(lvl>=98)dir=-1;
+    lvl=Math.max(0,Math.min(100,lvl));
+    const pct=Math.round(lvl),vol=(pct/100*1000).toFixed(1),dist=((1-pct/100)*115+10).toFixed(1);
+    ingest({m:pct,vol:parseFloat(vol),total:1000,s:pct<=10?'Critical':pct<=30?'Low':pct<=75?'Good':'Full',
+      dist:parseFloat(dist),t:dir>0?'⬆️':'⬇️',usage:(1+Math.random()*2.5).toFixed(1),
+      up:Math.floor(Date.now()/1000%86400),rssi:-58,boot:7,isFull:parseFloat(dist)<=10?1:0,name:'Demo Tank'},false);
+  };
+  tick();setInterval(tick,2500);setChip('chip-local',true);updatePill();
 }
 
-// ===================================================
-// SOUND ALERTS
-// ===================================================
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
+// ═══════════════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════════════
+function askNotif(){Notification.requestPermission().then(p=>{if(p==='granted'){document.getElementById('notifBar').classList.add('hidden');unlockAch(2);push('ai','🔔 Notifications enabled!');}});}
+function checkNotifPerm(){if(Notification.permission==='granted')document.getElementById('notifBar').classList.add('hidden');}
+
+// ═══════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════
+function showToast(msg,type='info',duration=4000){
+  const icons={info:'💧',warn:'⚠️',danger:'🚨',ok:'✅'};
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span style="flex:1">${msg}</span>`;
+  el.onclick=()=>el.classList.add('out');
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),350);},duration);
 }
 
-function playAlertSound(type) {
-  try {
-    const ctx = getAudioCtx();
-    const t = ctx.currentTime;
-
-    if (type === 'warn' || type === 'danger') {
-      // Low level warning: descending beeps
-      [880, 660, 440].forEach((freq, i) => {
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, t + i * 0.22);
-        gain.gain.setValueAtTime(0, t + i * 0.22);
-        gain.gain.linearRampToValueAtTime(0.25, t + i * 0.22 + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.22 + 0.18);
-        osc.start(t + i * 0.22);
-        osc.stop(t + i * 0.22 + 0.2);
-      });
-    } else if (type === 'info' || type === 'success') {
-      // Full tank / connected: ascending pleasant chime
-      [523, 659, 784, 1047].forEach((freq, i) => {
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, t + i * 0.14);
-        gain.gain.setValueAtTime(0, t + i * 0.14);
-        gain.gain.linearRampToValueAtTime(0.2, t + i * 0.14 + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.14 + 0.25);
-        osc.start(t + i * 0.14);
-        osc.stop(t + i * 0.14 + 0.28);
-      });
-    }
-  } catch(e) { console.warn('Audio error', e); }
+// ═══════════════════════════════════════════
+//  TIPS & ACHIEVEMENTS
+// ═══════════════════════════════════════════
+function renderTips(){
+  document.getElementById('tipCat').textContent=TIPS[tipIdx].cat;
+  document.getElementById('tipTxt').textContent=TIPS[tipIdx].txt;
+  document.getElementById('allTips').innerHTML=TIPS.map(t=>`<div class="tip-card"><div class="tip-cat" style="margin-bottom:8px">${t.cat}</div><div style="font-size:13px;line-height:1.6;font-weight:500">${t.txt}</div></div>`).join('');
 }
-
-// Unlock audio on first user tap (iOS requirement)
-document.addEventListener('touchstart', () => {
-  if (!audioCtx) getAudioCtx();
-}, { once: true });
-document.addEventListener('click', () => {
-  if (!audioCtx) getAudioCtx();
-}, { once: true });
-
-// ===================================================
-// PUSH NOTIFICATIONS
-// ===================================================
-async function sendPushNotification(msg, type) {
-  if (!settings.push) return;
-  if (!('Notification' in window)) return;
-  if (Notification.permission !== 'granted') {
-    const p = await Notification.requestPermission();
-    if (p !== 'granted') return;
-  }
-  const icons = { warn:'⚠️', danger:'🚨', info:'💧', success:'✅' };
-  try {
-    new Notification(`TASNI® Water Monitor`, {
-      body: msg,
-      icon: 'icon-192.png',
-      badge: 'icon-72.png',
-      tag: 'tasni-water-alert',
-      vibrate: type === 'danger' ? [200,100,200,100,400] : [200,100,200],
-      silent: false,
-    });
-  } catch(e) { console.warn('Notification error', e); }
+function nextTip(){tipIdx=(tipIdx+1)%TIPS.length;renderTips();}
+function renderAchievements(){
+  const earned=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');
+  document.getElementById('achGrid').innerHTML=ACHIEVEMENTS.map((a,i)=>`<div class="ach ${earned.includes(i)?'earned':''}"><div class="ach-icon">${a.icon}</div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`).join('');
 }
+function unlockAch(i){const e=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');if(!e.includes(i)){e.push(i);localStorage.setItem('tasni_ach',JSON.stringify(e));renderAchievements();}}
 
-// ===================================================
-// TOAST
-// ===================================================
-function showToast(msg, type = 'info', duration = 4000) {
-  const icons = { info:'💧', warn:'⚠️', danger:'🚨', success:'✅' };
-  const container = document.getElementById('toast-container');
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.innerHTML = `<span class="toast-icon">${icons[type]||'ℹ️'}</span><span class="toast-msg">${msg}</span>`;
-  el.onclick = () => el.classList.add('out');
-  container.appendChild(el);
-  setTimeout(() => {
-    el.classList.add('out');
-    setTimeout(() => el.remove(), 350);
-  }, duration);
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
+function g(id){const e=document.getElementById(id);return e?e.value.trim():'';}
+function ck(id){const e=document.getElementById(id);return e?e.checked:false;}
+function set(id,html){const e=document.getElementById(id);if(e)e.innerHTML=html;}
+function fmtUp(s){if(!s)return'--';if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';return Math.floor(s/86400)+'d '+Math.floor((s%86400)/3600)+'h';}
+function fmtHrs(h){if(!isFinite(h)||h<=0)return'∞';if(h<1)return Math.round(h*60)+' min';if(h<24)return Math.round(h)+' hrs';return Math.floor(h/24)+'d '+Math.round(h%24)+'h';}
+function goTab(name,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
+  if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
+  if(name==='analytics')unlockAch(1);
+  if(name==='tips'){unlockAch(5);renderTips();}
+  if(name==='settings')unlockAch(4);
 }
-
-// ===================================================
-// SIGNAL
-// ===================================================
-function updateSignal(rssi) {
-  const bars = document.getElementById('signal-bars');
-  bars.className = 'signal-bars';
-  if (rssi > -60)      bars.classList.add('good');
-  else if (rssi > -75) bars.classList.add('ok');
-  else                 bars.classList.add('weak');
-}
-
-// ===================================================
-// PANEL SWITCHER
-// ===================================================
-function switchPanel(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById(`panel-${name}`).classList.add('active');
-  const navBtn = document.getElementById(`nav-${name}`);
-  if (navBtn) navBtn.classList.add('active');
-}
-
-// ===================================================
-// SERVICE WORKER REGISTRATION
-// ===================================================
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-}
+function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
 </script>
 </body>
 </html>
