@@ -221,7 +221,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="info-box"><strong>⚠️ Browser MQTT</strong><br>ESP32 publishes on port <strong>8883 (TLS)</strong>. Browsers need WebSocket MQTT. Configure your broker's WS/WSS listener. Topic: <strong>tasni-water/+/state</strong></div>
     <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="s-broker" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com" autocomplete="off"></div>
     <div class="form-row">
-      <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port" type="number" value="8084"></div>
+      <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port" type="number" value="8884"></div>
       <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="s-mquser" type="text" placeholder="tasni_water"></div>
     </div>
     <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="s-mqpass" type="password" placeholder="••••••••"></div>
@@ -383,7 +383,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <div class="info-box"><strong>ESP32 topic:</strong> <code style="color:var(--ok)">tasni-water/{deviceID}/state</code><br>Port on device: <strong>8883 (TLS)</strong>. Browser connects via WebSocket.</div>
         <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="c-mqb" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com"></div>
         <div class="form-row">
-          <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp" type="number" placeholder="8084"></div>
+          <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp" type="number" placeholder="8884"></div>
           <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser" type="text"></div>
         </div>
         <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="c-mqpass" type="password"></div>
@@ -505,11 +505,11 @@ window.addEventListener('load',()=>{
 function saveCfg(u){Object.assign(cfg,u);localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
 function loadFormValues(){
   const sv=(id,v)=>{if(v!=null&&v!==''&&document.getElementById(id))document.getElementById(id).value=v;};
-  sv('s-ip',cfg.ip);sv('s-broker',cfg.broker);sv('s-port',cfg.port||8084);
+  sv('s-ip',cfg.ip);sv('s-broker',cfg.broker);sv('s-port',cfg.port||8884);
   sv('s-mquser',cfg.mquser);sv('s-name',cfg.tankName||'Main Tank');sv('s-topic',cfg.topic||'');
   sv('c-ip',cfg.ip);sv('c-ssid',cfg.ssid);sv('c-tgtoken',cfg.tgToken);sv('c-tgchat',cfg.tgChat);
   sv('c-empty',cfg.emptyDist||125);sv('c-full',cfg.fullDist||10);sv('c-vol',cfg.volume||1000);sv('c-tname',cfg.tankName||'Main Tank');
-  sv('c-shid',cfg.sheetsId);sv('c-shname',cfg.sheetsName);sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8084);
+  sv('c-shid',cfg.sheetsId);sv('c-shname',cfg.sheetsName);sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8884);
   sv('c-mquser',cfg.mquser);sv('c-mqtopic',cfg.topic||'');
   if(cfg.tankName)document.getElementById('tankNameLbl').textContent=cfg.tankName.toUpperCase();
 }
@@ -518,7 +518,7 @@ function loadFormValues(){
 //  CONNECTIONS
 // ═══════════════════════════════════════════
 function applySetup(){
-  const ip=g('s-ip'),broker=g('s-broker'),port=parseInt(g('s-port'))||8084;
+  const ip=g('s-ip'),broker=g('s-broker'),port=parseInt(g('s-port'))||8884;
   const mquser=g('s-mquser'),mqpass=g('s-mqpass'),name=g('s-name')||'Main Tank';
   const topic=g('s-topic')||'tasni-water/+/state';
   saveCfg({ip,broker,port,mquser,mqpass,tankName:name,topic});
@@ -536,7 +536,7 @@ function startConnections(){
   demoMode=false;
   document.getElementById('demoBanner').classList.add('hidden');
   if(cfg.ip) startPoll(cfg.ip);
-  if(cfg.broker) _connectMQTT({host:cfg.broker,port:cfg.port||8084,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
+  if(cfg.broker) _connectMQTT({host:cfg.broker,port:cfg.port||8884,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
   // Begin staleness countdown — dashboard shows NIL until first real data arrives
   _resetStaleTimer();
 }
@@ -569,7 +569,7 @@ function _doConnect(mc){
   clearInterval(_hbTimer);clearTimeout(_wdTimer);
   setChip('chip-mqtt',false);updatePill();
   const rawHost=(mc.host||'').replace(/^wss?:\/\//,'');
-  const proto=(mc.port===8084||mc.port===443||mc.port===8083)?'wss':'ws';
+  const proto=(mc.port===8884||mc.port===8084||mc.port===443||mc.port===8083)?'wss':'ws';
   const url=`${proto}://${rawHost}:${mc.port}/mqtt`;
   const cid=`tasni_web_${Date.now().toString(36)}`;
   try{
@@ -686,11 +686,41 @@ function ingest(d,fromMQTT=false){
 // ═══════════════════════════════════════════
 function checkAlerts(prev,cur,isFull){
   if(!prev&&!cur)return;
-  if(prev>=10&&cur<10   &&ck('t-crit'))push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
-  else if(prev>=30&&cur<30&&ck('t-low'))push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
-  if(prev-cur>=10        &&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
-  if(prev<90&&cur>=90    &&ck('t-fill'))push('ai','✅ REFILLED: Tank is now above 90%.');
-  if(!S._wasFull&&isFull===1&&ck('t-full'))push('ai','💧 FULL TANK: Sensor reads water within 10 cm!',true);
+
+  // ── Critical threshold crossings ──
+  if(prev>=10&&cur<10&&ck('t-crit')){
+    push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
+    playSound('critical_alarm');
+  } else if(prev>=30&&cur<30&&ck('t-low')){
+    push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
+  }
+
+  // ── Every 10% drop notification ──
+  const prevBand=Math.floor(prev/10);
+  const curBand =Math.floor(cur/10);
+  if(curBand<prevBand&&cur>=10){
+    // Each 10% band crossed fires a drop alert
+    for(let b=prevBand-1;b>=curBand&&b>=1;b--){
+      const dropPct=b*10;
+      push('aw','💧 DROP: Tank crossed '+dropPct+'% mark — now at '+cur+'%.');
+      playSound('drop_10');
+    }
+  }
+
+  // ── Sudden large drop ──
+  if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
+
+  // ── Refill / above 90 ──
+  if(prev<90&&cur>=90&&ck('t-fill')){
+    push('ai','✅ REFILLED: Tank is now above 90%.');
+    playSound('refill');
+  }
+
+  // ── 100% FULL TANK — maximum intensity ──
+  if(!S._wasFull&&isFull===1&&ck('t-full')){
+    push('ai','💧 FULL TANK: Water level is at maximum!',true);
+    playSound('full_tank');
+  }
   S._wasFull=isFull===1;
 }
 function push(type,msg,critical=false){
@@ -699,7 +729,21 @@ function push(type,msg,critical=false){
   localStorage.setItem('tasni_alerts',JSON.stringify(alerts));
   unread++;const b=document.getElementById('alertBadge');
   b.textContent=unread;b.classList.remove('hidden');
-  if(Notification.permission==='granted')new Notification('TASNI Alert',{body:msg,icon:'icon.svg'});
+  // ── Vibration patterns ──
+  if('vibrate' in navigator){
+    if(critical||type==='ac')
+      navigator.vibrate([200,80,200,80,400,80,200,80,600]); // urgent: SOS-style
+    else if(type==='aw')
+      navigator.vibrate([150,60,150,60,300]);                // warning: triple pulse
+    else
+      navigator.vibrate([80,40,80]);                          // info: double tap
+  }
+  if(Notification.permission==='granted'){
+    const icons={ac:'🚨',aw:'⚠️',ai:'💧'};
+    new Notification('TASNI Water Monitor',{body:msg,icon:'icon.svg',badge:'icon.svg',tag:'tasni-'+type,
+      vibrate:critical?[200,80,200,80,400]:[100,50,100],
+      requireInteraction:critical||type==='ac'});
+  }
   showToast(msg,type==='ac'?'danger':type==='aw'?'warn':'info');
   if(ck('t-sound'))playSound(type,critical);
 }
@@ -724,31 +768,107 @@ function _markStale(){
 }
 
 // ═══════════════════════════════════════════
-//  SOUND (Web Audio API — no files needed)
+//  SOUND ENGINE — Web Audio API, no files needed
+//  Modes: 'ac'|'aw'|'ai' (legacy pass-through)
+//         'critical_alarm' | 'drop_10' | 'refill' | 'full_tank'
 // ═══════════════════════════════════════════
 function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+
+function _osc(ctx,freq,startT,dur,wave,vol,freqEnd){
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.connect(g);g.connect(ctx.destination);
+  o.type=wave;
+  o.frequency.setValueAtTime(freq,ctx.currentTime+startT);
+  if(freqEnd!=null)o.frequency.linearRampToValueAtTime(freqEnd,ctx.currentTime+startT+dur);
+  g.gain.setValueAtTime(0,ctx.currentTime+startT);
+  g.gain.linearRampToValueAtTime(vol,ctx.currentTime+startT+0.015);
+  g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+startT+dur);
+  o.start(ctx.currentTime+startT);
+  o.stop(ctx.currentTime+startT+dur+0.05);
+}
+
+function _noise(ctx,startT,dur,vol){
+  // White noise burst — adds punch to alerts
+  const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
+  const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1);
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const flt=ctx.createBiquadFilter();flt.type='bandpass';flt.frequency.value=800;flt.Q.value=0.5;
+  const g=ctx.createGain();
+  src.connect(flt);flt.connect(g);g.connect(ctx.destination);
+  g.gain.setValueAtTime(0,ctx.currentTime+startT);
+  g.gain.linearRampToValueAtTime(vol,ctx.currentTime+startT+0.01);
+  g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+startT+dur);
+  src.start(ctx.currentTime+startT);
+  src.stop(ctx.currentTime+startT+dur+0.05);
+}
+
 function playSound(type,critical){
   try{
-    const ctx=getAudioCtx(),t=ctx.currentTime;
-    const play=(freq,start,dur,wave='sine',vol=.18)=>{
-      const o=ctx.createOscillator(),g=ctx.createGain();
-      o.connect(g);g.connect(ctx.destination);
-      o.type=wave;o.frequency.value=freq;
-      g.gain.setValueAtTime(0,t+start);
-      g.gain.linearRampToValueAtTime(vol,t+start+.02);
-      g.gain.exponentialRampToValueAtTime(.001,t+start+dur);
-      o.start(t+start);o.stop(t+start+dur+.05);
-    };
-    if(type==='ac'||critical){
-      // Critical: urgent descending sawtooth
-      [880,660,440,330].forEach((f,i)=>play(f,i*.2,.18,'sawtooth',.2));
-    } else if(type==='ai'){
-      // Info/refilled: ascending chime
-      [523,659,784,1047].forEach((f,i)=>play(f,i*.13,.25,'sine',.16));
-    } else {
-      // Warn: double beep
-      [660,660].forEach((f,i)=>play(f,i*.28,.22,'sine',.2));
+    const ctx=getAudioCtx();
+    // ── FULL TANK — maximum intensity celebration ──
+    if(type==='full_tank'){
+      // Rising fanfare: chord + high sweep + noise punch + repeating bell
+      [523,659,784,1047,1319].forEach((f,i)=>{
+        _osc(ctx,f,i*0.07,0.5,'sine',0.22);
+        _osc(ctx,f*2,i*0.07+0.04,0.3,'sine',0.10);
+      });
+      // Triumphant arpeggio up
+      [784,988,1175,1319,1568,1976,2093].forEach((f,i)=>_osc(ctx,f,0.5+i*0.09,0.25,'sine',0.18));
+      // Shimmer layer
+      [2093,2349,2637,3136].forEach((f,i)=>_osc(ctx,f,0.9+i*0.07,0.3,'sine',0.10));
+      // Noise punch at start
+      _noise(ctx,0,0.12,0.30);_noise(ctx,0.5,0.10,0.25);
+      // Three final high bells
+      [2093,2637,3136].forEach((f,i)=>_osc(ctx,f,1.55+i*0.18,0.4,'sine',0.22));
+      return;
     }
+    // ── CRITICAL ALARM — urgent, insistent, layered ──
+    if(type==='critical_alarm'||critical||type==='ac'){
+      // Layer 1: fast descending sawtooth sweeps ×3
+      for(let rep=0;rep<3;rep++){
+        [880,660,440,330].forEach((f,i)=>_osc(ctx,f,rep*0.72+i*0.17,0.15,'sawtooth',0.25));
+      }
+      // Layer 2: low pulsing drone
+      [110,110,110].forEach((_,i)=>_osc(ctx,110,i*0.72,0.65,'square',0.15));
+      // Layer 3: noise bursts for punch
+      [0,0.72,1.44].forEach(t=>_noise(ctx,t,0.08,0.35));
+      // Layer 4: high warble
+      for(let i=0;i<6;i++)_osc(ctx,1200+(i%2)*400,i*0.36,0.32,'sawtooth',0.12);
+      return;
+    }
+    // ── 10% DROP — dripping droplet sound ──
+    if(type==='drop_10'){
+      // Two water-drop tones: high→low sweep + resonant plop
+      _osc(ctx,1800,0,0.18,'sine',0.20,600);   // falling sweep
+      _osc(ctx,600,0.05,0.22,'sine',0.18,300);  // resonant tail
+      _osc(ctx,1800,0.35,0.18,'sine',0.16,600); // second drop, softer
+      _osc(ctx,600,0.40,0.20,'sine',0.14,300);
+      _noise(ctx,0,0.04,0.12);_noise(ctx,0.35,0.04,0.10);
+      return;
+    }
+    // ── REFILL — ascending celebratory chime ──
+    if(type==='refill'){
+      [523,659,784,1047,1319,1568].forEach((f,i)=>{
+        _osc(ctx,f,i*0.11,0.35,'sine',0.20);
+        if(i%2===0)_osc(ctx,f*1.5,i*0.11+0.05,0.20,'sine',0.08); // harmonic shimmer
+      });
+      _noise(ctx,0,0.06,0.15);
+      return;
+    }
+    // ── WARN (aw) — triple pulse with noise ──
+    if(type==='aw'){
+      [700,700,900].forEach((f,i)=>{
+        _osc(ctx,f,i*0.28,0.20,'sine',0.22);
+        _osc(ctx,f*0.5,i*0.28,0.20,'square',0.08); // sub layer
+        _noise(ctx,i*0.28,0.05,0.18);
+      });
+      return;
+    }
+    // ── INFO (ai) — ascending chime (kept from original, enhanced) ──
+    [523,659,784,1047].forEach((f,i)=>{
+      _osc(ctx,f,i*0.13,0.28,'sine',0.18);
+      _osc(ctx,f*2,i*0.13+0.04,0.15,'sine',0.07);
+    });
   }catch(e){console.warn('Audio:',e);}
 }
 
@@ -909,7 +1029,7 @@ async function saveSheets(){
   if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});push('ai','✅ Sheets saved to device.');}catch{push('aw','⚠️ Settings saved locally.');}}
 }
 function saveMQTT(){
-  const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8084,mquser=g('c-mquser'),mqpass=g('c-mqpass');
+  const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8884,mquser=g('c-mquser'),mqpass=g('c-mqpass');
   const topic=g('c-mqtopic')||'tasni-water/+/state';
   saveCfg({broker:host,port,mquser,mqpass,topic});
   if(host){_silent=false;_connectMQTT({host,port,user:mquser,pass:mqpass,topic});}
