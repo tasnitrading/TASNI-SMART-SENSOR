@@ -447,6 +447,9 @@ let alerts=JSON.parse(localStorage.getItem('tasni_alerts')||'[]');
 let unread=0,demoMode=false,pollingTimer=null,mqttClient=null,chart=null,tipIdx=0,audioCtx=null;
 // MQTT keep-alive state
 let _mqttCfg=null,_hbTimer=null,_wdTimer=null,_lastAck=0,_silent=false;
+// Staleness — if no data arrives within STALE_MS, blank the dashboard
+const STALE_MS=30000;
+let _staleTimer=null;
 
 // ═══════════════════════════════════════════
 //  TIPS & ACHIEVEMENTS
@@ -482,6 +485,7 @@ const ACHIEVEMENTS=[
 // ═══════════════════════════════════════════
 window.addEventListener('load',()=>{
   loadFormValues(); initChart(); renderTips(); renderAchievements(); renderAlertLog(); checkNotifPerm();
+  renderDash(); // show NIL state until first real data arrives
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
   unlockAch(0);
   if(!cfg.ip&&!cfg.broker){
@@ -533,6 +537,8 @@ function startConnections(){
   document.getElementById('demoBanner').classList.add('hidden');
   if(cfg.ip) startPoll(cfg.ip);
   if(cfg.broker) _connectMQTT({host:cfg.broker,port:cfg.port||8084,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
+  // Begin staleness countdown — dashboard shows NIL until first real data arrives
+  _resetStaleTimer();
 }
 
 // ═══════════════════════════════════════════
@@ -614,6 +620,12 @@ document.addEventListener('visibilitychange',()=>{
 window.addEventListener('online',()=>{
   if(_mqttCfg&&(!mqttClient||!mqttClient.connected)){showToast('📶 Network restored','info',2500);_doConnect(_mqttCfg);}
 });
+window.addEventListener('offline',()=>{
+  showToast('📡 Network lost — waiting for data…','warn',4000);
+  // Accelerate stale detection: mark offline immediately after 5s with no data
+  clearTimeout(_staleTimer);
+  _staleTimer=setTimeout(_markStale,5000);
+});
 async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await navigator.wakeLock.request('screen');}catch(_){}}
 
 // ═══════════════════════════════════════════
@@ -664,6 +676,7 @@ function ingest(d,fromMQTT=false){
   if(d.name  !=null)S.name  =d.name;
   if(!fromMQTT){S.history.shift();S.history.push(S.m);}
   S.connected=true;S.lastUpdate=new Date();
+  _resetStaleTimer();
   checkAlerts(prev,S.m,S.isFull);
   renderDash();renderChart();renderAnalytics();
 }
@@ -691,6 +704,24 @@ function push(type,msg,critical=false){
   if(ck('t-sound'))playSound(type,critical);
 }
 function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
+
+// ═══════════════════════════════════════════
+//  STALENESS WATCHDOG
+//  If no data arrives within STALE_MS, blank the dashboard to NIL.
+//  Never modifies existing MQTT/reconnect/calibration logic.
+// ═══════════════════════════════════════════
+function _resetStaleTimer(){
+  if(demoMode)return; // demo mode never goes stale
+  clearTimeout(_staleTimer);
+  _staleTimer=setTimeout(_markStale, STALE_MS);
+}
+function _markStale(){
+  if(S.connected){
+    S.connected=false;
+    push('aw','📡 No data received — device may be offline.');
+  }
+  renderDash();
+}
 
 // ═══════════════════════════════════════════
 //  SOUND (Web Audio API — no files needed)
@@ -727,6 +758,23 @@ function playSound(type,critical){
 function renderDash(){
   const pct=Math.max(0,Math.min(100,S.m));
   const fill=document.getElementById('waterFill');
+
+  // ── OFFLINE / STALE STATE — show NIL, clear tank ──
+  if(!S.connected&&!demoMode){
+    fill.style.height='0%';
+    fill.style.background='linear-gradient(to top,rgba(80,80,110,.4),rgba(80,80,110,.2))';
+    set('levelNum','<span class="pct" style="font-size:28px;color:var(--muted)">NIL</span>');
+    const bar=document.getElementById('lvlBar');bar.style.width='0%';
+    set('volL','--');set('distCm','--');set('usageRate','--');
+    set('uptimeVal','--');set('rssiVal','--');set('bootVal','--');set('trendLbl','--');
+    const b=document.getElementById('statusBadge');b.className='badge b-off';b.textContent='NO DATA';
+    set('estEmpty','--');
+    const pc=document.getElementById('fc-cur');
+    if(pc){pc.textContent='--';['fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));}
+    if(S.lastUpdate)set('updLbl','Last seen '+S.lastUpdate.toLocaleTimeString());
+    else set('updLbl','Waiting for device…');
+    return;
+  }
 
   // ── TANK LEVEL UPDATE ──
   // Uses CSS `height` on a <div> — this is the fix.
