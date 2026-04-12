@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#030812">
+<meta name="theme-color" content="#040d1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TASNI">
@@ -13,506 +13,281 @@
 <title>TASNI Water Monitor v2.1</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script>
-// ===========================================
-//  EXPORT & SYNC ENGINE
-// ===========================================
-
-const APPS_SCRIPT_CODE = `
-// TASNI Water Monitor - Google Apps Script
-// Deploy as Web App: Execute as Me, Anyone can access
-function doPost(e) {
-  try {
-    const payload = JSON.parse(e.postData.contents);
-    const sheetName = payload.sheet || 'WaterLogs';
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sh = ss.getSheetByName(sheetName);
-    if (!sh) { sh = ss.insertSheet(sheetName); }
-    const rows = payload.rows;
-    if (!rows || rows.length === 0) {
-      return ContentService.createTextOutput(JSON.stringify({ok:true,appended:0})).setMimeType(ContentService.MimeType.JSON);
-    }
-    // Write header if sheet is empty
-    if (sh.getLastRow() === 0) {
-      sh.appendRow(payload.headers || Object.keys(rows[0]));
-    }
-    rows.forEach(r => sh.appendRow(Object.values(r)));
-    SpreadsheetApp.flush();
-    return ContentService.createTextOutput(JSON.stringify({ok:true,appended:rows.length})).setMimeType(ContentService.MimeType.JSON);
-  } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.message})).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({ok:true,msg:'TASNI Water Monitor Sheets endpoint is live.'})).setMimeType(ContentService.MimeType.JSON);
-}`;
-
-function copyAppsScript(){
-  navigator.clipboard.writeText(APPS_SCRIPT_CODE).then(()=>{
-    showToast('? Apps Script code copied! Paste into script.google.com','ok',5000);
-  }).catch(()=>{
-    const ta=document.createElement('textarea');ta.value=APPS_SCRIPT_CODE;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-    showToast('? Code copied - paste into script.google.com','ok',5000);
-  });
-}
-
-function _csvRow(arr){ return arr.map(v=>{ const s=String(v==null?'':v); return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s; }).join(','); }
-function _csvDownload(filename, content){
-  const blob=new Blob(['\uFEFF'+content],{type:'text/csv;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-}
-
-function downloadCSV(type){
-  const ts=new Date().toISOString().slice(0,10);
-  const tankName=(S.name||'TASNI').replace(/\s+/g,'_');
-
-  if(type==='all'){['readings','hourly','daily','alerts'].forEach((t,i)=>setTimeout(()=>downloadCSV(t),i*400));
-    return;
-  }
-
-  if(type==='readings'){
-    if(readings.length===0){showToast('No readings recorded yet','warn');return;}
-    const headers=['Timestamp','Level %','Volume (L)','Tank Total (L)','Distance (cm)','Usage Rate (L/hr)','WiFi RSSI (dBm)','Is Full','Trend'];
-    const rows=readings.map(r=>[r.ts,r.level,r.vol,r.total,r.dist,r.usage,r.rssi,r.isFull?'Yes':'No',r.trend]);
-    const csv=[_csvRow(headers),...rows.map(_csvRow)].join('\r\n');
-    _csvDownload(`TASNI_Readings_${tankName}_${ts}.csv`,csv);
-    showToast(`Downloaded ${readings.length} readings as CSV`,'ok');
-    return;
-  }
-
-  if(type==='hourly'){
-    const entries=Object.entries(hourlyData).sort(([a],[b])=>a.localeCompare(b));
-    if(entries.length===0){showToast('No hourly data yet','warn');return;}
-    const headers=['Date','Hour','Consumed (L)','Refilled (L)','First Level %','Last Level %','Min Level %','Max Level %','Readings Count'];
-    const rows=entries.map(([k,v])=>{
-      const [date,hr]=k.split(/-(?=\d{2}$)/);
-      return[date,hr+':00',v.consumedL||0,v.refilledL||0,v.firstLevel||'--',v.lastLevel||'--',v.minLevel||'--',v.maxLevel||'--',v.readings||0];
-    });
-    const csv=[_csvRow(headers),...rows.map(_csvRow)].join('\r\n');
-    _csvDownload(`TASNI_Hourly_${tankName}_${ts}.csv`,csv);
-    showToast(`Downloaded ${entries.length} hourly records`,'ok');
-    return;
-  }
-
-  if(type==='daily'){
-    const entries=Object.entries(dailyData).sort(([a],[b])=>a.localeCompare(b));
-    if(entries.length===0){showToast('No daily data yet','warn');return;}
-    const headers=['Date','Consumed (L)','Refilled (L)','Net Change (L)'];
-    const rows=entries.map(([k,v])=>{
-      const c=typeof v==='object'?v.consumedL||0:v||0;
-      const r=typeof v==='object'?v.refilledL||0:0;
-      return[k,c.toFixed(2),r.toFixed(2),(r-c).toFixed(2)];
-    });
-    const csv=[_csvRow(headers),...rows.map(_csvRow)].join('\r\n');
-    _csvDownload(`TASNI_Daily_${tankName}_${ts}.csv`,csv);
-    showToast(`Downloaded ${entries.length} daily records`,'ok');
-    return;
-  }
-
-  if(type==='alerts'){
-    if(alerts.length===0){showToast('No alerts recorded yet','warn');return;}
-    const headers=['Timestamp','Type','Message'];
-    const rows=alerts.map(a=>[a.time,a.type,a.msg]);
-    const csv=[_csvRow(headers),...rows.map(_csvRow)].join('\r\n');
-    _csvDownload(`TASNI_Alerts_${tankName}_${ts}.csv`,csv);
-    showToast(`Downloaded ${alerts.length} alert records`,'ok');
-  }
-}
-
-async function syncToSheets(manual=false, testMode=false){
-  const cfg=sheetsCfg;
-  if(!cfg||!cfg.url){
-    if(manual)showToast('Configure Google Sheets in Settings first','warn');
-    return;
-  }
-
-  const newReadings=readings.filter(r=>new Date(r.ts).getTime()>lastSyncTs);
-  if(newReadings.length===0&&!testMode){
-    if(manual)showToast('All data already synced - nothing new','info');
-    updateSyncStatus('All data synced',true);
-    return;
-  }
-
-  const statusEl=document.getElementById('sheetsSyncStatus');
-  if(statusEl)statusEl.innerHTML='? Syncing '+newReadings.length+' records to Sheets...';
-
-  try{
-    const payload={
-      sheet: cfg.name||'WaterLogs',
-      headers:['Timestamp','Level %','Volume (L)','Total (L)','Distance (cm)','Usage (L/hr)','RSSI','Is Full','Trend'],
-      rows: testMode?[{ts:new Date().toISOString(),level:S.m,vol:S.vol,total:S.total,dist:S.dist,usage:S.usage,rssi:S.rssi,isFull:S.isFull,trend:S.t||'TEST'}]:newReadings
-    };
-    const res=await fetch(cfg.url,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
-    const json=await res.json();
-    if(json.ok){
-      lastSyncTs=Date.now();
-      localStorage.setItem(EXPORT_KEY,String(lastSyncTs));
-      const msg=testMode?'? Connection works! Sheet is ready.':'? Synced '+newReadings.length+' readings';
-      showToast(msg,'ok',4000);
-      updateSyncStatus(msg,true);
-      unlockAch(3);
-    }else{
-      throw new Error(json.error||'Sheets returned error');
-    }
-  }catch(e){
-    const msg='Sync failed: '+e.message;
-    showToast(msg,'danger',5000);
-    updateSyncStatus('?? '+msg,false);
-  }
-}
-
-function updateSyncStatus(msg,ok){
-  const el=document.getElementById('sheetsSyncStatus');
-  if(el) el.innerHTML=`<span style="color:${ok?'var(--ok)':'var(--danger)'}">${msg}</span><br><span style="font-size:10px;color:var(--muted)">Last sync: ${new Date().toLocaleTimeString()}</span>`;
-  const lbl=document.getElementById('lastSyncLbl');
-  if(lbl) lbl.textContent=new Date().toLocaleString();
-}
-
-function startAutoSync(){
-  clearInterval(_autoSyncTimer);
-  const sc=sheetsCfg;
-  if(!sc||!sc.url||!sc.enabled) return;
-  _autoSyncTimer=setInterval(()=>syncToSheets(false),30*60*1000);
-}
-
-function initExportUI(){
-  if(lastSyncTs>0){
-    const lbl=document.getElementById('lastSyncLbl');
-    if(lbl) lbl.textContent=new Date(lastSyncTs).toLocaleString();
-  }
-  if(sheetsCfg.url){
-    const el=document.getElementById('c-shurl');
-    if(el) el.value=sheetsCfg.url;
-  }
-  if(sheetsCfg.name){
-    const el=document.getElementById('c-shname');
-    if(el) el.value=sheetsCfg.name;
-  }
-  updateExportUI();
-}
-
-function updateExportUI(){
-  const rc=document.getElementById('exportRecCount');
-  if(rc) rc.textContent=readings.length+' readings';
-  const pending=readings.filter(r=>new Date(r.ts).getTime()>lastSyncTs).length;
-  const ss=document.getElementById('sheetsSyncStatus');
-  if(ss&&sheetsCfg.url){
-    if(pending===0) ss.innerHTML='? All '+readings.length+' readings synced to Sheets.';
-    else ss.innerHTML=`<strong style="color:var(--warn)">${pending} new readings</strong> pending sync. Tap Sync Now or wait for auto-sync.`;
-  }
-}
-
-function resetAllAnalytics(){
-  if(!confirm('Reset ALL analytics data? (readings, hourly, daily)\nThis cannot be undone.')) return;
-  readings=[]; hourlyData={}; dailyData={};
-  _prevLevel=null; lastSyncTs=0;
-  localStorage.removeItem(READINGS_KEY);
-  localStorage.removeItem(HOURLY_KEY);
-  localStorage.removeItem(DAILY_KEY);
-  localStorage.removeItem(EXPORT_KEY);
-  renderAnalytics(); renderHeatmap(); renderDayBars();
-  showToast('Analytics data cleared - fresh start!','ok',3000);
-}
-</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
 <style>
 :root{
-  --bg: #030812;
-  --surf: rgba(12, 24, 48, 0.45);
-  --surf2: rgba(18, 32, 58, 0.55);
-  --border: rgba(45, 212, 191, 0.18);
-  --brite: rgba(45, 212, 191, 0.35);
-  --pri: #2DD4BF;
-  --pdim: rgba(45, 212, 191, 0.15);
-  --purple: #7c3aed;
-  --ok: #34d399;
-  --warn: #fbbf24;
-  --danger: #f87171;
-  --text: #cce7ff;
-  --muted: rgba(180, 220, 255, 0.55);
-  --mono: 'Share Tech Mono', monospace;
-  --sans: 'Rajdhani', sans-serif;
-  --head: 'Orbitron', monospace;
-  --r: 16px;
-  --blur: blur(14px);
+  --bg:#040d1a;--surf:rgba(8,22,50,.90);--surf2:rgba(3,12,32,.94);
+  --border:rgba(45,212,191,.11);--brite:rgba(45,212,191,.28);
+  --pri:#2DD4BF;--pdim:rgba(45,212,191,.15);--purple:#7c3aed;
+  --ok:#34d399;--warn:#fbbf24;--danger:#f87171;
+  --text:#cce7ff;--muted:rgba(180,220,255,.45);
+  --mono:'Share Tech Mono',monospace;--sans:'Rajdhani',sans-serif;--head:'Orbitron',monospace;
+  --r:14px;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden}
 body{font-family:var(--sans);background:var(--bg);color:var(--text);max-width:480px;margin:0 auto;display:flex;flex-direction:column;position:relative}
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-  background-image:linear-gradient(rgba(45,212,191,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(45,212,191,.02) 1px,transparent 1px);background-size:44px 44px}
+  background-image:linear-gradient(rgba(45,212,191,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(45,212,191,.03) 1px,transparent 1px);background-size:44px 44px}
 body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-  background:radial-gradient(circle at 15% 10%, rgba(124,58,237,.08) 0%, transparent 50%), radial-gradient(circle at 85% 85%, rgba(45,212,191,.08) 0%, transparent 50%);}
-header{flex-shrink:0;position:relative;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(4,13,26,.65);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-bottom:1px solid var(--border)}
+  background:radial-gradient(ellipse 70% 50% at 15% 10%,rgba(124,58,237,.06) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 85% 85%,rgba(45,212,191,.05) 0%,transparent 60%)}
+header{flex-shrink:0;position:relative;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(4,13,26,.97);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
 .brand{font-family:var(--head);font-size:18px;font-weight:900;letter-spacing:.06em;color:var(--pri);text-shadow:0 0 20px rgba(45,212,191,.4)}
 .brand small{display:block;font-family:var(--sans);font-size:9px;letter-spacing:3px;color:var(--muted);margin-top:-1px;font-weight:400}
-.conn-pill{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:24px;border:1px solid var(--border);background:var(--surf2);font-size:10px;font-weight:700;letter-spacing:1.5px;cursor:pointer;transition:all .3s;user-select:none;font-family:var(--head);box-shadow: 0 4px 12px rgba(0,0,0,0.2)}
-.conn-pill:active{transform:scale(0.96)}
+.conn-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surf2);font-size:10px;font-weight:700;letter-spacing:1.5px;cursor:pointer;transition:all .2s;user-select:none;font-family:var(--head)}
 .dot{width:8px;height:8px;border-radius:50%;background:#333;transition:all .3s}
-.pill-local .dot{background:var(--pri);box-shadow:0 0 10px var(--pri)}
-.pill-mqtt  .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
-.pill-both  .dot{background:var(--ok);box-shadow:0 0 10px var(--ok);animation:pdot 1.8s infinite}
-.pill-demo  .dot{background:var(--warn);box-shadow:0 0 10px var(--warn)}
+.pill-local .dot{background:var(--pri);box-shadow:0 0 8px var(--pri)}
+.pill-mqtt  .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.pill-both  .dot{background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pdot 1.8s infinite}
+.pill-demo  .dot{background:var(--warn);box-shadow:0 0 8px var(--warn)}
 @keyframes pdot{0%,100%{transform:scale(1)}50%{transform:scale(1.4);opacity:.6}}
 main{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;z-index:1;padding-bottom:70px;scroll-behavior:smooth}
-main::-webkit-scrollbar{width:4px}
+main::-webkit-scrollbar{width:3px}
 main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
-.tab{display:none;padding:16px 14px 4px;opacity:0;transform:scale(0.98);transition:opacity .3s ease, transform .3s ease;}
-.tab.active{display:block;opacity:1;transform:scale(1);animation:tabIn .35s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards}
-@keyframes tabIn{from{opacity:0;transform:translateY(12px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.tab{display:none;padding:14px 14px 4px;animation:fadeIn .25s ease}
+.tab.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,.2),transparent)}
+.card-title{font-size:10px;font-weight:700;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:14px;font-family:var(--head)}
 
-/* Glass Cards */
-.card{background:var(--surf);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px;position:relative;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,0.2)}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,.3),transparent)}
-.card-title{font-size:11px;font-weight:700;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:16px;font-family:var(--head)}
-
-/* TANK */
+/* ═══ TANK ═══ */
 .tank-section{display:flex;align-items:center;gap:20px;padding:18px 16px 14px}
 .tank-wrap{position:relative;flex-shrink:0}
 .pipe-top{width:22px;height:12px;margin:0 auto 0;position:relative;left:16px;background:var(--surf2);border:1px solid var(--border);border-bottom:none;border-radius:4px 4px 0 0}
 .pipe-bot{width:18px;height:10px;margin:0 auto;position:relative;left:-22px;background:var(--surf2);border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px}
-.tank-body{width:115px;height:215px;position:relative;border:2px solid rgba(45,212,191,.4);border-radius:6px 6px 10px 10px;overflow:hidden;background:rgba(2,6,18,.92);box-shadow:0 0 0 1px rgba(45,212,191,.1),inset 0 0 28px rgba(0,0,0,.6)}
-.tank-body::before{content:'';position:absolute;inset:0;background:linear-gradient(110deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.03) 25%, transparent 40%, rgba(0,0,0,0.5) 100%);z-index:10;pointer-events:none}
-.tank-glow{position:absolute;inset:-2px;border-radius:6px 6px 10px 10px;pointer-events:none;z-index:6;transition:box-shadow 1.2s ease}
-.gline{position:absolute;left:0;right:0;height:1px;background:rgba(45,212,191,.08);z-index:2}
+.tank-body{width:115px;height:215px;position:relative;border:2px solid rgba(45,212,191,.35);border-radius:5px 5px 8px 8px;overflow:hidden;background:rgba(0,8,25,.92);box-shadow:0 0 0 1px rgba(45,212,191,.06),inset 0 0 24px rgba(0,0,0,.5)}
+.tank-body::after{content:'';position:absolute;top:5%;left:7%;width:7px;height:38%;background:linear-gradient(to bottom,rgba(255,255,255,.1),transparent);border-radius:4px;z-index:5;pointer-events:none}
+/* tank glow ring that changes with level */
+.tank-glow{position:absolute;inset:-2px;border-radius:5px 5px 8px 8px;pointer-events:none;z-index:6;transition:box-shadow 1.2s ease}
+.gline{position:absolute;left:0;right:0;height:1px;background:rgba(45,212,191,.07);z-index:2}
 .tmarks{position:absolute;right:-38px;top:0;height:100%;display:flex;flex-direction:column;justify-content:space-between}
-.tm{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1;display:flex;align-items:center;gap:4px}
+.tm{font-family:var(--mono);font-size:9px;color:var(--muted);line-height:1;display:flex;align-items:center;gap:4px}
 .tm::before{content:'';width:6px;height:1px;background:var(--border)}
 /* WATER FILL */
-.water-fill{position:absolute;bottom:0;left:0;right:0;height:0%;transition:height 1.6s cubic-bezier(.4,0,.2,1),background .8s ease;z-index:3;background:linear-gradient(to top,rgba(0,100,200,.95),rgba(0,160,240,.85),rgba(45,212,191,.65));box-shadow:inset 0 8px 16px rgba(255,255,255,0.15)}
-.wave{position:absolute;top:-11px;left:-10%;width:120%;height:22px;border-radius:45%;background:inherit}
+.water-fill{position:absolute;bottom:0;left:0;right:0;height:0%;transition:height 1.6s cubic-bezier(.4,0,.2,1),background .8s ease;z-index:3;background:linear-gradient(to top,rgba(0,100,200,.95),rgba(0,160,240,.8),rgba(45,212,191,.55))}
+.wave{position:absolute;top:-11px;left:-8%;width:116%;height:22px;border-radius:45%;background:inherit}
 .wave-a{animation:wa 2.8s ease-in-out infinite}
 .wave-b{animation:wb 3.8s ease-in-out infinite;opacity:.5;top:-8px;height:16px}
-@keyframes wa{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(5%) scaleY(.8)}}
-@keyframes wb{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(-6%) scaleY(.85)}}
-.bubble{position:absolute;border-radius:50%;background:rgba(255,255,255,.4);animation:bup 3.5s ease-in infinite}
-@keyframes bup{0%{transform:translateY(0) scale(1);opacity:.8}100%{transform:translateY(-230px) scale(.2);opacity:0}}
-.drp{position:absolute;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:rgba(45,212,191,.9);z-index:11;animation:drpfall linear infinite;opacity:0;top:0}
-@keyframes drpfall{0%{opacity:0;transform:translateY(-4px) scaleY(1.3)}15%{opacity:.9}85%{opacity:.8}100%{opacity:0;transform:translateY(230px) scaleY(.7)}}
-.splash-canvas{position:absolute;inset:0;z-index:12;pointer-events:none}
-.ripple{position:absolute;border-radius:50%;border:1.5px solid rgba(255,255,255,.6);pointer-events:none;z-index:13;transform:translate(-50%,-50%) scale(0);animation:rippleOut .8s ease-out forwards}
+@keyframes wa{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(4%) scaleY(.75)}}
+@keyframes wb{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(-5%) scaleY(.8)}}
+.bubble{position:absolute;border-radius:50%;background:rgba(255,255,255,.3);animation:bup 3.5s ease-in infinite}
+@keyframes bup{0%{transform:translateY(0) scale(1);opacity:.7}100%{transform:translateY(-230px) scale(.2);opacity:0}}
+/* ── FALLING DROPLETS ── */
+.drp{position:absolute;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:rgba(45,212,191,.85);z-index:10;animation:drpfall linear infinite;opacity:0;top:0}
+@keyframes drpfall{0%{opacity:0;transform:translateY(-4px) scaleY(1.3)}15%{opacity:.9}85%{opacity:.7}100%{opacity:0;transform:translateY(230px) scaleY(.7)}}
+/* ── SPLASH RINGS — appear at water surface when droplet hits ── */
+.splash-canvas{position:absolute;inset:0;z-index:11;pointer-events:none}
+/* ── RIPPLE RINGS on water surface ── */
+.ripple{position:absolute;border-radius:50%;border:1.5px solid rgba(45,212,191,.7);pointer-events:none;z-index:12;transform:translate(-50%,-50%) scale(0);animation:rippleOut .9s ease-out forwards}
 @keyframes rippleOut{0%{transform:translate(-50%,-50%) scale(0);opacity:.8}100%{transform:translate(-50%,-50%) scale(2.8);opacity:0}}
 
 /* Tank info */
 .tank-info{flex:1;min-width:0}
-.tank-name-lbl{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:6px;font-family:var(--head)}
-.level-num{font-family:var(--mono);font-size:54px;line-height:1;color:var(--pri);text-shadow:0 0 24px rgba(45,212,191,.4);transition:color .5s}
-.level-num .pct{font-size:22px;color:var(--muted)}
-.level-bar{height:6px;background:rgba(45,212,191,.1);border-radius:3px;margin:10px 0;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,0.5)}
-.level-bar-fill{height:100%;border-radius:3px;transition:width 1.6s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px rgba(45,212,191,.5)}
-.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
-.b-ok  {background:rgba(52,211,153,.15);color:var(--ok);border:1px solid rgba(52,211,153,.3)}
-.b-low {background:rgba(251,191,36,.15);color:var(--warn);border:1px solid rgba(251,191,36,.3)}
-.b-crit{background:rgba(248,113,113,.15);color:var(--danger);border:1px solid rgba(248,113,113,.4);animation:sblink 1s step-end infinite}
-.b-full{background:rgba(45,212,191,.15);color:var(--pri);border:1px solid rgba(45,212,191,.4);animation:fullglow 2s ease-in-out infinite}
-.b-off {background:rgba(80,80,100,.2);color:var(--muted);border:1px solid rgba(80,80,100,.3)}
+.tank-name-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:6px;font-family:var(--head)}
+.level-num{font-family:var(--mono);font-size:50px;line-height:1;color:var(--pri);text-shadow:0 0 28px rgba(45,212,191,.5);transition:color .5s}
+.level-num .pct{font-size:20px;color:var(--muted)}
+.level-bar{height:5px;background:rgba(45,212,191,.08);border-radius:3px;margin:8px 0;overflow:hidden}
+.level-bar-fill{height:100%;border-radius:3px;transition:width 1.6s cubic-bezier(.4,0,.2,1);box-shadow:0 0 8px rgba(45,212,191,.4)}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.b-ok  {background:rgba(52,211,153,.1);color:var(--ok);border:1px solid rgba(52,211,153,.25)}
+.b-low {background:rgba(251,191,36,.1);color:var(--warn);border:1px solid rgba(251,191,36,.25)}
+.b-crit{background:rgba(248,113,113,.12);color:var(--danger);border:1px solid rgba(248,113,113,.28);animation:sblink 1s step-end infinite}
+.b-full{background:rgba(45,212,191,.1);color:var(--pri);border:1px solid rgba(45,212,191,.28);animation:fullglow 2s ease-in-out infinite}
+.b-off {background:rgba(80,80,100,.12);color:var(--muted);border:1px solid rgba(80,80,100,.18)}
 @keyframes sblink{50%{opacity:.4}}
-@keyframes fullglow{0%,100%{box-shadow:0 0 0 0 rgba(45,212,191,0)}50%{box-shadow:0 0 16px 4px rgba(45,212,191,.4)}}
-.vol-row{font-family:var(--mono);font-size:15px;margin-bottom:2px}
-.vol-total{font-size:12px;color:var(--muted)}
-.upd-lbl{font-size:11px;color:var(--muted);margin-top:8px;font-family:var(--mono)}
-.trend-lbl{font-size:14px;margin-top:4px}
-
+@keyframes fullglow{0%,100%{box-shadow:0 0 0 0 rgba(45,212,191,0)}50%{box-shadow:0 0 12px 3px rgba(45,212,191,.35)}}
+.vol-row{font-family:var(--mono);font-size:14px;margin-bottom:2px}
+.vol-total{font-size:11px;color:var(--muted)}
+.upd-lbl{font-size:10px;color:var(--muted);margin-top:8px;font-family:var(--mono)}
+.trend-lbl{font-size:13px;margin-top:4px}
 /* Stats */
-.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.stat{background:var(--surf2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;transition:transform .2s, border-color .4s;backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:0 4px 16px rgba(0,0,0,0.15)}
-.stat:hover{transform:translateY(-2px);border-color:var(--brite)}
-.stat-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;font-family:var(--head)}
-.stat-val{font-family:var(--mono);font-size:22px;color:var(--pri);text-shadow:0 0 10px rgba(45,212,191,0.2)}
-.stat-unit{font-size:12px;color:var(--muted)}
-
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;transition:border-color .4s}
+.stat-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;font-family:var(--head)}
+.stat-val{font-family:var(--mono);font-size:20px;color:var(--pri)}
+.stat-unit{font-size:11px;color:var(--muted)}
 /* Chips */
-.chips{display:flex;gap:10px;margin-bottom:14px}
-.chip{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1.5px;border:1px solid var(--border);color:var(--muted);background:var(--surf2);transition:all .3s;font-family:var(--head)}
-.chip .cd{width:6px;height:6px;border-radius:50%;background:#444;transition:all .3s}
-.chip.on{border-color:var(--ok);color:var(--ok);background:rgba(52,211,153,0.08)}
-.chip.on .cd{background:var(--ok);box-shadow:0 0 8px var(--ok)}
-
+.chips{display:flex;gap:8px;margin-bottom:12px}
+.chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1.5px;border:1px solid var(--border);color:var(--muted);transition:all .3s;font-family:var(--head)}
+.chip .cd{width:5px;height:5px;border-radius:50%;background:#333;transition:all .3s}
+.chip.on{border-color:var(--ok);color:var(--ok)}
+.chip.on .cd{background:var(--ok);box-shadow:0 0 6px var(--ok)}
 /* Chart */
-.chart-box{position:relative;height:180px}
-.ubar-row{margin:12px 0}
-.ubar-lbl{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;align-items:center}
-.ubar-lbl .ubval{font-family:var(--mono);font-size:14px;color:var(--pri)}
-.ubar{height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.5)}
+.chart-box{position:relative;height:175px}
+/* Usage bars */
+.ubar-row{margin:10px 0}
+.ubar-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px;align-items:center}
+.ubar-lbl .ubval{font-family:var(--mono);font-size:13px;color:var(--pri)}
+.ubar{height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
 .ubar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,rgba(45,212,191,.7),var(--ok));transition:width 1.2s cubic-bezier(.4,0,.2,1);position:relative}
-.ubar-fill::after{content:'';position:absolute;right:0;top:0;bottom:0;width:3px;background:rgba(255,255,255,.6);border-radius:2px}
-
+.ubar-fill::after{content:'';position:absolute;right:0;top:0;bottom:0;width:3px;background:rgba(255,255,255,.5);border-radius:2px}
 /* Hourly heatmap */
-.heatmap-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin:6px 0 10px}
-.hm-cell{height:24px;border-radius:4px;background:rgba(45,212,191,.08);position:relative;cursor:default;transition:transform .2s, box-shadow .2s}
-.hm-cell:hover{transform:scaleY(1.3);box-shadow:0 0 8px rgba(45,212,191,0.5);z-index:2}
-.hm-lbl{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-bottom:8px}
-.hm-lbl span{font-family:var(--mono);font-size:9px;color:var(--muted);text-align:center}
-
+.heatmap-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin:4px 0 8px}
+.hm-cell{height:22px;border-radius:3px;background:rgba(45,212,191,.06);position:relative;cursor:default;transition:transform .15s}
+.hm-cell:hover{transform:scaleY(1.2)}
+.hm-lbl{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-bottom:6px}
+.hm-lbl span{font-family:var(--mono);font-size:8px;color:var(--muted);text-align:center}
 /* Insights cards */
-.insight-row{display:flex;gap:10px;margin-bottom:14px}
-.insight-card{flex:1;background:var(--surf2);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.15)}
-.insight-icon{font-size:24px;margin-bottom:6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))}
-.insight-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;font-family:var(--head);margin-bottom:4px}
-.insight-val{font-family:var(--mono);font-size:18px;color:var(--pri)}
-.insight-sub{font-size:10px;color:var(--muted);margin-top:4px}
-
+.insight-row{display:flex;gap:8px;margin-bottom:10px}
+.insight-card{flex:1;background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center}
+.insight-icon{font-size:22px;margin-bottom:4px}
+.insight-lbl{font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;font-family:var(--head);margin-bottom:3px}
+.insight-val{font-family:var(--mono);font-size:16px;color:var(--pri)}
+.insight-sub{font-size:10px;color:var(--muted);margin-top:2px}
 /* Forecast */
-.fc-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+.fc-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
 .fc-row:last-child{border-bottom:none}
-.fc-val{font-family:var(--mono);color:var(--pri);font-size:14px}
-.fc-bar-wrap{flex:1;margin:0 12px;height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.4)}
-.fc-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--purple),var(--pri));transition:width 1s;box-shadow:0 0 6px rgba(45,212,191,0.4)}
-
+.fc-val{font-family:var(--mono);color:var(--pri)}
+.fc-bar-wrap{flex:1;margin:0 10px;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.fc-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--purple),var(--pri));transition:width 1s}
 /* Alerts */
-.notif-bar{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,rgba(0,60,140,.5),rgba(0,30,90,.7));border:1px solid rgba(45,212,191,.3);border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:0 6px 20px rgba(0,0,0,0.2)}
-.notif-bar .nb-i{font-size:28px}
-.alert-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);animation:fadeIn .3s ease}
+.notif-bar{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(0,50,120,.5),rgba(0,30,80,.7));border:1px solid rgba(45,212,191,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.notif-bar .nb-i{font-size:26px}
+.alert-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);animation:fadeIn .2s ease}
 .alert-item:last-child{border-bottom:none}
-.adot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0}
-.ac .adot{background:var(--danger);box-shadow:0 0 8px var(--danger)}
-.aw .adot{background:var(--warn);box-shadow:0 0 8px var(--warn)}
-.ai .adot{background:var(--pri);box-shadow:0 0 8px var(--pri)}
-.al-msg{font-size:14px;font-weight:500;line-height:1.5;text-shadow:0 1px 2px rgba(0,0,0,0.5)}
-.al-time{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:4px}
-
+.adot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.ac .adot{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+.aw .adot{background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.ai .adot{background:var(--pri);box-shadow:0 0 6px var(--pri)}
+.al-msg{font-size:13px;font-weight:500;line-height:1.45}
+.al-time{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px}
 /* Forms */
-.tog-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+.tog-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border)}
 .tog-row:last-child{border-bottom:none}
 .tog-lbl{font-size:14px;font-weight:600}
-.tog-sub{font-size:11px;color:var(--muted);margin-top:4px}
-.toggle{position:relative;width:48px;height:26px;flex-shrink:0}
+.tog-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
 .toggle input{opacity:0;width:0;height:0}
-.tslider{position:absolute;inset:0;border-radius:13px;background:rgba(80,80,110,.4);border:1px solid rgba(80,80,110,.5);cursor:pointer;transition:.3s;box-shadow:inset 0 2px 4px rgba(0,0,0,0.2)}
-.tslider::before{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#888;top:2px;left:2px;transition:.3s;box-shadow:0 2px 5px rgba(0,0,0,0.3)}
-.toggle input:checked+.tslider{background:rgba(45,212,191,.2);border-color:var(--pri)}
-.toggle input:checked+.tslider::before{transform:translateX(22px);background:var(--pri);box-shadow:0 0 10px var(--pri)}
-.form-grp{margin-bottom:16px}
-.form-lbl{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;display:block;font-family:var(--head)}
-.form-in{width:100%;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-family:var(--mono);font-size:14px;outline:none;transition:border-color .3s, box-shadow .3s;box-shadow:inset 0 2px 5px rgba(0,0,0,0.2)}
-.form-in:focus{border-color:var(--pri);box-shadow:inset 0 2px 5px rgba(0,0,0,0.2), 0 0 0 3px var(--pdim)}
-.form-row{display:flex;gap:12px}
+.tslider{position:absolute;inset:0;border-radius:12px;background:rgba(80,80,110,.3);border:1px solid rgba(80,80,110,.35);cursor:pointer;transition:.3s}
+.tslider::before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#666;top:2px;left:2px;transition:.3s}
+.toggle input:checked+.tslider{background:rgba(45,212,191,.18);border-color:var(--pri)}
+.toggle input:checked+.tslider::before{transform:translateX(20px);background:var(--pri);box-shadow:0 0 8px var(--pri)}
+.form-grp{margin-bottom:14px}
+.form-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:block;font-family:var(--head)}
+.form-in{width:100%;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s}
+.form-in:focus{border-color:var(--pri);box-shadow:0 0 0 2px var(--pdim)}
+.form-row{display:flex;gap:10px}
 .form-row .form-grp{flex:1}
-
 /* Buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 20px;border-radius:10px;border:none;font-family:var(--head);font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
-.btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0.1);opacity:0;transition:opacity 0.2s}
-.btn:active::after{opacity:1}
-.btn-p{background:linear-gradient(135deg,var(--purple),var(--pri));color:#fff;box-shadow:0 4px 15px rgba(45,212,191,.25)}
-.btn-p:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(45,212,191,.4)}
-.btn-o{background:rgba(45,212,191,.05);color:var(--pri);border:1px solid var(--brite)}
-.btn-o:hover{background:rgba(45,212,191,.1)}
-.btn-d{background:rgba(248,113,113,.1);color:var(--danger);border:1px solid rgba(248,113,113,.3)}
-.btn-d:hover{background:rgba(248,113,113,.15)}
-.btn-sm{padding:8px 16px;font-size:11px}
-.btn-full{width:100%;margin-top:10px}
-
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:9px;border:none;font-family:var(--head);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s}
+.btn-p{background:linear-gradient(135deg,var(--purple),var(--pri));color:#fff}
+.btn-p:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(45,212,191,.3)}
+.btn-o{background:transparent;color:var(--pri);border:1px solid var(--brite)}
+.btn-d{background:rgba(248,113,113,.1);color:var(--danger);border:1px solid rgba(248,113,113,.25)}
+.btn-sm{padding:6px 14px;font-size:11px}
+.btn-full{width:100%;margin-top:8px}
 /* Accordion */
-.acc-h{display:flex;align-items:center;justify-content:space-between;padding:14px 0;cursor:pointer;border-bottom:1px solid var(--border);font-size:15px;font-weight:600;user-select:none;transition:color .2s}
-.acc-h:hover{color:var(--pri)}
-.acc-arr{color:var(--muted);transition:transform .3s;font-size:14px}
-.acc-h.open .acc-arr{transform:rotate(180deg);color:var(--pri)}
-.acc-b{display:none;padding:16px 0 6px}
-.acc-b.open{display:block;animation:fadeIn .3s ease}
+.acc-h{display:flex;align-items:center;justify-content:space-between;padding:12px 0;cursor:pointer;border-bottom:1px solid var(--border);font-size:15px;font-weight:600;user-select:none}
+.acc-arr{color:var(--muted);transition:transform .3s;font-size:12px}
+.acc-h.open .acc-arr{transform:rotate(180deg)}
+.acc-b{display:none;padding:14px 0 4px}
+.acc-b.open{display:block}
 
-/* TIPS */
-.tip-hero{background:linear-gradient(135deg,rgba(0,70,150,.6),rgba(0,25,75,.85));border:1px solid rgba(45,212,191,.3);border-radius:var(--r);padding:24px;margin-bottom:14px;position:relative;overflow:hidden;min-height:150px;box-shadow:0 8px 24px rgba(0,0,0,0.3)}
-.tip-hero::after{content:'??';position:absolute;right:16px;top:12px;font-size:48px;opacity:.15;animation:tipDrop 3.5s ease-in-out infinite}
-@keyframes tipDrop{0%,100%{transform:translateY(0)}50%{transform:translateY(10px)}}
-.tip-cat{display:inline-block;padding:4px 10px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:rgba(45,212,191,.15);color:var(--pri);border:1px solid rgba(45,212,191,.3);margin-bottom:12px;font-family:var(--head)}
-.tip-txt{font-size:15px;line-height:1.6;font-weight:500;animation:fadeIn .4s ease;text-shadow:0 1px 3px rgba(0,0,0,0.5)}
-.tip-nav{display:flex;align-items:center;gap:12px;margin-top:16px}
-.tip-prog{flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.3)}
-.tip-prog-fill{height:100%;background:var(--pri);border-radius:2px;transition:width .4s ease;box-shadow:0 0 8px var(--pri)}
-.tip-fact{background:rgba(45,212,191,.05);border:1px solid rgba(45,212,191,.15);border-radius:12px;padding:14px 16px;margin-bottom:10px;position:relative;overflow:hidden;animation:fadeIn .3s ease;transition:transform .2s}
-.tip-fact:hover{transform:translateX(4px);background:rgba(45,212,191,.08)}
-.tip-fact::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(to bottom,var(--pri),var(--ok))}
-.tip-fact-icon{font-size:26px;float:left;margin-right:12px;margin-top:2px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))}
+/* ═══ TIPS — animated cards ═══ */
+.tip-hero{background:linear-gradient(135deg,rgba(0,60,130,.6),rgba(0,20,60,.85));border:1px solid rgba(45,212,191,.2);border-radius:var(--r);padding:20px;margin-bottom:12px;position:relative;overflow:hidden;min-height:140px}
+.tip-hero::after{content:'💧';position:absolute;right:14px;top:10px;font-size:40px;opacity:.18;animation:tipDrop 3s ease-in-out infinite}
+@keyframes tipDrop{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+.tip-cat{display:inline-block;padding:2px 9px;border-radius:10px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:rgba(45,212,191,.1);color:var(--pri);border:1px solid rgba(45,212,191,.2);margin-bottom:10px;font-family:var(--head)}
+.tip-txt{font-size:14px;line-height:1.65;font-weight:500;animation:fadeIn .35s ease}
+.tip-nav{display:flex;align-items:center;gap:10px;margin-top:14px}
+.tip-prog{flex:1;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.tip-prog-fill{height:100%;background:var(--pri);border-radius:2px;transition:width .4s ease}
+.tip-fact{background:rgba(45,212,191,.05);border:1px solid rgba(45,212,191,.12);border-radius:10px;padding:12px 14px;margin-bottom:8px;position:relative;overflow:hidden;animation:fadeIn .3s ease}
+.tip-fact::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(to bottom,var(--pri),var(--ok))}
+.tip-fact-icon{font-size:22px;float:left;margin-right:10px;margin-top:2px}
 .tip-fact-body{overflow:hidden}
-.tip-fact-cat{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--pri);text-transform:uppercase;font-family:var(--head);margin-bottom:6px}
-.tip-fact-txt{font-size:14px;line-height:1.6;font-weight:500}
-.tip-saving{font-size:12px;color:var(--ok);margin-top:6px;font-family:var(--mono);font-weight:600}
-
+.tip-fact-cat{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--pri);text-transform:uppercase;font-family:var(--head);margin-bottom:4px}
+.tip-fact-txt{font-size:13px;line-height:1.6;font-weight:500}
+.tip-saving{font-size:11px;color:var(--ok);margin-top:4px;font-family:var(--mono)}
 /* Achievements */
-.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
-.ach{text-align:center;padding:14px 8px;border-radius:12px;border:1px solid var(--border);background:var(--surf2);transition:all .4s cubic-bezier(0.18,0.89,0.32,1.28);opacity:.4;filter:grayscale(100%)}
-.ach.earned{border-color:rgba(45,212,191,.4);background:rgba(45,212,191,.1);opacity:1;filter:grayscale(0%);box-shadow:0 4px 16px rgba(45,212,191,.15)}
-.ach.earned:hover{transform:scale(1.05)}
-.ach-icon{font-size:28px;margin-bottom:6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))}
-.ach-name{font-size:11px;font-weight:700;letter-spacing:1px;color:var(--pri);font-family:var(--head)}
-.ach-desc{font-size:10px;color:var(--muted);margin-top:4px}
+.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.ach{text-align:center;padding:12px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surf2);transition:all .3s;opacity:.35}
+.ach.earned{border-color:rgba(45,212,191,.3);background:rgba(45,212,191,.07);opacity:1;animation:achPop .4s cubic-bezier(.18,.89,.32,1.28) both}
+@keyframes achPop{from{transform:scale(.8)}to{transform:scale(1)}}
+.ach-icon{font-size:26px;margin-bottom:5px}
+.ach-name{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--pri);font-family:var(--head)}
+.ach-desc{font-size:9px;color:var(--muted);margin-top:2px}
 
-/* ABOUT */
-.about-hero{background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(45,212,191,.1));border:1px solid rgba(124,58,237,.3);border-radius:var(--r);padding:26px 20px;margin-bottom:14px;text-align:center;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
-.about-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(124,58,237,.15),transparent);pointer-events:none}
-.about-logo{font-family:var(--head);font-size:36px;font-weight:900;color:var(--pri);text-shadow:0 0 30px rgba(45,212,191,.6);letter-spacing:.08em;margin-bottom:6px}
-.about-tagline{font-size:13px;color:var(--muted);letter-spacing:2px;margin-bottom:20px}
-.about-version{display:inline-block;padding:4px 14px;border-radius:24px;background:rgba(45,212,191,.15);border:1px solid rgba(45,212,191,.3);font-size:11px;font-family:var(--head);color:var(--pri);margin-bottom:20px;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
-.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left;margin-bottom:20px}
-.feat-item{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px;transition:background .2s}
-.feat-item:hover{background:rgba(45,212,191,0.05)}
-.feat-icon{font-size:18px;flex-shrink:0;margin-top:1px;filter:drop-shadow(0 2px 2px rgba(0,0,0,0.5))}
-.feat-txt{font-size:12px;line-height:1.4;color:var(--text);font-weight:500}
-.about-dev{border-top:1px solid var(--border);padding-top:20px;margin-top:8px}
-.dev-name{font-family:var(--head);font-size:16px;font-weight:900;color:var(--pri);letter-spacing:.05em;margin-bottom:6px;text-shadow:0 2px 4px rgba(0,0,0,0.3)}
-.dev-sub{font-size:12px;color:var(--muted);margin-bottom:10px}
-.made-in{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--text);background:rgba(255,153,0,.1);border:1px solid rgba(255,153,0,.3);border-radius:24px;padding:6px 16px;margin-top:10px;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
-#indiaFlag{animation:flagWave 2.5s ease-in-out infinite;transform-origin:left center}
+/* ═══ ABOUT SECTION ═══ */
+.about-hero{background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(45,212,191,.08));border:1px solid rgba(124,58,237,.25);border-radius:var(--r);padding:22px 18px;margin-bottom:12px;text-align:center;position:relative;overflow:hidden}
+.about-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(124,58,237,.12),transparent);pointer-events:none}
+.about-logo{font-family:var(--head);font-size:32px;font-weight:900;color:var(--pri);text-shadow:0 0 30px rgba(45,212,191,.5);letter-spacing:.08em;margin-bottom:4px}
+.about-tagline{font-size:12px;color:var(--muted);letter-spacing:2px;margin-bottom:18px}
+.about-version{display:inline-block;padding:3px 12px;border-radius:20px;background:rgba(45,212,191,.1);border:1px solid rgba(45,212,191,.2);font-size:10px;font-family:var(--head);color:var(--pri);margin-bottom:16px}
+.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left;margin-bottom:18px}
+.feat-item{background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:8px;padding:9px 11px;display:flex;align-items:flex-start;gap:8px}
+.feat-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.feat-txt{font-size:11px;line-height:1.4;color:var(--text);font-weight:500}
+.about-dev{border-top:1px solid var(--border);padding-top:16px;margin-top:4px}
+.dev-name{font-family:var(--head);font-size:14px;font-weight:900;color:var(--pri);letter-spacing:.05em;margin-bottom:4px}
+.dev-sub{font-size:11px;color:var(--muted);margin-bottom:6px}
+.made-in{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text);background:rgba(255,153,0,.08);border:1px solid rgba(255,153,0,.2);border-radius:20px;padding:3px 12px;margin-top:6px}
+.india-flag{font-size:14px}
+/* India waves */
+.india-waves{flex-shrink:0;display:flex;align-items:center;gap:2px}
+#indiaFlag{animation:flagWave 1.6s ease-in-out infinite;transform-origin:left center}
 @keyframes flagWave{
-  0%,100%{transform:skewY(0deg)}
-  25%{transform:skewY(2deg) scaleX(.96)}
-  50%{transform:skewY(-1.5deg) scaleX(.98)}
-  75%{transform:skewY(2.5deg) scaleX(.95)}
+  0%  {transform:skewY(0deg) scaleX(1)}
+  20% {transform:skewY(1.5deg) scaleX(.98)}
+  40% {transform:skewY(-1deg) scaleX(.99)}
+  60% {transform:skewY(2deg) scaleX(.97)}
+  80% {transform:skewY(-0.5deg) scaleX(.99)}
+  100%{transform:skewY(0deg) scaleX(1)}
 }
+/* Tech pills */
+.tech-pills{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
+.tech-pill{padding:3px 10px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:1px;background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.15);color:var(--muted);font-family:var(--head)}
 
 /* Misc */
-.demo-bar{background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;letter-spacing:1px;color:var(--warn);text-align:center;margin-bottom:14px;font-family:var(--head);box-shadow:0 4px 12px rgba(0,0,0,0.2)}
-.sec-hd{font-size:11px;font-weight:700;letter-spacing:3px;color:var(--muted);text-transform:uppercase;padding:8px 0 10px;border-bottom:1px solid var(--border);margin-bottom:14px;font-family:var(--head)}
-.info-box{background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.2);border-radius:10px;padding:12px 16px;font-size:12px;line-height:1.6;color:var(--muted);margin-bottom:14px;box-shadow:inset 0 2px 6px rgba(0,0,0,0.2)}
+.demo-bar{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--warn);text-align:center;margin-bottom:10px;font-family:var(--head)}
+.sec-hd{font-size:10px;font-weight:700;letter-spacing:3px;color:var(--muted);text-transform:uppercase;padding:6px 0 8px;border-bottom:1px solid var(--border);margin-bottom:12px;font-family:var(--head)}
+.info-box{background:rgba(45,212,191,.05);border:1px solid rgba(45,212,191,.15);border-radius:8px;padding:10px 14px;font-size:11px;line-height:1.65;color:var(--muted);margin-bottom:10px}
 .info-box strong{color:var(--pri)}
-
 /* Toast */
-#toast-wrap{position:fixed;top:80px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:440px;z-index:9000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-.toast{background:rgba(15,30,60,0.95);backdrop-filter:blur(8px);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;animation:tin .4s cubic-bezier(0.18, 0.89, 0.32, 1.28);pointer-events:auto;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,.5);font-size:14px;font-weight:600}
-.toast.info  {border:1px solid rgba(45,212,191,.5);color:var(--text)}
-.toast.warn  {border:1px solid rgba(251,191,36,.6);color:#fff}
-.toast.danger{border:1px solid rgba(248,113,113,.6);color:#fff;animation:tin .4s ease-out,alertPulse .6s ease-out .4s}
-.toast.ok    {border:1px solid rgba(52,211,153,.5);color:#fff}
+#toast-wrap{position:fixed;top:70px;left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:440px;z-index:9000;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:var(--surf2);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:9px;animation:tin .3s ease-out;pointer-events:auto;cursor:pointer;box-shadow:0 6px 28px rgba(0,0,0,.4);font-size:13px;font-weight:500}
+.toast.info  {border:1px solid rgba(45,212,191,.4)}
+.toast.warn  {border:1px solid rgba(251,191,36,.5)}
+.toast.danger{border:1px solid rgba(248,113,113,.5);animation:tin .3s ease-out,alertPulse .5s ease-out .3s}
+.toast.ok    {border:1px solid rgba(52,211,153,.4)}
 .toast.out   {animation:tout .3s ease-in forwards}
-@keyframes tin {from{opacity:0;transform:translateY(-12px) scale(0.9)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes tout{to{opacity:0;transform:translateY(-12px) scale(0.9)}}
-@keyframes alertPulse{0%{box-shadow:0 0 0 0 rgba(248,113,113,.6)}100%{box-shadow:0 0 0 16px rgba(248,113,113,0)}}
-
+@keyframes tin {from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes tout{to{opacity:0;transform:translateY(-8px)}}
+@keyframes alertPulse{0%{box-shadow:0 0 0 0 rgba(248,113,113,.5)}100%{box-shadow:0 0 0 12px rgba(248,113,113,0)}}
 /* Nav */
-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:rgba(4,13,26,.8);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-top:1px solid var(--border);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 4px 10px;border:none;background:none;color:var(--muted);cursor:pointer;transition:all .3s cubic-bezier(0.18,0.89,0.32,1.28);gap:4px;position:relative}
-.nb:hover{color:rgba(200,230,255,0.8)}
-.nb.active{color:var(--pri);transform:translateY(-2px)}
-.nb.active::before{content:'';position:absolute;top:0;left:20%;right:20%;height:3px;background:var(--pri);border-radius:0 0 3px 3px;box-shadow:0 2px 12px var(--pri)}
-.nb svg{width:22px;height:22px;transition:transform .3s}
-.nb.active svg{transform:scale(1.15);filter:drop-shadow(0 0 8px rgba(45,212,191,0.5))}
-.nb-lbl{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:var(--head)}
-.nb-badge{position:absolute;top:6px;right:calc(50% - 18px);width:18px;height:18px;border-radius:50%;background:var(--danger);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px var(--danger);border:2px solid rgba(4,13,26,1)}
-
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:rgba(4,13,26,.98);backdrop-filter:blur(24px);border-top:1px solid var(--border);z-index:50}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 4px 8px;border:none;background:none;color:var(--muted);cursor:pointer;transition:color .2s;gap:3px;position:relative}
+.nb.active{color:var(--pri)}
+.nb.active::before{content:'';position:absolute;top:0;left:18%;right:18%;height:2px;background:var(--pri);border-radius:0 0 2px 2px;box-shadow:0 0 10px var(--pri)}
+.nb svg{width:20px;height:20px}
+.nb-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:var(--head)}
+.nb-badge{position:absolute;top:5px;right:calc(50% - 16px);width:16px;height:16px;border-radius:50%;background:var(--danger);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 8px var(--danger)}
 /* Modal */
-.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:200;display:flex;align-items:flex-end;justify-content:center;transition:opacity .3s}
-.modal-ov.hidden{display:none;opacity:0}
-.modal{background:rgba(5,14,32,0.95);border:1px solid var(--brite);border-radius:24px 24px 0 0;padding:24px 22px 40px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;box-shadow:0 -10px 40px rgba(0,0,0,0.5);transform:translateY(0);animation:modalUp .4s cubic-bezier(0.18,0.89,0.32,1.28)}
-@keyframes modalUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.modal::-webkit-scrollbar{width:4px}
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.9);backdrop-filter:blur(12px);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal-ov.hidden{display:none}
+.modal{background:#050e20;border:1px solid var(--brite);border-radius:22px 22px 0 0;padding:22px 20px 36px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto}
+.modal::-webkit-scrollbar{width:3px}
 .modal::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
-.modal-handle{width:48px;height:5px;background:rgba(255,255,255,0.2);border-radius:3px;margin:0 auto 24px}
-.modal-title{font-family:var(--head);font-size:22px;font-weight:900;letter-spacing:.06em;color:var(--pri);margin-bottom:6px;text-shadow:0 0 16px rgba(45,212,191,0.4)}
-.modal-sub{font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.6}
+.modal-handle{width:38px;height:4px;background:var(--brite);border-radius:2px;margin:0 auto 22px}
+.modal-title{font-family:var(--head);font-size:20px;font-weight:900;letter-spacing:.06em;color:var(--pri);margin-bottom:4px}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.55}
+@supports(padding-bottom:env(safe-area-inset-bottom)){nav{padding-bottom:env(safe-area-inset-bottom)}main{padding-bottom:calc(70px + env(safe-area-inset-bottom))}}
 .hidden{display:none!important}
-
 /* Day bar chart */
-.day-bar-row{display:flex;align-items:flex-end;gap:6px;height:80px;margin:10px 0 6px}
-.day-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
-.day-bar{width:100%;border-radius:4px 4px 0 0;background:linear-gradient(to top,rgba(45,212,191,.7),rgba(45,212,191,.2));min-height:4px;transition:height .8s cubic-bezier(.4,0,.2,1);position:relative;box-shadow:0 0 8px rgba(45,212,191,0.2)}
-.day-bar-val{font-family:var(--mono);font-size:9px;color:var(--pri);text-align:center;margin-top:2px;font-weight:700}
-.day-bar-lbl{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center}
+.day-bar-row{display:flex;align-items:flex-end;gap:4px;height:70px;margin:8px 0 4px}
+.day-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.day-bar{width:100%;border-radius:3px 3px 0 0;background:linear-gradient(to top,rgba(45,212,191,.6),rgba(45,212,191,.25));min-height:4px;transition:height .8s cubic-bezier(.4,0,.2,1);position:relative}
+.day-bar-val{font-family:var(--mono);font-size:8px;color:var(--pri);text-align:center;margin-top:2px}
+.day-bar-lbl{font-family:var(--mono);font-size:8px;color:var(--muted);text-align:center}
+/* Reset consumption btn */
+.reset-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0 4px}
 </style>
 </head>
 <body>
 <div id="toast-wrap"></div>
 
+<!-- SETUP MODAL -->
 <div class="modal-ov" id="connModal">
   <div class="modal">
     <div class="modal-handle"></div>
@@ -520,9 +295,9 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="modal-sub">Enter your TASNI v2.1 ESP32 details. Local WiFi and MQTT are both optional.</div>
     <div class="sec-hd">LOCAL WIFI (SAME NETWORK)</div>
     <div class="form-grp"><label class="form-lbl">ESP32 IP Address</label><input class="form-in" id="s-ip" type="text" placeholder="e.g. 192.168.1.100" autocomplete="off"></div>
-    <p style="font-size:12px;color:var(--muted);margin-top:-10px;margin-bottom:16px;line-height:1.5">Find the IP on the OLED at boot, or in your router's DHCP list.</p>
+    <p style="font-size:11px;color:var(--muted);margin-top:-8px;margin-bottom:14px">Find the IP on the OLED at boot, or in your router's DHCP list.</p>
     <div class="sec-hd">MQTT REMOTE (FROM ANYWHERE)</div>
-    <div class="info-box"><strong>?? Browser MQTT</strong><br>ESP32 publishes on port <strong>8883 (TLS)</strong>. Browsers need WebSocket MQTT. Configure your broker's WS/WSS listener. Topic: <strong>tasni-water/+/state</strong></div>
+    <div class="info-box"><strong>⚠️ Browser MQTT</strong><br>ESP32 publishes on port <strong>8883 (TLS)</strong>. Browsers need WebSocket MQTT. Configure your broker's WS/WSS listener. Topic: <strong>tasni-water/+/state</strong></div>
     <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="s-broker" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com" autocomplete="off"></div>
     <div class="form-row">
       <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port" type="number" value="8884"></div>
@@ -531,13 +306,13 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="s-mqpass" type="password" placeholder="••••••••"></div>
     <div class="form-grp"><label class="form-lbl">MQTT Topic</label><input class="form-in" id="s-topic" type="text" placeholder="tasni-water/E2A4/state"></div>
     <div class="form-grp"><label class="form-lbl">Tank Display Name</label><input class="form-in" id="s-name" type="text" value="Main Tank"></div>
-    <button class="btn btn-p btn-full" onclick="applySetup()">? CONNECT</button>
-    <button class="btn btn-o btn-full" style="margin-top:12px" onclick="useDemoMode()">?? TRY DEMO MODE</button>
+    <button class="btn btn-p btn-full" onclick="applySetup()">⚡ CONNECT</button>
+    <button class="btn btn-o btn-full" style="margin-top:10px" onclick="useDemoMode()">🎮 TRY DEMO MODE</button>
   </div>
 </div>
 
 <header>
-  <div class="brand">TASNI&reg;<small>WATER MONITOR v2.1</small></div>
+  <div class="brand">TASNI®<small>WATER MONITOR v2.1</small></div>
   <div class="conn-pill" id="connPill" onclick="document.getElementById('connModal').classList.remove('hidden')">
     <div class="dot" id="dotInd"></div><span id="connLbl">OFFLINE</span>
   </div>
@@ -546,7 +321,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 <main>
   <!-- DASHBOARD -->
   <div class="tab active" id="tab-dashboard">
-    <div class="demo-bar hidden" id="demoBanner">? DEMO MODE - Simulated Data</div>
+    <div class="demo-bar hidden" id="demoBanner">⚠ DEMO MODE — Simulated Data</div>
     <div class="chips">
       <div class="chip" id="chip-local"><div class="cd"></div>LOCAL WIFI</div>
       <div class="chip" id="chip-mqtt"><div class="cd"></div>MQTT</div>
@@ -563,14 +338,15 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
             <div class="water-fill" id="waterFill" style="height:0%">
               <div class="wave wave-a"></div>
               <div class="wave wave-b"></div>
-              <div class="bubble" style="left:18%;width:5px;height:5px;animation-delay:0s;animation-duration:3.2s"></div>
-              <div class="bubble" style="left:50%;width:4px;height:4px;animation-delay:1.3s;animation-duration:4.1s"></div>
-              <div class="bubble" style="left:74%;width:6px;height:6px;animation-delay:2.2s;animation-duration:3.7s"></div>
-              <div class="bubble" style="left:35%;width:3px;height:3px;animation-delay:0.8s;animation-duration:5.1s"></div>
+              <div class="bubble" style="left:18%;width:4px;height:4px;animation-delay:0s;animation-duration:3.2s"></div>
+              <div class="bubble" style="left:50%;width:3px;height:3px;animation-delay:1.3s;animation-duration:4.1s"></div>
+              <div class="bubble" style="left:74%;width:5px;height:5px;animation-delay:2.2s;animation-duration:3.7s"></div>
+              <div class="bubble" style="left:35%;width:2px;height:2px;animation-delay:0.8s;animation-duration:5.1s"></div>
             </div>
-            <div class="drp" id="drp1" style="left:30%;width:4px;height:7px;animation-duration:1.8s;animation-delay:0s"></div>
-            <div class="drp" id="drp2" style="left:50%;width:3px;height:6px;animation-duration:2.2s;animation-delay:.7s"></div>
-            <div class="drp" id="drp3" style="left:66%;width:4px;height:7px;animation-duration:1.5s;animation-delay:1.3s"></div>
+            <!-- falling droplets from pipe -->
+            <div class="drp" id="drp1" style="left:30%;width:4px;height:6px;animation-duration:1.8s;animation-delay:0s"></div>
+            <div class="drp" id="drp2" style="left:50%;width:3px;height:5px;animation-duration:2.2s;animation-delay:.7s"></div>
+            <div class="drp" id="drp3" style="left:66%;width:4px;height:6px;animation-duration:1.5s;animation-delay:1.3s"></div>
             <canvas class="splash-canvas" id="splashCanvas" width="115" height="215"></canvas>
           </div>
           <div class="pipe-bot"></div>
@@ -592,9 +368,9 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     </div>
     <div class="stats-grid">
       <div class="stat"><div class="stat-lbl">Usage Rate</div><div class="stat-val"><span id="usageRate">--</span><span class="stat-unit"> L/hr</span></div></div>
-      <div class="stat"><div class="stat-lbl">Est. Empty In</div><div class="stat-val" id="estEmpty" style="font-size:20px">--</div></div>
+      <div class="stat"><div class="stat-lbl">Est. Empty In</div><div class="stat-val" id="estEmpty" style="font-size:17px">--</div></div>
       <div class="stat"><div class="stat-lbl">Sensor Dist.</div><div class="stat-val"><span id="distCm">--</span><span class="stat-unit"> cm</span></div></div>
-      <div class="stat"><div class="stat-lbl">Device Uptime</div><div class="stat-val" id="uptimeVal" style="font-size:20px">--</div></div>
+      <div class="stat"><div class="stat-lbl">Device Uptime</div><div class="stat-val" id="uptimeVal" style="font-size:17px">--</div></div>
       <div class="stat"><div class="stat-lbl">WiFi RSSI</div><div class="stat-val"><span id="rssiVal">--</span><span class="stat-unit"> dBm</span></div></div>
       <div class="stat"><div class="stat-lbl">Boot Count</div><div class="stat-val" id="bootVal">--</div></div>
     </div>
@@ -602,218 +378,225 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 
   <!-- ANALYTICS -->
   <div class="tab" id="tab-analytics">
+
+    <!-- Analytics Reset Banner -->
+    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(45,212,191,.04);border:1px solid rgba(45,212,191,.12);border-radius:10px;padding:10px 14px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--pri);font-family:var(--head)">📊 REAL-TIME ANALYTICS</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">Data from actual tank level changes only</div>
+      </div>
+      <button class="btn btn-d btn-sm" onclick="resetAllAnalytics()" style="font-size:9px;padding:5px 12px;white-space:nowrap">↺ Reset All</button>
+    </div>
+
+    <!-- Live Per-Hour Consumption Row -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:10px">⚡ Live Consumption Metrics</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="text-align:center;background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-bottom:4px">THIS HOUR</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--pri)" id="live-hr">-- L</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px" id="live-hr-sub">so far</div>
+        </div>
+        <div style="text-align:center;background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-bottom:4px">L / HOUR AVG</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--ok)" id="live-lph">-- L</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px">today's average</div>
+        </div>
+        <div style="text-align:center;background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-bottom:4px">REFILLS TODAY</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--warn)" id="live-refills">0</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px" id="live-refills-sub">tank refilled</div>
+        </div>
+      </div>
+      <!-- Data source note -->
+      <div style="margin-top:10px;font-size:10px;color:var(--muted);text-align:center;padding:5px;background:rgba(0,0,0,.15);border-radius:6px" id="dataSourceNote">
+        Waiting for real sensor data…
+      </div>
+    </div>
+
+    <!-- Water Health Score -->
     <div class="card" id="healthCard">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <div class="card-title" style="margin:0">Water Health Score</div>
         <div class="badge b-ok" id="healthBadge" style="margin:0">GOOD</div>
       </div>
-      <div style="display:flex;align-items:center;gap:16px">
-        <div style="position:relative;flex-shrink:0;width:76px;height:76px">
-          <svg width="76" height="76" viewBox="0 0 76 76">
-            <circle cx="38" cy="38" r="30" fill="none" stroke="rgba(45,212,191,.15)" stroke-width="8"/>
-            <circle id="scoreRing" cx="38" cy="38" r="30" fill="none" stroke="var(--pri)" stroke-width="8"
-              stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="188.5"
-              transform="rotate(-90 38 38)" style="transition:stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1),stroke .8s; filter:drop-shadow(0 0 4px rgba(45,212,191,0.4))"/>
+      <div style="display:flex;align-items:center;gap:14px">
+        <!-- Animated score ring -->
+        <div style="position:relative;flex-shrink:0;width:72px;height:72px">
+          <svg width="72" height="72" viewBox="0 0 72 72">
+            <circle cx="36" cy="36" r="28" fill="none" stroke="rgba(45,212,191,.1)" stroke-width="7"/>
+            <circle id="scoreRing" cx="36" cy="36" r="28" fill="none" stroke="var(--pri)" stroke-width="7"
+              stroke-linecap="round" stroke-dasharray="175.9" stroke-dashoffset="175.9"
+              transform="rotate(-90 36 36)" style="transition:stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1),stroke .8s"/>
           </svg>
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:20px;font-weight:700;color:var(--pri)" id="scoreNum">--</div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:18px;font-weight:700;color:var(--pri)" id="scoreNum">--</div>
         </div>
         <div style="flex:1">
-          <div style="font-size:12px;color:var(--muted);line-height:1.6" id="healthDesc">Score reflects tank level, usage rate, and refill efficiency. Higher = healthier water security.</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.7" id="healthDesc">Score reflects tank level, usage rate, and refill efficiency. Higher = healthier water security.</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:14px" id="healthFactors"></div>
+      <!-- 5 mini metric badges -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:12px" id="healthFactors"></div>
     </div>
 
+    <!-- Hourly history chart -->
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div class="card-title" style="margin:0">24-Hour Level History</div>
-        <div style="font-family:var(--mono);font-size:11px;color:var(--muted)" id="chartRange">Last 24 hrs</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="chartRange">Last 24 hrs</div>
       </div>
       <div class="chart-box"><canvas id="histChart"></canvas></div>
-      <div id="chartInsight" style="margin-top:10px;font-size:12px;color:var(--muted);padding:10px 12px;background:rgba(45,212,191,.06);border-radius:8px;border-left:3px solid var(--pri);line-height:1.6;min-height:36px;box-shadow:inset 0 1px 3px rgba(0,0,0,0.2)"></div>
-      <div style="margin-top:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <!-- Chart interpretation line -->
+      <div id="chartInsight" style="margin-top:8px;font-size:11px;color:var(--muted);padding:7px 10px;background:rgba(45,212,191,.04);border-radius:7px;border-left:2px solid var(--pri);line-height:1.6;min-height:32px"></div>
+      <!-- Hourly heatmap -->
+      <div style="margin-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <div class="card-title" style="margin:0">Usage Intensity by Hour</div>
-          <div style="font-size:10px;color:var(--muted)">Darker = more water used</div>
+          <div style="font-size:9px;color:var(--muted)">Darker = more water used</div>
         </div>
         <div class="hm-lbl" id="hmLabels"></div>
         <div class="heatmap-grid" id="hmGrid"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--muted);margin-top:6px;font-weight:600">
-          <span style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;background:rgba(45,212,191,0.1);border-radius:2px"></div> Low use</span>
-          <span id="hmPeakLbl">Peak hour: --</span>
-          <span style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;background:rgba(45,212,191,0.9);border-radius:2px"></div> High use</span>
-        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:4px"><span>⬜ Low use</span><span id="hmPeakLbl">Peak hour: --</span><span>🟦 High use</span></div>
       </div>
     </div>
 
+    <!-- Insight cards row -->
     <div class="insight-row">
       <div class="insight-card" id="insToday">
-        <div class="insight-icon">??</div>
+        <div class="insight-icon">💧</div>
         <div class="insight-lbl">Today Used</div>
         <div class="insight-val" id="ins-today">-- L</div>
         <div class="insight-sub" id="ins-today-sub">of capacity</div>
       </div>
       <div class="insight-card">
-        <div class="insight-icon">??</div>
+        <div class="insight-icon">📅</div>
         <div class="insight-lbl">Daily Avg</div>
         <div class="insight-val" id="ins-avg">-- L</div>
-        <div class="insight-sub" id="ins-avg-sub">7-day basis</div>
+        <div class="insight-sub" id="ins-avg-sub">from real data</div>
       </div>
       <div class="insight-card">
-        <div class="insight-icon">?</div>
-        <div class="insight-lbl">Peak Hour</div>
-        <div class="insight-val" id="ins-peak">--:00</div>
-        <div class="insight-sub" id="ins-peak-sub">Highest use</div>
+        <div class="insight-icon">🕐</div>
+        <div class="insight-lbl">Per Hour</div>
+        <div class="insight-val" id="ins-peak">-- L</div>
+        <div class="insight-sub" id="ins-peak-sub">avg L/hr today</div>
       </div>
     </div>
 
+    <!-- Takeaway / Insight Banner -->
+    <div id="takeawayBanner" class="card" style="padding:12px 14px;display:none">
+      <div class="card-title" style="margin-bottom:8px">💡 Smart Takeaway</div>
+      <div id="takeawayText" style="font-size:13px;line-height:1.7;color:var(--text)"></div>
+    </div>
+
+    <!-- Usage by time of day — with explanations -->
     <div class="card">
       <div class="card-title">Usage Pattern by Time of Day</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">Shows estimated litres consumed in each time window. Helps identify when your household uses the most water.</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.55">Shows estimated litres consumed in each time window. Helps identify when your household uses the most water.</div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>?? Morning <small style="color:var(--muted)">(6-12)</small></span><span class="ubval" id="u-morn">-- L</span></div>
+        <div class="ubar-lbl"><span>🌅 Morning <small style="color:var(--muted)">(6–12)</small></span><span class="ubval" id="u-morn">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-morn" style="width:0%"></div></div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tip-morn">Showers, cooking, dishes</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px" id="tip-morn">Showers, cooking, dishes</div>
       </div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>?? Afternoon <small style="color:var(--muted)">(12-18)</small></span><span class="ubval" id="u-aft">-- L</span></div>
+        <div class="ubar-lbl"><span>☀️ Afternoon <small style="color:var(--muted)">(12–18)</small></span><span class="ubval" id="u-aft">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-aft" style="width:0%"></div></div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tip-aft">Lunch, cleaning, gardening</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px" id="tip-aft">Lunch, cleaning, gardening</div>
       </div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>?? Evening <small style="color:var(--muted)">(18-24)</small></span><span class="ubval" id="u-eve">-- L</span></div>
+        <div class="ubar-lbl"><span>🌆 Evening <small style="color:var(--muted)">(18–24)</small></span><span class="ubval" id="u-eve">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-eve" style="width:0%"></div></div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tip-eve">Dinner, bathing, laundry</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px" id="tip-eve">Dinner, bathing, laundry</div>
       </div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>?? Night <small style="color:var(--muted)">(0-6)</small></span><span class="ubval" id="u-ngt">-- L</span></div>
+        <div class="ubar-lbl"><span>🌙 Night <small style="color:var(--muted)">(0–6)</small></span><span class="ubval" id="u-ngt">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-ngt" style="width:0%"></div></div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tip-ngt">Low usage expected - high reading may indicate a leak</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px" id="tip-ngt">Low usage expected — high reading may indicate a leak</div>
       </div>
-      <div id="leakBanner" class="hidden" style="margin-top:12px;padding:12px 14px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.4);border-radius:10px;font-size:12px;color:var(--danger);line-height:1.6;box-shadow:0 4px 12px rgba(248,113,113,.15)">
-        ?? <strong>Possible leak detected:</strong> Night-time usage is unusually high. Check all taps and connections.
+      <!-- Leak suspicion banner -->
+      <div id="leakBanner" class="hidden" style="margin-top:10px;padding:9px 12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:8px;font-size:11px;color:var(--danger);line-height:1.6">
+        ⚠️ <strong>Possible leak detected:</strong> Night-time usage is unusually high. Check all taps and connections.
       </div>
     </div>
 
+    <!-- 7-day bar chart — with explanation -->
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <div class="card-title" style="margin:0">Daily Consumption - 7 Days</div>
-        <button class="btn btn-d btn-sm" onclick="resetConsumption()" style="font-size:10px;padding:6px 12px">? Reset</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="card-title" style="margin:0">Daily Consumption — 7 Days</div>
+        <button class="btn btn-d btn-sm" onclick="resetConsumption()" style="font-size:9px;padding:4px 10px">↺ Reset</button>
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">Each bar shows total litres consumed that day. <span style="color:var(--pri);font-weight:700">Today</span> is highlighted. Taller = more usage.</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Each bar shows total litres consumed that day. <span style="color:var(--pri)">Today</span> is highlighted. Taller = more usage.</div>
       <div class="day-bar-row" id="dayBars"></div>
-      <div style="display:flex;gap:6px;margin-top:4px" id="dayBarLabels"></div>
-      <div id="weekSummary" style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.7;padding:12px;background:rgba(45,212,191,.06);border-radius:10px;border-left:3px solid var(--ok);box-shadow:inset 0 1px 3px rgba(0,0,0,0.2)"></div>
+      <div style="display:flex;gap:4px" id="dayBarLabels"></div>
+      <!-- Weekly summary -->
+      <div id="weekSummary" style="margin-top:10px;font-size:11px;color:var(--muted);line-height:1.65;padding:8px 10px;background:rgba(45,212,191,.04);border-radius:8px;border-left:2px solid var(--ok)"></div>
     </div>
 
-    <div class="card" id="exportCard">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div class="card-title" style="margin:0">?? Save & Export Data</div>
-        <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--pri)" id="exportRecCount">0 readings</div>
-      </div>
-
-      <div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15)">
-        <span style="font-size:24px;flex-shrink:0">?</span>
-        <div>
-          <div style="font-size:13px;font-weight:700;color:var(--ok);letter-spacing:.5px">CSV download works right now</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.6">Files open in Excel, Google Sheets, or any spreadsheet app. Your data stays private on your device.</div>
-        </div>
-      </div>
-
-      <div class="sec-hd" style="margin-bottom:12px">?? DOWNLOAD CSV FILES</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <button class="btn btn-o" style="font-size:12px;padding:12px 8px;flex-direction:column;display:flex;align-items:center;gap:4px" onclick="downloadCSV('readings')">
-          <span>?? Raw Readings</span>
-          <small style="font-size:10px;color:var(--muted);font-family:var(--sans)">Every data point</small>
-        </button>
-        <button class="btn btn-o" style="font-size:12px;padding:12px 8px;flex-direction:column;display:flex;align-items:center;gap:4px" onclick="downloadCSV('hourly')">
-          <span>?? Hourly Summary</span>
-          <small style="font-size:10px;color:var(--muted);font-family:var(--sans)">Litres per hour</small>
-        </button>
-        <button class="btn btn-o" style="font-size:12px;padding:12px 8px;flex-direction:column;display:flex;align-items:center;gap:4px" onclick="downloadCSV('daily')">
-          <span>?? Daily Summary</span>
-          <small style="font-size:10px;color:var(--muted);font-family:var(--sans)">Per-day totals</small>
-        </button>
-        <button class="btn btn-o" style="font-size:12px;padding:12px 8px;flex-direction:column;display:flex;align-items:center;gap:4px" onclick="downloadCSV('alerts')">
-          <span>?? Alert Log</span>
-          <small style="font-size:10px;color:var(--muted);font-family:var(--sans)">All notifications</small>
-        </button>
-      </div>
-      <button class="btn btn-p btn-full" style="margin-bottom:18px" onclick="downloadCSV('all')">?? Download Full Report (All 4 files)</button>
-
-      <div class="sec-hd" style="margin-bottom:12px">?? GOOGLE SHEETS AUTO-SYNC</div>
-      <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:12px">
-        Skip this section if you just want CSV files. Google Sheets sync pushes new readings to a live spreadsheet automatically every 30 minutes - useful for sharing data with others or viewing on a PC.
-      </div>
-      <div id="sheetsSyncStatus" style="padding:12px;background:rgba(45,212,191,.06);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;box-shadow:inset 0 1px 4px rgba(0,0,0,0.2)">
-        Not configured. Set up in Settings -> Google Sheets to enable.
-      </div>
-      <button class="btn btn-o btn-full" onclick="syncToSheets(true)" id="syncNowBtn" style="margin-bottom:10px">?? Sync to Google Sheets Now</button>
-      <button class="btn btn-d btn-full" onclick="resetAllAnalytics()">? Reset All Analytics Data</button>
-    </div>
-
+    <!-- Smart Forecast — with explanations -->
     <div class="card">
       <div class="card-title">Smart Water Forecast</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">Projected tank level based on your current average usage rate. Helps you plan refills before running out.</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.55">Projected tank level based on your current average usage rate. Helps you plan refills before running out.</div>
       <div class="fc-row">
-        <span style="min-width:64px;font-weight:600">Now</span>
+        <span style="min-width:60px">Now</span>
         <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-now" style="width:100%"></div></div>
         <span class="fc-val" id="fc-cur">--</span>
       </div>
       <div class="fc-row">
-        <span style="min-width:64px;font-weight:600">+6 hrs</span>
+        <span style="min-width:60px">+6 hrs</span>
         <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-6" style="width:0%"></div></div>
         <span class="fc-val" id="fc-6">--</span>
       </div>
       <div class="fc-row">
-        <span style="min-width:64px;font-weight:600">+24 hrs</span>
+        <span style="min-width:60px">+24 hrs</span>
         <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-24" style="width:0%"></div></div>
         <span class="fc-val" id="fc-24">--</span>
       </div>
       <div class="fc-row">
-        <span style="min-width:64px;font-weight:600">+3 days</span>
+        <span style="min-width:60px">+3 days</span>
         <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-3d" style="width:0%"></div></div>
         <span class="fc-val" id="fc-3d">--</span>
       </div>
-      <div class="fc-row" style="border-top:1px solid var(--border);margin-top:10px;padding-top:14px">
-        <span style="font-weight:700">?? Empty in</span>
-        <span class="fc-val" id="fc-emp" style="font-size:20px;font-weight:700">--</span>
+      <div class="fc-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:12px">
+        <span>🏁 Empty in</span>
+        <span class="fc-val" id="fc-emp" style="font-size:16px">--</span>
       </div>
-      <div id="fc-advice" style="margin-top:14px;font-size:13px;color:var(--muted);line-height:1.7;padding:12px 14px;background:rgba(45,212,191,.08);border-radius:10px;border-left:3px solid var(--pri);box-shadow:inset 0 2px 5px rgba(0,0,0,0.15)"></div>
+      <!-- Smart advice box -->
+      <div id="fc-advice" style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.65;padding:10px 12px;background:rgba(45,212,191,.04);border-radius:8px;border-left:2px solid var(--pri)"></div>
     </div>
+
   </div>
 
   <!-- ALERTS -->
   <div class="tab" id="tab-alerts">
     <div class="notif-bar hidden" id="notifBar">
-      <div class="nb-i">??</div>
-      <div style="flex:1"><div style="font-size:14px;font-weight:700;color:#fff">Enable Push Notifications</div><div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px">Get alerts even when app is in background</div></div>
+      <div class="nb-i">🔔</div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600">Enable Push Notifications</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Get alerts even when app is in background</div></div>
       <button class="btn btn-p btn-sm" onclick="askNotif()">Allow</button>
     </div>
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div class="card-title" style="margin:0">Alert Log</div>
         <button class="btn btn-d btn-sm" onclick="clearAlerts()">Clear</button>
       </div>
-      <div id="alertLog"><div style="text-align:center;padding:32px 20px;color:var(--muted);font-size:14px;background:rgba(0,0,0,0.2);border-radius:8px">No alerts yet</div></div>
+      <div id="alertLog"><div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div></div>
     </div>
+    <!-- Alert toggles -->
     <div class="card">
       <div class="card-title">Alert Settings</div>
-      <div class="tog-row"><div><div class="tog-lbl">?? Critical (&lt;10%)</div><div class="tog-sub">Immediate refill needed</div></div><label class="toggle"><input type="checkbox" id="t-crit" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">?? Low Level (&lt;30%)</div><div class="tog-sub">Schedule a refill</div></div><label class="toggle"><input type="checkbox" id="t-low" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">?? 10% Drop Alert</div><div class="tog-sub">Every 10% decrease fires alert + sound</div></div><label class="toggle"><input type="checkbox" id="t-drop10" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">?? 10% Fill Alert</div><div class="tog-sub">Every 10% increase fires sound + notification</div></div><label class="toggle"><input type="checkbox" id="t-fill10" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">?? Sudden Drop</div><div class="tog-sub">Possible leak detection</div></div><label class="toggle"><input type="checkbox" id="t-drop" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">? Refilled (&gt;90%)</div><div class="tog-sub">Notify when refill completes</div></div><label class="toggle"><input type="checkbox" id="t-fill" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">?? Full Tank (100%)</div><div class="tog-sub">Maximum celebration alert</div></div><label class="toggle"><input type="checkbox" id="t-full" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">?? Alert Sounds</div><div class="tog-sub">Play audio on alerts</div></div><label class="toggle"><input type="checkbox" id="t-sound" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">🚨 Critical (&lt;10%)</div><div class="tog-sub">Immediate refill needed</div></div><label class="toggle"><input type="checkbox" id="t-crit" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">⚠️ Low Level (&lt;30%)</div><div class="tog-sub">Schedule a refill</div></div><label class="toggle"><input type="checkbox" id="t-low" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">💧 10% Drop Alert</div><div class="tog-sub">Every 10% decrease fires alert + sound</div></div><label class="toggle"><input type="checkbox" id="t-drop10" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">⬆️ 10% Fill Alert</div><div class="tog-sub">Every 10% increase fires sound + notification</div></div><label class="toggle"><input type="checkbox" id="t-fill10" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">📉 Sudden Drop</div><div class="tog-sub">Possible leak detection</div></div><label class="toggle"><input type="checkbox" id="t-drop" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">✅ Refilled (&gt;90%)</div><div class="tog-sub">Notify when refill completes</div></div><label class="toggle"><input type="checkbox" id="t-fill" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">💧 Full Tank (100%)</div><div class="tog-sub">Maximum celebration alert</div></div><label class="toggle"><input type="checkbox" id="t-full" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">🔊 Alert Sounds</div><div class="tog-sub">Play audio on alerts</div></div><label class="toggle"><input type="checkbox" id="t-sound" checked><div class="tslider"></div></label></div>
     </div>
   </div>
 
   <!-- SETTINGS -->
   <div class="tab" id="tab-settings">
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>?? WiFi - Send to Device</span><span class="acc-arr">?</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>📡 WiFi — Send to Device</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
         <div class="form-grp"><label class="form-lbl">ESP32 IP Address</label><input class="form-in" id="c-ip" type="text" placeholder="192.168.1.100"></div>
         <div class="form-grp"><label class="form-lbl">WiFi SSID</label><input class="form-in" id="c-ssid" type="text"></div>
@@ -822,7 +605,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>?? Telegram Bot</span><span class="acc-arr">?</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>✈️ Telegram Bot</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
         <div class="form-grp"><label class="form-lbl">Bot Token</label><input class="form-in" id="c-tgtoken" type="text" placeholder="1234567890:ABCDEF..."></div>
         <div class="form-grp"><label class="form-lbl">Chat ID</label><input class="form-in" id="c-tgchat" type="text" placeholder="-1001234567890"></div>
@@ -830,42 +613,30 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>?? Sensor Calibration</span><span class="acc-arr">?</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>📏 Sensor Calibration</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
-        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Distance sensor reads from TOP down to water surface. Set measured distances when tank is fully empty and fully full.</p>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.55">Distance sensor reads from TOP down to water surface. Set measured distances when tank is fully empty and fully full.</p>
         <div class="form-row">
           <div class="form-grp"><label class="form-lbl">Empty (cm)</label><input class="form-in" id="c-empty" type="number" placeholder="125"></div>
           <div class="form-grp"><label class="form-lbl">Full (cm)</label><input class="form-in" id="c-full" type="number" placeholder="10"></div>
         </div>
         <div class="form-grp"><label class="form-lbl">Tank Capacity (L)</label><input class="form-in" id="c-vol" type="number" placeholder="1000"></div>
         <div class="form-grp"><label class="form-lbl">Tank Name</label><input class="form-in" id="c-tname" type="text" placeholder="Main Tank"></div>
-        <button class="btn btn-o btn-full" style="margin-bottom:10px" onclick="captureEmpty()">?? Capture Current as EMPTY</button>
+        <button class="btn btn-o btn-full" style="margin-bottom:8px" onclick="captureEmpty()">📷 Capture Current as EMPTY</button>
         <button class="btn btn-p btn-full" onclick="saveCalib()">Save Calibration to Device</button>
       </div>
     </div>
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>?? Google Sheets - Direct Sync</span><span class="acc-arr">?</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>📊 Google Sheets</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
-        <div class="info-box" style="margin-bottom:16px">
-          <strong>Quick Setup (3 steps):</strong><br>
-          1. Open <a href="https://script.google.com" target="_blank" style="color:var(--pri)">script.google.com</a> -> New Project<br>
-          2. Paste the code below -> Deploy as Web App (Anyone)<br>
-          3. Copy the Web App URL and paste it here.
-        </div>
-        <button class="btn btn-o btn-full" style="margin-bottom:16px;font-size:12px" onclick="copyAppsScript()">?? Copy Apps Script Code</button>
-        <div class="form-grp"><label class="form-lbl">Apps Script Web App URL</label><input class="form-in" id="c-shurl" type="url" placeholder="https://script.google.com/macros/s/.../exec"></div>
-        <div class="form-grp"><label class="form-lbl">Sheet Tab Name</label><input class="form-in" id="c-shname" type="text" placeholder="WaterLogs" value="WaterLogs"></div>
-        <div class="tog-row" style="margin-top:8px">
-          <div><div class="tog-lbl">Auto-Sync Every Hour</div><div class="tog-sub">Push new readings automatically</div></div>
-          <label class="toggle"><input type="checkbox" id="c-shenable" checked><div class="tslider"></div></label>
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:10px;font-family:var(--mono)">Last sync: <span id="lastSyncLbl">Never</span></div>
-        <button class="btn btn-p btn-full" style="margin-top:14px" onclick="saveSheetsConfig()">?? Save & Test Connection</button>
-        <button class="btn btn-o btn-full" style="margin-top:10px" onclick="syncToSheets(true)">?? Push Data to Sheets Now</button>
+        <div class="form-grp"><label class="form-lbl">Deployment ID</label><input class="form-in" id="c-shid" type="text" placeholder="AKfycbx..."></div>
+        <div class="form-grp"><label class="form-lbl">Sheet Name</label><input class="form-in" id="c-shname" type="text" placeholder="WaterLogs"></div>
+        <div class="tog-row" style="margin-top:4px"><div><div class="tog-lbl">Enable Auto-Sync</div><div class="tog-sub">Upload data every hour</div></div><label class="toggle"><input type="checkbox" id="c-shenable"><div class="tslider"></div></label></div>
+        <button class="btn btn-p btn-full" style="margin-top:12px" onclick="saveSheets()">Save Sheets to Device</button>
       </div>
     </div>
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>?? MQTT Remote Broker</span><span class="acc-arr">?</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>🌐 MQTT Remote Broker</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
         <div class="info-box"><strong>ESP32 topic:</strong> <code style="color:var(--ok)">tasni-water/{deviceID}/state</code><br>Port on device: <strong>8883 (TLS)</strong>. Browser connects via WebSocket.</div>
         <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="c-mqb" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com"></div>
@@ -876,12 +647,12 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="c-mqpass" type="password"></div>
         <div class="form-grp"><label class="form-lbl">Topic (blank = wildcard)</label><input class="form-in" id="c-mqtopic" type="text" placeholder="tasni-water/+/state"></div>
         <button class="btn btn-p btn-full" onclick="saveMQTT()">Connect MQTT</button>
-        <button class="btn btn-d btn-full" style="margin-top:10px" onclick="disconnMQTT()">Disconnect MQTT</button>
+        <button class="btn btn-d btn-full" style="margin-top:8px" onclick="disconnMQTT()">Disconnect MQTT</button>
       </div>
     </div>
-    <div style="display:flex;gap:12px;padding:10px 0 20px">
-      <button class="btn btn-o btn-sm" style="flex:1" onclick="document.getElementById('connModal').classList.remove('hidden')">?? Reconnect</button>
-      <button class="btn btn-d btn-sm" style="flex:1" onclick="resetApp()">?? Clear All Data</button>
+    <div style="display:flex;gap:10px;padding:6px 0 16px">
+      <button class="btn btn-o btn-sm" style="flex:1" onclick="document.getElementById('connModal').classList.remove('hidden')">🔄 Reconnect</button>
+      <button class="btn btn-d btn-sm" style="flex:1" onclick="resetApp()">🗑 Clear All Data</button>
     </div>
   </div>
 
@@ -889,111 +660,119 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <div class="tab" id="tab-tips">
     <div class="tip-hero">
       <div class="tip-cat" id="tipCat">CONSERVATION</div>
-      <div class="tip-txt" id="tipTxt">Loading...</div>
+      <div class="tip-txt" id="tipTxt">Loading…</div>
       <div class="tip-nav">
         <div class="tip-prog"><div class="tip-prog-fill" id="tipProg"></div></div>
-        <button class="btn btn-o btn-sm" onclick="nextTip()">Next ?</button>
+        <button class="btn btn-o btn-sm" onclick="nextTip()">Next →</button>
       </div>
     </div>
-    <div class="sec-hd">WATER WISDOM - ALL TIPS</div>
+    <div class="sec-hd">WATER WISDOM — ALL TIPS</div>
     <div id="allTips"></div>
-    <div class="sec-hd" style="margin-top:24px">ACHIEVEMENTS</div>
+    <div class="sec-hd" style="margin-top:18px">ACHIEVEMENTS</div>
     <div class="ach-grid" id="achGrid"></div>
   </div>
 
   <!-- ABOUT -->
   <div class="tab" id="tab-about">
     <div class="about-hero">
-      <div class="about-logo">TASNI&reg;</div>
+      <div class="about-logo">TASNI®</div>
       <div class="about-tagline">INTELLIGENT WATER MONITORING SYSTEM</div>
       <div class="about-version">Version 2.1</div>
       <div class="feat-grid">
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Real-time MQTT Cloud Monitoring</div></div>
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Local WiFi Direct Connection</div></div>
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Push Alerts - Silent Mode Override</div></div>
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Splash & Droplet Animations</div></div>
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Hourly History & Insights</div></div>
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">AI Forecast - Days to Empty</div></div>
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Installable PWA - Works Offline</div></div>
-        <div class="feat-item"><div class="feat-icon">???</div><div class="feat-txt">Ultrasonic Distance Sensor</div></div>
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Telegram Bot Integration</div></div>
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Google Sheets Auto Logging</div></div>
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Rich Alert Sound Engine</div></div>
-        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">NVS Secure Credential Storage</div></div>
+        <div class="feat-item"><div class="feat-icon">📡</div><div class="feat-txt">Real-time MQTT Cloud Monitoring</div></div>
+        <div class="feat-item"><div class="feat-icon">📶</div><div class="feat-txt">Local WiFi Direct Connection</div></div>
+        <div class="feat-item"><div class="feat-icon">🔔</div><div class="feat-txt">Push Alerts — Silent Mode Override</div></div>
+        <div class="feat-item"><div class="feat-icon">💧</div><div class="feat-txt">Splash & Droplet Animations</div></div>
+        <div class="feat-item"><div class="feat-icon">📊</div><div class="feat-txt">Hourly History & Insights</div></div>
+        <div class="feat-item"><div class="feat-icon">🔮</div><div class="feat-txt">AI Forecast — Days to Empty</div></div>
+        <div class="feat-item"><div class="feat-icon">📱</div><div class="feat-txt">Installable PWA — Works Offline</div></div>
+        <div class="feat-item"><div class="feat-icon">🌡️</div><div class="feat-txt">Ultrasonic Distance Sensor</div></div>
+        <div class="feat-item"><div class="feat-icon">✈️</div><div class="feat-txt">Telegram Bot Integration</div></div>
+        <div class="feat-item"><div class="feat-icon">📋</div><div class="feat-txt">Google Sheets Auto Logging</div></div>
+        <div class="feat-item"><div class="feat-icon">🔊</div><div class="feat-txt">Rich Alert Sound Engine</div></div>
+        <div class="feat-item"><div class="feat-icon">🔒</div><div class="feat-txt">NVS Secure Credential Storage</div></div>
       </div>
       <div class="about-dev">
         <div class="dev-name">Mohammed Imran Ahmed Soofi</div>
-        <div class="dev-sub">Founder & Engineer - Tasni Trading Private Limited</div>
-        <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-top:14px;padding:14px 16px;background:rgba(45,212,191,.08);border-radius:12px;border-left:3px solid var(--pri);box-shadow:inset 0 2px 6px rgba(0,0,0,0.15)">
-          Designed and developed <strong style="color:var(--pri)">end-to-end</strong> - from embedded hardware to cloud infrastructure, intelligent dashboard, alert systems, and analytics engine. Built for real-world commercial IoT deployment.
+        <div class="dev-sub">Founder & Engineer — Tasni Trading Private Limited</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.75;margin-top:10px;padding:10px 12px;background:rgba(45,212,191,.04);border-radius:10px;border-left:2px solid var(--pri)">
+          Designed and developed <strong style="color:var(--pri)">end-to-end</strong> — from embedded hardware to cloud infrastructure, intelligent dashboard, alert systems, and analytics engine. Built for real-world commercial IoT deployment.
         </div>
-        <div class="made-in" style="margin-top:18px;padding:8px 20px;gap:12px">
-          <div style="display:flex;align-items:center;gap:4px">
-            <div style="width:3px;height:24px;background:linear-gradient(to bottom,#ccc,#555);border-radius:1px 1px 0 0;flex-shrink:0"></div>
-            <svg id="indiaFlag" width="44" height="22" viewBox="0 0 40 20" xmlns="http://www.w3.org/2000/svg" style="display:block">
-              <rect x="0" y="0"  width="40" height="6.6"  fill="#FF9933"/>
-              <rect x="0" y="6.6" width="40" height="6.8" fill="#FFFFFF"/>
-              <rect x="0" y="13.4" width="40" height="6.6" fill="#138808"/>
-              <circle cx="20" cy="10" r="3"   fill="none" stroke="#000080" stroke-width="0.6"/>
-              <circle cx="20" cy="10" r="0.7" fill="#000080"/>
-              <line x1="20" y1="7.2" x2="20" y2="12.8" stroke="#000080" stroke-width="0.4"/>
-              <line x1="17.2" y1="10" x2="22.8" y2="10" stroke="#000080" stroke-width="0.4"/>
-              <line x1="17.9" y1="7.9" x2="22.1" y2="12.1" stroke="#000080" stroke-width="0.4"/>
-              <line x1="22.1" y1="7.9" x2="17.9" y2="12.1" stroke="#000080" stroke-width="0.4"/>
+        <!-- Made in India — Animated waving flag with pole -->
+        <div class="made-in" style="margin-top:14px;padding:8px 18px;gap:10px">
+          <div class="india-waves" style="display:flex;align-items:center;gap:2px">
+            <!-- Pole -->
+            <div style="width:2px;height:22px;background:linear-gradient(to bottom,#bbb,#888);border-radius:1px;flex-shrink:0"></div>
+            <!-- Flag body: 3 stripes that wave -->
+            <svg id="indiaFlag" width="40" height="18" viewBox="0 0 40 18" xmlns="http://www.w3.org/2000/svg" style="display:block">
+              <defs>
+                <clipPath id="flagClip"><rect width="40" height="18"/></clipPath>
+              </defs>
+              <g clip-path="url(#flagClip)">
+                <!-- Saffron stripe -->
+                <rect class="stripe" x="0" y="0"  width="40" height="6"  fill="#FF9933"/>
+                <!-- White stripe -->
+                <rect class="stripe" x="0" y="6"  width="40" height="6"  fill="#FFFFFF"/>
+                <!-- Green stripe -->
+                <rect class="stripe" x="0" y="12" width="40" height="6"  fill="#138808"/>
+                <!-- Ashoka Chakra (navy blue circle with 24 spokes) -->
+                <circle cx="20" cy="9" r="2.8" fill="none" stroke="#000080" stroke-width="0.5"/>
+                <circle cx="20" cy="9" r="0.5" fill="#000080"/>
+              </g>
             </svg>
           </div>
-          <span style="font-weight:700;font-size:13px;letter-spacing:.05em">Made in India</span>
+          <span style="font-weight:700;font-size:12px;letter-spacing:.05em">Made in India</span>
         </div>
       </div>
     </div>
     <div class="card">
       <div class="card-title">App Session Info</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="stat"><div class="stat-lbl">Session Start</div><div class="stat-val" style="font-size:14px" id="ab-session">--</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="stat"><div class="stat-lbl">Session Start</div><div class="stat-val" style="font-size:13px" id="ab-session">--</div></div>
         <div class="stat"><div class="stat-lbl">Data Points</div><div class="stat-val" id="ab-points">0</div></div>
         <div class="stat"><div class="stat-lbl">Total Alerts</div><div class="stat-val" id="ab-alerts">0</div></div>
-        <div class="stat"><div class="stat-lbl">App Uptime</div><div class="stat-val" style="font-size:14px" id="ab-uptime">--</div></div>
+        <div class="stat"><div class="stat-lbl">App Uptime</div><div class="stat-val" style="font-size:13px" id="ab-uptime">--</div></div>
       </div>
     </div>
   </div>
 </main>
 
-<nav aria-label="Bottom Navigation">
-  <button class="nb active" id="nb-dashboard" onclick="goTab('dashboard',this)" aria-label="Dashboard">
+<nav>
+  <button class="nb active" id="nb-dashboard" onclick="goTab('dashboard',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     <span class="nb-lbl">Tank</span>
   </button>
-  <button class="nb" id="nb-analytics" onclick="goTab('analytics',this)" aria-label="Analytics">
+  <button class="nb" id="nb-analytics" onclick="goTab('analytics',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     <span class="nb-lbl">Analytics</span>
   </button>
-  <button class="nb" id="nb-alerts" onclick="goTab('alerts',this)" aria-label="Alerts">
+  <button class="nb" id="nb-alerts" onclick="goTab('alerts',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
     <div class="nb-badge hidden" id="alertBadge">0</div>
     <span class="nb-lbl">Alerts</span>
   </button>
-  <button class="nb" id="nb-settings" onclick="goTab('settings',this)" aria-label="Settings">
+  <button class="nb" id="nb-settings" onclick="goTab('settings',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     <span class="nb-lbl">Settings</span>
   </button>
-  <button class="nb" id="nb-tips" onclick="goTab('tips',this)" aria-label="Tips">
+  <button class="nb" id="nb-tips" onclick="goTab('tips',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
     <span class="nb-lbl">Tips</span>
   </button>
-  <button class="nb" id="nb-about" onclick="goTab('about',this)" aria-label="About">
+  <button class="nb" id="nb-about" onclick="goTab('about',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
     <span class="nb-lbl">About</span>
   </button>
 </nav>
 
 <script>
-// ===========================================
+// ═══════════════════════════════════════════
 //  STATE
-// ===========================================
+// ═══════════════════════════════════════════
 const CFG_KEY='tasni_cfg';
 let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'{}');
 const S={m:0,vol:0,total:1000,s:'Offline',dist:0,t:'',usage:0,up:0,rssi:0,boot:0,isFull:0,name:'Main Tank',
-  history:Array(24).fill(null),
+  history:Array(24).fill(null), // null = no data for that hour
   connected:false,lastUpdate:null,_wasFull:false};
 let alerts=JSON.parse(localStorage.getItem('tasni_alerts')||'[]');
 let unread=0,demoMode=false,pollingTimer=null,mqttClient=null,chart=null,tipIdx=0,audioCtx=null;
@@ -1001,58 +780,57 @@ let _mqttCfg=null,_hbTimer=null,_wdTimer=null,_lastAck=0,_silent=false;
 const STALE_MS=30000;
 let _staleTimer=null;
 
+// Session tracking
 const SESSION_START=new Date();
 let dataPointCount=0;
 
-const READINGS_KEY = 'tasni_readings';
-const HOURLY_KEY   = 'tasni_hourly';
-const DAILY_KEY    = 'tasni_daily';
-const SHEETS_KEY   = 'tasni_sheets_cfg';
-const EXPORT_KEY   = 'tasni_last_sync';
-let readings   = JSON.parse(localStorage.getItem(READINGS_KEY)||'[]');
-let hourlyData = JSON.parse(localStorage.getItem(HOURLY_KEY)||'{}');
-let dailyData  = JSON.parse(localStorage.getItem(DAILY_KEY)||'{}');
-let sheetsCfg  = JSON.parse(localStorage.getItem(SHEETS_KEY)||'{}');
-let lastSyncTs = parseInt(localStorage.getItem(EXPORT_KEY)||'0');
-let _prevLevel = null;
-let _autoSyncTimer = null;
+// Persistent hourly data (localStorage)
+const HOURLY_KEY='tasni_hourly';
+const DAILY_KEY='tasni_daily';
+let hourlyData=JSON.parse(localStorage.getItem(HOURLY_KEY)||'{}');  // {YYYY-MM-DD-HH: {start,end,used}}
+let dailyData=JSON.parse(localStorage.getItem(DAILY_KEY)||'{}');    // {YYYY-MM-DD: litres}
 
+// ═══════════════════════════════════════════
+//  TIPS — expanded with savings data
+// ═══════════════════════════════════════════
 const TIPS=[
-  {cat:'CONSERVATION',icon:'??',txt:'A dripping tap wastes up to 15 litres per day. One worn washer can cost you 5,400 litres a year.',saving:'Save 5,400 L/year'},
-  {cat:'HABIT',icon:'??',txt:'Cutting your shower from 10 to 5 minutes saves 50 litres per shower. For a family of 4, that\'s 73,000 L/year.',saving:'Save 73,000 L/year'},
-  {cat:'SAVINGS',icon:'???',txt:'Rainwater harvesting from a 40 sq.m roof can collect 20,000+ litres annually - enough for all your gardening.',saving:'Save 20,000+ L/year'},
-  {cat:'GARDEN',icon:'??',txt:'Water plants at 6 AM or after 6 PM - midday watering loses 40% to evaporation before roots absorb it.',saving:'Save 40% garden water'},
-  {cat:'LEAKS',icon:'??',txt:'A silent toilet leak can waste 500 litres daily. Add food colouring to the cistern - blue in the bowl = leak.',saving:'Save 180,000 L/year'},
-  {cat:'HABIT',icon:'??',txt:'Turning off the tap while brushing teeth saves 6 litres per minute - that\'s 4,380 L/person/year.',saving:'Save 4,380 L/year'},
-  {cat:'APPLIANCES',icon:'???',txt:'A full dishwasher uses 10-15 L. Hand-washing dishes runs 40-60 L. Always run full loads only.',saving:'Save 50 L per wash'},
-  {cat:'APPLIANCES',icon:'??',txt:'Modern washing machines use 50-80 L per cycle. Running half-loads doubles your water per kg of laundry.',saving:'Save 50% laundry water'},
-  {cat:'LEAKS',icon:'??',txt:'Read your water meter at 9 PM, turn off all taps, check at 6 AM. Any increase = hidden leak somewhere.',saving:'Detect leaks early'},
-  {cat:'GARDEN',icon:'??',txt:'Mulching garden beds with 5 cm of organic matter reduces watering frequency by 50% and cools roots naturally.',saving:'Save 50% garden water'},
-  {cat:'SAVINGS',icon:'??',txt:'Greywater from sinks and washing machines can safely water gardens - saving 30-50% of household usage.',saving:'Save 30-50% total'},
-  {cat:'HABIT',icon:'??',txt:'Sweeping a driveway instead of hosing saves 350+ litres per clean. Use a leaf blower for dry debris.',saving:'Save 350 L per clean'},
-  {cat:'CONSERVATION',icon:'??',txt:'Install flow-restricting aerators on taps (costs Rs. 100-300). They cut water use by 50% with no noticeable difference.',saving:'Save 50% tap flow'},
-  {cat:'GARDEN',icon:'?',txt:'Soft, chemical-free rainwater is ideal for plants. A 200-L barrel fills from one moderate rain shower.',saving:'Free water source'},
-  {cat:'CONSERVATION',icon:'??',txt:'Every litre saved today preserves aquifer levels that take decades to replenish. Your monitor matters.',saving:'Future generations'},
+  {cat:'CONSERVATION',icon:'🚿',txt:'A dripping tap wastes up to 15 litres per day. One worn washer can cost you 5,400 litres a year.',saving:'Save 5,400 L/year'},
+  {cat:'HABIT',icon:'⏱️',txt:'Cutting your shower from 10 to 5 minutes saves 50 litres per shower. For a family of 4, that\'s 73,000 L/year.',saving:'Save 73,000 L/year'},
+  {cat:'SAVINGS',icon:'🌧️',txt:'Rainwater harvesting from a 40 m² roof can collect 20,000+ litres annually — enough for all your gardening.',saving:'Save 20,000+ L/year'},
+  {cat:'GARDEN',icon:'🌿',txt:'Water plants at 6 AM or after 6 PM — midday watering loses 40% to evaporation before roots absorb it.',saving:'Save 40% garden water'},
+  {cat:'LEAKS',icon:'🚽',txt:'A silent toilet leak can waste 500 litres daily. Add food colouring to the cistern — blue in the bowl = leak.',saving:'Save 180,000 L/year'},
+  {cat:'HABIT',icon:'🪥',txt:'Turning off the tap while brushing teeth saves 6 litres per minute — that\'s 4,380 L/person/year.',saving:'Save 4,380 L/year'},
+  {cat:'APPLIANCES',icon:'🍽️',txt:'A full dishwasher uses 10–15 L. Hand-washing dishes runs 40–60 L. Always run full loads only.',saving:'Save 50 L per wash'},
+  {cat:'APPLIANCES',icon:'👕',txt:'Modern washing machines use 50–80 L per cycle. Running half-loads doubles your water per kg of laundry.',saving:'Save 50% laundry water'},
+  {cat:'LEAKS',icon:'🔍',txt:'Read your water meter at 9 PM, turn off all taps, check at 6 AM. Any increase = hidden leak somewhere.',saving:'Detect leaks early'},
+  {cat:'GARDEN',icon:'🪣',txt:'Mulching garden beds with 5 cm of organic matter reduces watering frequency by 50% and cools roots naturally.',saving:'Save 50% garden water'},
+  {cat:'SAVINGS',icon:'♻️',txt:'Greywater from sinks and washing machines can safely water gardens — saving 30–50% of household usage.',saving:'Save 30–50% total'},
+  {cat:'HABIT',icon:'🧹',txt:'Sweeping a driveway instead of hosing saves 350+ litres per clean. Use a leaf blower for dry debris.',saving:'Save 350 L per clean'},
+  {cat:'CONSERVATION',icon:'💡',txt:'Install flow-restricting aerators on taps (costs ₹100–300). They cut water use by 50% with no noticeable difference.',saving:'Save 50% tap flow'},
+  {cat:'GARDEN',icon:'☔',txt:'Soft, chemical-free rainwater is ideal for plants. A 200-L barrel fills from one moderate rain shower.',saving:'Free water source'},
+  {cat:'CONSERVATION',icon:'🌊',txt:'Every litre saved today preserves aquifer levels that take decades to replenish. Your monitor matters.',saving:'Future generations'},
 ];
 
 const ACHIEVEMENTS=[
-  {icon:'??',name:'First Drop',desc:'Started monitoring'},
-  {icon:'??',name:'Analyst',desc:'Viewed analytics'},
-  {icon:'??',name:'Alert Ready',desc:'Notifications on'},
-  {icon:'??',name:'Cloud Sync',desc:'MQTT connected'},
-  {icon:'??',name:'Configured',desc:'Settings saved'},
-  {icon:'??',name:'Eco Warrior',desc:'Read all tips'},
-  {icon:'??',name:'24h Champion',desc:'Monitored 24 hrs'},
-  {icon:'??',name:'Forecaster',desc:'Viewed forecast'},
-  {icon:'??',name:'In The Know',desc:'Read About page'},
+  {icon:'💧',name:'First Drop',desc:'Started monitoring'},
+  {icon:'📊',name:'Analyst',desc:'Viewed analytics'},
+  {icon:'🔔',name:'Alert Ready',desc:'Notifications on'},
+  {icon:'☁️',name:'Cloud Sync',desc:'MQTT connected'},
+  {icon:'⚙️',name:'Configured',desc:'Settings saved'},
+  {icon:'🌱',name:'Eco Warrior',desc:'Read all tips'},
+  {icon:'🏆',name:'24h Champion',desc:'Monitored 24 hrs'},
+  {icon:'🔮',name:'Forecaster',desc:'Viewed forecast'},
+  {icon:'ℹ️',name:'In The Know',desc:'Read About page'},
 ];
 
-// ===========================================
+// ═══════════════════════════════════════════
 //  INIT
-// ===========================================
+// ═══════════════════════════════════════════
 window.addEventListener('load',()=>{
   loadFormValues(); initChart(); renderTips(); renderAchievements(); renderAlertLog(); checkNotifPerm();
-  renderDash(); renderDayBars(); renderHeatmap(); updateAbout();
+  renderDash();
+  renderDayBars(); renderHeatmap();
+  updateAbout();
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
   unlockAch(0);
   if(!cfg.ip&&!cfg.broker){
@@ -1064,16 +842,17 @@ window.addEventListener('load',()=>{
   document.addEventListener('touchstart',()=>{if(!audioCtx)getAudioCtx();},{once:true});
   document.addEventListener('click',()=>{if(!audioCtx)getAudioCtx();},{once:true});
   requestWakeLock();
+  // Update about section every minute
   setInterval(updateAbout,60000);
+  // Auto-advance tips every 12 seconds
   setInterval(()=>{if(document.getElementById('tab-tips').classList.contains('active')){nextTip();}},12000);
+  // Splash animation loop
   initSplash();
-  initExportUI();
-  startAutoSync();
 });
 
-// ===========================================
+// ═══════════════════════════════════════════
 //  CONFIG
-// ===========================================
+// ═══════════════════════════════════════════
 function saveCfg(u){Object.assign(cfg,u);localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
 function loadFormValues(){
   const sv=(id,v)=>{if(v!=null&&v!==''&&document.getElementById(id))document.getElementById(id).value=v;};
@@ -1086,6 +865,9 @@ function loadFormValues(){
   if(cfg.tankName)document.getElementById('tankNameLbl').textContent=cfg.tankName.toUpperCase();
 }
 
+// ═══════════════════════════════════════════
+//  CONNECTIONS
+// ═══════════════════════════════════════════
 function applySetup(){
   const ip=g('s-ip'),broker=g('s-broker'),port=parseInt(g('s-port'))||8884;
   const mquser=g('s-mquser'),mqpass=g('s-mqpass'),name=g('s-name')||'Main Tank';
@@ -1109,9 +891,9 @@ function startConnections(){
   _resetStaleTimer();
 }
 
-// ===========================================
-//  WIFI & MQTT
-// ===========================================
+// ═══════════════════════════════════════════
+//  LOCAL WIFI POLL
+// ═══════════════════════════════════════════
 function startPoll(ip){
   if(pollingTimer)clearInterval(pollingTimer);
   fetchSensor(ip);
@@ -1127,6 +909,9 @@ async function fetchSensor(ip){
   updatePill();
 }
 
+// ═══════════════════════════════════════════
+//  MQTT — ALWAYS-ALIVE ENGINE
+// ═══════════════════════════════════════════
 function _connectMQTT(mc){_mqttCfg=mc;_silent=false;_doConnect(mc);}
 function _doConnect(mc){
   if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
@@ -1143,11 +928,15 @@ function _doConnect(mc){
       const t=mc.topic||'tasni-water/+/state';
       mqttClient.subscribe(t,{qos:1});
       setChip('chip-mqtt',true);updatePill();unlockAch(3);
-      if(!_silent){push('ai','?? MQTT connected to '+rawHost);showToast('MQTT connected!','ok');}
-      else{showToast('?? Reconnected','ok',2000);}
-      _silent=true; _startHB(mc);
+      if(!_silent){push('ai','☁️ MQTT connected to '+rawHost);showToast('MQTT connected!','ok');}
+      else{showToast('🔄 Reconnected','ok',2000);}
+      _silent=true;
+      _startHB(mc);
     });
-    mqttClient.on('message',(_t,pl)=>{_lastAck=Date.now();try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT JSON:',e);}});
+    mqttClient.on('message',(_t,pl)=>{
+      _lastAck=Date.now();
+      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT JSON:',e);}
+    });
     mqttClient.on('reconnect',()=>{setChip('chip-mqtt',false);updatePill();});
     mqttClient.on('close',()=>{setChip('chip-mqtt',false);updatePill();});
     mqttClient.on('offline',()=>{setChip('chip-mqtt',false);updatePill();});
@@ -1164,16 +953,40 @@ function _startHB(mc){
     if(!mqttClient||!mqttClient.connected)return;
     mqttClient.publish('tasni-water/web/ping',JSON.stringify({ts:Date.now()}),{qos:0});
     clearTimeout(_wdTimer);
-    _wdTimer=setTimeout(()=>{if(Date.now()-_lastAck>40000&&_mqttCfg){console.warn('TASNI watchdog: hard reconnect');_doConnect(_mqttCfg);}},40000);
+    _wdTimer=setTimeout(()=>{
+      if(Date.now()-_lastAck>40000&&_mqttCfg){console.warn('TASNI watchdog: hard reconnect');_doConnect(_mqttCfg);}
+    },40000);
   },25000);
 }
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&_mqttCfg){if(!mqttClient||!mqttClient.connected)_doConnect(_mqttCfg);else _startHB(_mqttCfg);requestWakeLock();}});
-window.addEventListener('online',()=>{if(_mqttCfg&&(!mqttClient||!mqttClient.connected)){showToast('?? Network restored','info',2500);_doConnect(_mqttCfg);}});
-window.addEventListener('offline',()=>{showToast('?? Network lost - waiting for data...','warn',4000);clearTimeout(_staleTimer);_staleTimer=setTimeout(_markStale,5000);});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&_mqttCfg){
+    if(!mqttClient||!mqttClient.connected)_doConnect(_mqttCfg);
+    else _startHB(_mqttCfg);
+    requestWakeLock();
+  }
+});
+window.addEventListener('online',()=>{
+  if(_mqttCfg&&(!mqttClient||!mqttClient.connected)){showToast('📶 Network restored','info',2500);_doConnect(_mqttCfg);}
+});
+window.addEventListener('offline',()=>{
+  showToast('📡 Network lost — waiting for data…','warn',4000);
+  clearTimeout(_staleTimer);
+  _staleTimer=setTimeout(_markStale,5000);
+});
 async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await navigator.wakeLock.request('screen');}catch(_){}}
 
+// ═══════════════════════════════════════════
+//  MQTT FIELD MAP
+// ═══════════════════════════════════════════
 function ingestMQTT(d){
-  ingest({m:d.level??d.m, vol:d.volume??d.vol, total:d.total, s:d.status??d.s, dist:d.dist, t:d.trend??d.t, usage:d.usage, up:d.uptime??d.up, rssi:d.rssi, boot:d.boot, isFull:d.isFull, name:d.name},true);
+  ingest({
+    m:    d.level??d.m,       vol:  d.volume??d.vol,
+    total:d.total,            s:    d.status??d.s,
+    dist: d.dist,             t:    d.trend??d.t,
+    usage:d.usage,            up:   d.uptime??d.up,
+    rssi: d.rssi,             boot: d.boot,
+    isFull:d.isFull,          name: d.name,
+  },true);
 }
 function setChip(id,on){document.getElementById(id).classList.toggle('on',on);}
 function updatePill(){
@@ -1188,124 +1001,126 @@ function updatePill(){
   else          {document.getElementById('connLbl').textContent='OFFLINE';}
 }
 
-// ===========================================
+// ═══════════════════════════════════════════
 //  DATA INGEST
-// ===========================================
-function ingest(d, fromMQTT=false){
-  const prev = S.m;
-  if(d.m      != null) S.m      = parseInt(d.m);
-  if(d.vol    != null) S.vol    = parseFloat(d.vol);
-  if(d.total  != null) S.total  = parseFloat(d.total);
-  if(d.s      != null) S.s      = d.s;
-  if(d.dist   != null) S.dist   = parseFloat(d.dist);
-  if(d.t      != null) S.t      = d.t;
-  if(d.usage  != null) S.usage  = parseFloat(d.usage);
-  if(d.up     != null) S.up     = parseInt(d.up);
-  if(d.rssi   != null) S.rssi   = parseInt(d.rssi);
-  if(d.boot   != null) S.boot   = parseInt(d.boot);
-  if(d.isFull != null) S.isFull = parseInt(d.isFull);
-  if(d.name   != null) S.name   = d.name;
+// ═══════════════════════════════════════════
+function ingest(d,fromMQTT=false){
+  const prev=S.m;
+  if(d.m     !=null)S.m     =parseInt(d.m);
+  if(d.vol   !=null)S.vol   =parseFloat(d.vol);
+  if(d.total !=null)S.total =parseFloat(d.total);
+  if(d.s     !=null)S.s     =d.s;
+  if(d.dist  !=null)S.dist  =parseFloat(d.dist);
+  if(d.t     !=null)S.t     =d.t;
+  if(d.usage !=null)S.usage =parseFloat(d.usage);
+  if(d.up    !=null)S.up    =parseInt(d.up);
+  if(d.rssi  !=null)S.rssi  =parseInt(d.rssi);
+  if(d.boot  !=null)S.boot  =parseInt(d.boot);
+  if(d.isFull!=null)S.isFull=parseInt(d.isFull);
+  if(d.name  !=null)S.name  =d.name;
 
-  const now     = new Date();
-  const isoNow  = now.toISOString();
-  const dateKey = isoNow.slice(0,10);
-  const hKey    = dateKey+'-'+String(now.getHours()).padStart(2,'0');
-
-  // Log to readings array
-  readings.push({ts:isoNow, level:S.m, vol:+S.vol.toFixed(2), total:S.total, dist:+S.dist.toFixed(1), usage:+S.usage.toFixed(2), rssi:S.rssi, isFull:S.isFull, trend:S.t||''});
-  if(readings.length > 5000) readings = readings.slice(-5000);
-  localStorage.setItem(READINGS_KEY, JSON.stringify(readings));
-
-  // Hourly Deltas
-  let consumed=0, refilled=0;
-  if(_prevLevel !== null){
-    const delta = _prevLevel - S.m;
-    const L = Math.abs(delta)/100*S.total;
-    if(delta > 0.3)  consumed = L;
-    if(delta < -0.3) refilled = L;
+  // Track refill events (level rising significantly = refill happening)
+  if(_lastLevelForRefill!==null&&S.m-_lastLevelForRefill>=10){
+    todayRefillCount++;localStorage.setItem('tasni_refills',todayRefillCount);
   }
-  _prevLevel = S.m;
+  _lastLevelForRefill=S.m;
 
-  if(!hourlyData[hKey]) hourlyData[hKey]={consumedL:0,refilledL:0,readings:0,firstLevel:S.m,lastLevel:S.m,minLevel:S.m,maxLevel:S.m};
-  const slot=hourlyData[hKey];
-  slot.lastLevel=S.m; slot.minLevel=Math.min(slot.minLevel,S.m); slot.maxLevel=Math.max(slot.maxLevel,S.m);
-  slot.readings=(slot.readings||0)+1;
-  slot.consumedL=+((slot.consumedL||0)+consumed).toFixed(2);
-  slot.refilledL=+((slot.refilledL||0)+refilled).toFixed(2);
-  localStorage.setItem(HOURLY_KEY, JSON.stringify(hourlyData));
+  // Hourly history slot
+  const now=new Date();
+  const hKey=`${now.toISOString().slice(0,10)}-${String(now.getHours()).padStart(2,'0')}`;
+  if(!hourlyData[hKey])hourlyData[hKey]={start:S.m,end:S.m,min:S.m,max:S.m,ts:Date.now()};
+  hourlyData[hKey].end=S.m;
+  hourlyData[hKey].min=Math.min(hourlyData[hKey].min,S.m);
+  hourlyData[hKey].max=Math.max(hourlyData[hKey].max,S.m);
+  // Compute used litres in this hour (drops only)
+  const drop=Math.max(0,hourlyData[hKey].start-S.m);
+  hourlyData[hKey].usedL=(drop/100)*S.total;
+  localStorage.setItem(HOURLY_KEY,JSON.stringify(hourlyData));
 
-  // Daily Rollup Update
-  let dc=0,dr=0;
-  Object.entries(hourlyData).forEach(([k,v])=>{if(k.startsWith(dateKey)){dc+=v.consumedL||0;dr+=v.refilledL||0;}});
-  dailyData[dateKey]={consumedL:+dc.toFixed(2),refilledL:+dr.toFixed(2)};
-  localStorage.setItem(DAILY_KEY, JSON.stringify(dailyData));
+  // Update 24h rolling history (for chart)
+  if(!fromMQTT){S.history.shift();S.history.push(S.m);}
 
-  // Update State
-  S.history[now.getHours()] = S.m;
-  S.connected=true; S.lastUpdate=now; dataPointCount++;
-  
+  S.connected=true;S.lastUpdate=now;
+  dataPointCount++;
   _resetStaleTimer();
   checkAlerts(prev,S.m,S.isFull);
-  renderDash(); renderChart(); renderAnalytics();
-  renderHeatmap(); renderDayBars();
+  renderDash();renderChart();renderAnalytics();
+  renderHeatmap();renderDayBars();
 }
-function _resetStaleTimer(){if(demoMode)return;clearTimeout(_staleTimer);_staleTimer=setTimeout(_markStale,STALE_MS);}
-function _markStale(){if(S.connected){S.connected=false;push('aw','?? No data received - device may be offline.');}renderDash();}
 
-// ===========================================
+// ═══════════════════════════════════════════
+//  STALENESS WATCHDOG
+// ═══════════════════════════════════════════
+function _resetStaleTimer(){
+  if(demoMode)return;
+  clearTimeout(_staleTimer);
+  _staleTimer=setTimeout(_markStale,STALE_MS);
+}
+function _markStale(){
+  if(S.connected){S.connected=false;push('aw','📡 No data received — device may be offline.');}
+  renderDash();
+}
+
+// ═══════════════════════════════════════════
 //  ALERT ENGINE
-// ===========================================
+// ═══════════════════════════════════════════
 function checkAlerts(prev,cur,isFull){
   if(!prev&&!cur)return;
 
   if(prev>=10&&cur<10&&ck('t-crit')){
-    push('ac','?? CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
+    push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
     playSound('critical_alarm');
   } else if(prev>=30&&cur<30&&ck('t-low')){
-    push('aw','?? LOW: Tank at '+cur+'%. Schedule a refill soon.');
+    push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
   }
 
+  // Every 10% DROP while draining
   if(ck('t-drop10')){
     const prevBand=Math.floor(prev/10);
     const curBand=Math.floor(cur/10);
     if(curBand<prevBand&&cur>=10){
       for(let b=prevBand-1;b>=curBand&&b>=1;b--){
-        push('aw','?? DROP: Tank crossed '+(b*10)+'% mark - now at '+cur+'%.');
+        push('aw','💧 DROP: Tank crossed '+(b*10)+'% mark — now at '+cur+'%.');
         playSound('drop_10');
       }
     }
   }
 
+  // Every 10% RISE while filling — distinct ascending tones
   if(ck('t-fill10')){
     const prevBand=Math.floor(prev/10);
     const curBand=Math.floor(cur/10);
     if(curBand>prevBand&&cur>10&&prev>=0){
       for(let b=prevBand+1;b<=curBand&&b<=9;b++){
         const milestone=b*10;
-        push('ai','?? FILLING: Tank reached '+milestone+'%'+(milestone===90?' - almost full!':milestone===50?' - halfway there!':'')+'');
+        push('ai','⬆️ FILLING: Tank reached '+milestone+'%'+(milestone===90?' — almost full!':milestone===50?' — halfway there!':'')+'');
         playSound('fill_10',false,milestone);
       }
     }
   }
 
-  if(prev-cur>=10&&ck('t-drop'))push('aw','?? SUDDEN DROP: Level fell '+(prev-cur)+'% - possible leak!');
+  if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
 
   if(prev<90&&cur>=90&&ck('t-fill')){
-    push('ai','? REFILLING: Tank above 90% - almost full!');
+    push('ai','✅ REFILLING: Tank above 90% — almost full!');
     playSound('refill');
   }
 
   if(!S._wasFull&&isFull===1&&ck('t-full')){
-    push('ai','?? FULL TANK: Water level is at maximum!',true);
+    push('ai','💧 FULL TANK: Water level is at maximum!',true);
     playSound('full_tank');
+    // Extra push notification for full tank
     if(Notification.permission==='granted'){
       try{
         navigator.serviceWorker.ready.then(reg=>{
-          reg.showNotification('?? TASNI - Tank Full!',{
+          reg.showNotification('🎉 TASNI — Tank Full!',{
             body:'Your water tank has reached 100% capacity. You can stop filling now.',
-            icon:'icon.svg',badge:'icon.svg',tag:'tasni-full-'+Date.now(),
-            vibrate:[200,80,200,80,400,80,600,80,1000],requireInteraction:true,
-            data:{url:'./'},actions:[{action:'view',title:'View Dashboard'}]
+            icon:'icon.svg',badge:'icon.svg',
+            tag:'tasni-full-'+Date.now(),
+            vibrate:[200,80,200,80,400,80,600,80,1000],
+            requireInteraction:true,
+            data:{url:'./'},
+            actions:[{action:'view',title:'View Dashboard'}]
           });
         });
       }catch(e){}
@@ -1320,24 +1135,34 @@ function push(type,msg,critical=false){
   localStorage.setItem('tasni_alerts',JSON.stringify(alerts));
   unread++;const b=document.getElementById('alertBadge');
   b.textContent=unread;b.classList.remove('hidden');
+  // Vibration patterns
   if('vibrate' in navigator){
-    if(critical||type==='ac') navigator.vibrate([200,80,200,80,400,80,200,80,600,80,200]);
-    else if(type==='aw') navigator.vibrate([150,60,150,60,300,60,150]);
-    else navigator.vibrate([80,40,80]);
+    if(critical||type==='ac')
+      navigator.vibrate([200,80,200,80,400,80,200,80,600,80,200]);
+    else if(type==='aw')
+      navigator.vibrate([150,60,150,60,300,60,150]);
+    else
+      navigator.vibrate([80,40,80]);
   }
+  // Push notification — works even when app is in background
   if(Notification.permission==='granted'){
     try{
+      // Use service worker notification for background delivery
       if(navigator.serviceWorker&&navigator.serviceWorker.controller){
         navigator.serviceWorker.ready.then(reg=>{
           reg.showNotification('TASNI Water Monitor',{
-            body:msg,icon:'icon.svg',badge:'icon.svg',tag:'tasni-'+type+'-'+Date.now(),
+            body:msg,icon:'icon.svg',badge:'icon.svg',
+            tag:'tasni-'+type+'-'+Date.now(),
             vibrate:critical?[200,80,200,80,400,80,200]:[150,60,150,60,300],
             requireInteraction:critical||type==='ac',
-            data:{url:'./'},actions:[{action:'view',title:'View Dashboard'}]
+            data:{url:'./'},
+            actions:[{action:'view',title:'View Dashboard'}]
           });
         });
       } else {
-        new Notification('TASNI Water Monitor',{body:msg,icon:'icon.svg',vibrate:critical?[200,80,200,80,400]:[100,50,100],requireInteraction:critical||type==='ac'});
+        new Notification('TASNI Water Monitor',{body:msg,icon:'icon.svg',
+          vibrate:critical?[200,80,200,80,400]:[100,50,100],
+          requireInteraction:critical||type==='ac'});
       }
     }catch(e){console.warn('Notif:',e);}
   }
@@ -1347,14 +1172,15 @@ function push(type,msg,critical=false){
 
 function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
 
-// ===========================================
-//  SOUND ENGINE
-// ===========================================
+// ═══════════════════════════════════════════
+//  SOUND ENGINE — Web Audio API
+// ═══════════════════════════════════════════
 function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
 function _osc(ctx,freq,startT,dur,wave,vol,freqEnd){
   const o=ctx.createOscillator(),g=ctx.createGain();
   o.connect(g);g.connect(ctx.destination);
-  o.type=wave; o.frequency.setValueAtTime(freq,ctx.currentTime+startT);
+  o.type=wave;
+  o.frequency.setValueAtTime(freq,ctx.currentTime+startT);
   if(freqEnd!=null)o.frequency.linearRampToValueAtTime(freqEnd,ctx.currentTime+startT+dur);
   g.gain.setValueAtTime(0,ctx.currentTime+startT);
   g.gain.linearRampToValueAtTime(vol,ctx.currentTime+startT+0.015);
@@ -1376,13 +1202,18 @@ function _noise(ctx,startT,dur,vol){
 function playSound(type,critical,milestone){
   try{
     const ctx=getAudioCtx();
-    if(type==='full_tank'){[523,659,784,1047,1319].forEach((f,i)=>{_osc(ctx,f,i*0.07,0.5,'sine',0.22);_osc(ctx,f*2,i*0.07+0.04,0.3,'sine',0.10);});[784,988,1175,1319,1568,1976,2093].forEach((f,i)=>_osc(ctx,f,0.5+i*0.09,0.25,'sine',0.18));[2093,2349,2637,3136].forEach((f,i)=>_osc(ctx,f,0.9+i*0.07,0.3,'sine',0.10));
+    if(type==='full_tank'){
+      [523,659,784,1047,1319].forEach((f,i)=>{_osc(ctx,f,i*0.07,0.5,'sine',0.22);_osc(ctx,f*2,i*0.07+0.04,0.3,'sine',0.10);});
+      [784,988,1175,1319,1568,1976,2093].forEach((f,i)=>_osc(ctx,f,0.5+i*0.09,0.25,'sine',0.18));
+      [2093,2349,2637,3136].forEach((f,i)=>_osc(ctx,f,0.9+i*0.07,0.3,'sine',0.10));
       _noise(ctx,0,0.12,0.30);_noise(ctx,0.5,0.10,0.25);
       [2093,2637,3136].forEach((f,i)=>_osc(ctx,f,1.55+i*0.18,0.4,'sine',0.22));
       return;
     }
     if(type==='critical_alarm'||critical||type==='ac'){
-      for(let rep=0;rep<3;rep++){[880,660,440,330].forEach((f,i)=>_osc(ctx,f,rep*0.72+i*0.17,0.15,'sawtooth',0.25));}[110,110,110].forEach((_,i)=>_osc(ctx,110,i*0.72,0.65,'square',0.15));[0,0.72,1.44].forEach(t=>_noise(ctx,t,0.08,0.35));
+      for(let rep=0;rep<3;rep++){[880,660,440,330].forEach((f,i)=>_osc(ctx,f,rep*0.72+i*0.17,0.15,'sawtooth',0.25));}
+      [110,110,110].forEach((_,i)=>_osc(ctx,110,i*0.72,0.65,'square',0.15));
+      [0,0.72,1.44].forEach(t=>_noise(ctx,t,0.08,0.35));
       for(let i=0;i<6;i++)_osc(ctx,1200+(i%2)*400,i*0.36,0.32,'sawtooth',0.12);
       return;
     }
@@ -1392,41 +1223,58 @@ function playSound(type,critical,milestone){
       _noise(ctx,0,0.04,0.12);_noise(ctx,0.35,0.04,0.10);
       return;
     }
-    if(type==='refill'){[523,659,784,1047,1319,1568].forEach((f,i)=>{_osc(ctx,f,i*0.11,0.35,'sine',0.20);if(i%2===0)_osc(ctx,f*1.5,i*0.11+0.05,0.20,'sine',0.08);});
+    if(type==='refill'){
+      [523,659,784,1047,1319,1568].forEach((f,i)=>{_osc(ctx,f,i*0.11,0.35,'sine',0.20);if(i%2===0)_osc(ctx,f*1.5,i*0.11+0.05,0.20,'sine',0.08);});
       _noise(ctx,0,0.06,0.15);return;
     }
     if(type==='fill_10'){
+      // Ascending water-drop tones — pitch rises with milestone (10%→low, 90%→high)
       const pct=milestone||50;
-      const baseFreq=300+(pct/100)*900;
+      const baseFreq=300+(pct/100)*900; // 300Hz at 10%, 1200Hz at 100%
       _osc(ctx,baseFreq*0.5, 0,    0.06,'sine',0.12,baseFreq*0.8);
       _osc(ctx,baseFreq,     0.05, 0.22,'sine',0.22,baseFreq*1.05);
       _osc(ctx,baseFreq*1.2, 0.15, 0.18,'sine',0.18,baseFreq*1.35);
       _osc(ctx,baseFreq*1.5, 0.28, 0.25,'sine',0.14,baseFreq*1.7);
       _noise(ctx,0.02,0.04,0.12);
-      if(pct>=70){_osc(ctx,baseFreq*2,0.32,0.20,'sine',0.12);_osc(ctx,baseFreq*2.5,0.42,0.18,'sine',0.09);}
+      // Extra sparkle at high milestones (70%+)
+      if(pct>=70){
+        _osc(ctx,baseFreq*2,0.32,0.20,'sine',0.12);
+        _osc(ctx,baseFreq*2.5,0.42,0.18,'sine',0.09);
+      }
       return;
     }
     if(type==='aw'){
       [700,700,900].forEach((f,i)=>{_osc(ctx,f,i*0.28,0.20,'sine',0.22);_osc(ctx,f*0.5,i*0.28,0.20,'square',0.08);_noise(ctx,i*0.28,0.05,0.18);});
       return;
-    }[523,659,784,1047].forEach((f,i)=>{_osc(ctx,f,i*0.13,0.28,'sine',0.18);_osc(ctx,f*2,i*0.13+0.04,0.15,'sine',0.07);});
+    }
+    [523,659,784,1047].forEach((f,i)=>{_osc(ctx,f,i*0.13,0.28,'sine',0.18);_osc(ctx,f*2,i*0.13+0.04,0.15,'sine',0.07);});
   }catch(e){console.warn('Audio:',e);}
 }
 
-// ===========================================
-//  SPLASH ANIMATION
-// ===========================================
+// ═══════════════════════════════════════════
+//  SPLASH ANIMATION — Canvas-based realistic droplet splash
+// ═══════════════════════════════════════════
 let splashCtx=null;
 const splashParticles=[];
 function initSplash(){
   const canvas=document.getElementById('splashCanvas');
   if(!canvas)return;
   splashCtx=canvas.getContext('2d');
-  const drpTimings=[{x:0.30,duration:1800,delay:0},{x:0.50,duration:2200,delay:700},{x:0.66,duration:1500,delay:1300}];
+  // Trigger splashes timed to droplet fall animations
+  // Drp1: 1.8s cycle, Drp2: 2.2s, Drp3: 1.5s
+  const drpTimings=[
+    {x:0.30,duration:1800,delay:0},
+    {x:0.50,duration:2200,delay:700},
+    {x:0.66,duration:1500,delay:1300},
+  ];
   drpTimings.forEach(({x,duration,delay})=>{
     const fire=()=>{
       const pct=Math.max(0,Math.min(100,S.m));
-      if(pct>5){spawnSplash(x*115, 215*(1-pct/100));}
+      if(pct>5){
+        const canvasH=215;
+        const waterY=canvasH*(1-pct/100);
+        spawnSplash(x*115, waterY);
+      }
     };
     setTimeout(()=>{fire();setInterval(fire,duration);},delay+duration*0.87);
   });
@@ -1436,13 +1284,17 @@ function spawnSplash(x,y){
   const count=8+Math.floor(Math.random()*6);
   for(let i=0;i<count;i++){
     const angle=-Math.PI/2+(Math.random()-.5)*Math.PI*0.9;
-    const speed=0.8+Math.random()*2.0;
+    const speed=0.8+Math.random()*1.8;
     splashParticles.push({
-      x,y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed,
-      r:0.8+Math.random()*1.5, life:1, decay:0.03+Math.random()*0.02,
+      x,y,
+      vx:Math.cos(angle)*speed,
+      vy:Math.sin(angle)*speed,
+      r:0.8+Math.random()*1.4,
+      life:1,decay:0.035+Math.random()*0.025,
       color:`rgba(45,212,191,`
     });
   }
+  // Ripple ring at surface
   const tank=document.getElementById('tankBody');
   if(tank){
     const rip=document.createElement('div');
@@ -1450,7 +1302,7 @@ function spawnSplash(x,y){
     rip.style.left=x+'px';rip.style.top=y+'px';
     rip.style.width='16px';rip.style.height='8px';
     tank.appendChild(rip);
-    setTimeout(()=>rip.remove(),800);
+    setTimeout(()=>rip.remove(),900);
   }
 }
 function animateSplash(){
@@ -1458,7 +1310,7 @@ function animateSplash(){
   splashCtx.clearRect(0,0,115,215);
   for(let i=splashParticles.length-1;i>=0;i--){
     const p=splashParticles[i];
-    p.x+=p.vx;p.y+=p.vy;p.vy+=0.09; // gravity
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.08;// gravity
     p.life-=p.decay;
     if(p.life<=0){splashParticles.splice(i,1);continue;}
     splashCtx.beginPath();
@@ -1469,9 +1321,9 @@ function animateSplash(){
   requestAnimationFrame(animateSplash);
 }
 
-// ===========================================
+// ═══════════════════════════════════════════
 //  RENDER DASH
-// ===========================================
+// ═══════════════════════════════════════════
 function renderDash(){
   const pct=Math.max(0,Math.min(100,S.m));
   const fill=document.getElementById('waterFill');
@@ -1481,39 +1333,45 @@ function renderDash(){
     fill.style.height='0%';
     fill.style.background='linear-gradient(to top,rgba(80,80,110,.4),rgba(80,80,110,.2))';
     if(glow)glow.style.boxShadow='none';
-    set('levelNum','<span class="pct" style="font-size:32px;color:var(--muted)">NIL</span>');
+    set('levelNum','<span class="pct" style="font-size:28px;color:var(--muted)">NIL</span>');
     const bar=document.getElementById('lvlBar');bar.style.width='0%';
     set('volL','--');set('distCm','--');set('usageRate','--');
     set('uptimeVal','--');set('rssiVal','--');set('bootVal','--');set('trendLbl','--');
     const b=document.getElementById('statusBadge');b.className='badge b-off';b.textContent='NO DATA';
     set('estEmpty','--');
     if(S.lastUpdate)set('updLbl','Last seen '+S.lastUpdate.toLocaleTimeString());
-    else set('updLbl','Waiting for device...');
+    else set('updLbl','Waiting for device…');
     return;
   }
 
   fill.style.height=pct+'%';
 
+  // Water colour + tank glow ring changes by level
   let waterBg,glowColor;
   if(S.isFull===1||pct>=100){
-    waterBg='linear-gradient(to top,rgba(0,180,120,.95),rgba(0,220,140,.8),rgba(52,211,153,.65))';
-    glowColor='0 0 24px 4px rgba(52,211,153,.5),inset 0 0 0 2px rgba(52,211,153,.3)';
+    waterBg='linear-gradient(to top,rgba(0,180,120,.95),rgba(0,220,140,.75),rgba(52,211,153,.5))';
+    glowColor='0 0 20px 4px rgba(52,211,153,.5),inset 0 0 0 2px rgba(52,211,153,.2)';
   } else if(pct<10){
-    waterBg='linear-gradient(to top,rgba(180,30,50,.95),rgba(248,113,113,.75))';
-    glowColor='0 0 24px 4px rgba(248,113,113,.55),inset 0 0 0 2px rgba(248,113,113,.3)';
+    waterBg='linear-gradient(to top,rgba(180,30,50,.95),rgba(248,113,113,.6))';
+    glowColor='0 0 20px 4px rgba(248,113,113,.55),inset 0 0 0 2px rgba(248,113,113,.2)';
   } else if(pct<30){
-    waterBg='linear-gradient(to top,rgba(160,100,0,.95),rgba(251,191,36,.75))';
-    glowColor='0 0 18px 3px rgba(251,191,36,.45),inset 0 0 0 2px rgba(251,191,36,.25)';
+    waterBg='linear-gradient(to top,rgba(160,100,0,.95),rgba(251,191,36,.6))';
+    glowColor='0 0 16px 3px rgba(251,191,36,.45),inset 0 0 0 2px rgba(251,191,36,.15)';
   } else {
-    waterBg='linear-gradient(to top,rgba(0,100,200,.95),rgba(0,160,240,.85),rgba(45,212,191,.65))';
-    glowColor='0 0 16px 2px rgba(45,212,191,.4),inset 0 0 0 2px rgba(45,212,191,.15)';
+    waterBg='linear-gradient(to top,rgba(0,100,200,.95),rgba(0,160,240,.8),rgba(45,212,191,.55))';
+    glowColor='0 0 14px 2px rgba(45,212,191,.3),inset 0 0 0 2px rgba(45,212,191,.08)';
   }
   fill.style.background=waterBg;
   if(glow)glow.style.boxShadow=glowColor;
 
-  if(S.isFull===1) set('levelNum','FULL<span class="pct" style="font-size:18px"> TANK</span>');
-  else set('levelNum',pct+'<span class="pct">%</span>');
+  // Level number
+  if(S.isFull===1){
+    set('levelNum','FULL<span class="pct" style="font-size:16px"> TANK</span>');
+  } else {
+    set('levelNum',pct+'<span class="pct">%</span>');
+  }
 
+  // Progress bar
   const bar=document.getElementById('lvlBar');
   bar.style.width=pct+'%';
   bar.style.background=pct<10?'linear-gradient(90deg,#7a0000,#f87171)':pct<30?'linear-gradient(90deg,#806600,#fbbf24)':'linear-gradient(90deg,var(--purple),var(--pri))';
@@ -1523,6 +1381,7 @@ function renderDash(){
   set('rssiVal',S.rssi||'--');set('bootVal',S.boot||'--');set('trendLbl',S.t);
   if(S.name)document.getElementById('tankNameLbl').textContent=S.name.toUpperCase();
 
+  // Status badge
   const b=document.getElementById('statusBadge');b.className='badge';
   if(S.isFull===1)    {b.textContent='FULL TANK';b.classList.add('b-full');}
   else if(!S.connected){b.textContent='OFFLINE';  b.classList.add('b-off');}
@@ -1530,83 +1389,214 @@ function renderDash(){
   else if(pct<30)     {b.textContent='LOW';        b.classList.add('b-low');}
   else                {b.textContent=S.s||'NORMAL';b.classList.add('b-ok');}
 
-  document.getElementById('estEmpty').textContent=S.usage>0?fmtHrs(S.vol/S.usage):'\u221E';
+  document.getElementById('estEmpty').textContent=S.usage>0?fmtHrs(S.vol/S.usage):'∞';
   if(S.lastUpdate)set('updLbl','Updated '+S.lastUpdate.toLocaleTimeString());
 }
 
-// ===========================================
-//  ANALYTICS & CHARTS
-// ===========================================
-function _dc(dk){ let t=0; Object.entries(hourlyData).forEach(([k,v])=>{if(k.startsWith(dk))t+=v.consumedL||0;}); return t; }
-function _dr(dk){ let t=0; Object.entries(hourlyData).forEach(([k,v])=>{if(k.startsWith(dk))t+=v.refilledL||0;}); return t; }
+// ═══════════════════════════════════════════
+//  ANALYTICS — rich render (REAL DATA ONLY)
+// ═══════════════════════════════════════════
+
+// Track refill events today
+let todayRefillCount=parseInt(localStorage.getItem('tasni_refills')||'0');
+let _lastLevelForRefill=null;
+
+function resetAllAnalytics(){
+  if(!confirm('Reset ALL analytics data (hourly, daily, refill counts)?\nThis cannot be undone.'))return;
+  dailyData={};hourlyData={};todayRefillCount=0;_lastLevelForRefill=null;
+  localStorage.removeItem(DAILY_KEY);localStorage.removeItem(HOURLY_KEY);
+  localStorage.removeItem('tasni_refills');
+  renderDayBars();renderHeatmap();renderAnalytics();
+  showToast('Analytics data cleared — tracking fresh from now','ok',3000);
+}
 
 function renderAnalytics(){
+  const h=S.history.filter(v=>v!=null);
   const pct=Math.max(0,Math.min(100,S.m));
-  const todayKey=new Date().toISOString().slice(0,10);
+  const now=new Date();
+  const todayKey=now.toISOString().slice(0,10);
+  const hKey=`${todayKey}-${String(now.getHours()).padStart(2,'0')}`;
 
-  const bands=[0,0,0,0];
-  Object.entries(hourlyData).forEach(([k,v])=>{const hr=parseInt(k.slice(-2)),c=v.consumedL||0;if(hr>=6&&hr<12)bands[0]+=c;else if(hr>=12&&hr<18)bands[1]+=c;else if(hr>=18)bands[2]+=c;else bands[3]+=c;});
-  const bMx=Math.max(...bands,1);['morn','aft','eve','ngt'].forEach((id,i)=>{set('u-'+id,bands[i]>0?bands[i].toFixed(1)+' L':'-- L');const el=document.getElementById('b-'+id);if(el)el.style.width=(bands[i]/bMx*100)+'%';});
-  const bTot=bands.reduce((a,b)=>a+b,0);
+  // ── LIVE: This Hour consumed ──
+  const thisHourData=hourlyData[hKey];
+  const thisHourUsed=thisHourData?(thisHourData.usedL||0):0;
+  const minElapsed=now.getMinutes()||1;
+
+  const lhEl=document.getElementById('live-hr');
+  if(lhEl)lhEl.textContent=thisHourUsed>0?thisHourUsed.toFixed(1)+' L':'0 L';
+  const lhSub=document.getElementById('live-hr-sub');
+  if(lhSub)lhSub.textContent='in past '+minElapsed+' min';
+
+  // ── LIVE: Today total consumed (sum of all hourly drops today) ──
+  let todayUsed=0;
+  let todayHoursWithData=0;
+  Object.entries(hourlyData).forEach(([k,v])=>{
+    if(k.startsWith(todayKey)&&(v.usedL||0)>0){todayUsed+=v.usedL;todayHoursWithData++;}
+  });
+
+  // Avg L/hr today (only hours with actual data)
+  const hoursElapsed=now.getHours()+(now.getMinutes()/60)||1;
+  const avgLph=todayUsed>0?(todayUsed/hoursElapsed):0;
+  const lphEl=document.getElementById('live-lph');
+  if(lphEl)lphEl.textContent=avgLph>0?avgLph.toFixed(1)+' L':'-- L';
+
+  // Refill count
+  const rfEl=document.getElementById('live-refills');
+  if(rfEl)rfEl.textContent=todayRefillCount;
+  const rfSub=document.getElementById('live-refills-sub');
+  if(rfSub)rfSub.textContent=todayRefillCount===1?'time today':todayRefillCount>1?'times today':'no refills yet';
+
+  // Data source note
+  const dsNote=document.getElementById('dataSourceNote');
+  if(dsNote){
+    if(!S.connected){dsNote.textContent='⚠️ Offline — data from last session shown';}
+    else if(todayHoursWithData>0){dsNote.textContent=`✅ Live data — ${todayHoursWithData} hour${todayHoursWithData>1?'s':''} tracked today from real sensor readings`;}
+    else{dsNote.textContent='🔄 Connected — accumulating first readings…';}
+  }
+
+  // ── 1. Usage bars by time of day (from real hourly data) ──
+  const timeSlots=[
+    {id:'morn',label:'Morning',hours:[6,7,8,9,10,11]},
+    {id:'aft', label:'Afternoon',hours:[12,13,14,15,16,17]},
+    {id:'eve', label:'Evening',hours:[18,19,20,21,22,23]},
+    {id:'ngt', label:'Night',hours:[0,1,2,3,4,5]},
+  ];
+  const slotVals=timeSlots.map(slot=>{
+    let total=0;
+    slot.hours.forEach(hr=>{
+      const k=`${todayKey}-${String(hr).padStart(2,'0')}`;
+      if(hourlyData[k])total+=hourlyData[k].usedL||0;
+    });
+    return total;
+  });
+  const mx=Math.max(...slotVals,1);
+  timeSlots.forEach((slot,i)=>{
+    set('u-'+slot.id,slotVals[i]>0?slotVals[i].toFixed(0)+' L':'0 L');
+    const el=document.getElementById('b-'+slot.id);
+    if(el)el.style.width=(slotVals[i]/mx*100)+'%';
+  });
+  // Night-time leak heuristic
+  const nightUsed=slotVals[3];const dayUsed2=slotVals[0]+slotVals[1]+slotVals[2];
   const lb=document.getElementById('leakBanner');
-  if(lb){if(bTot>0&&(bands[3]/bTot)>0.30&&bands[3]>2)lb.classList.remove('hidden');else lb.classList.add('hidden');}
+  if(lb){if(nightUsed>0&&dayUsed2>0&&nightUsed/dayUsed2>0.3)lb.classList.remove('hidden');else lb.classList.add('hidden');}
 
-  const todayUsed=_dc(todayKey);
-  set('ins-today',todayUsed>0?todayUsed.toFixed(1)+' L':'-- L');
-  set('ins-today-sub',todayUsed>0?((todayUsed/S.total)*100).toFixed(1)+'% of tank':'No consumption yet');
+  // ── 2. Insight cards — real data ──
+  set('ins-today',todayUsed>0?todayUsed.toFixed(0)+' L':'0 L');
+  const todayPct=S.total>0?(todayUsed/S.total*100):0;
+  set('ins-today-sub',todayUsed>0?todayPct.toFixed(0)+'% of tank used':'waiting for data');
 
-  const rd=[];
-  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const k=d.toISOString().slice(0,10);const c=_dc(k);if(c>0.1)rd.push({key:k,c});}
-  if(rd.length>=1){const avg=rd.reduce((s,x)=>s+x.c,0)/rd.length;set('ins-avg',avg.toFixed(1)+' L');set('ins-avg-sub',rd.length>=7?'7-day real avg':'Based on '+rd.length+' day'+(rd.length>1?'s':'')+' of data');}
-  else{set('ins-avg','-- L');set('ins-avg-sub','Collecting real data...');}
+  // Daily avg from real dailyData only
+  const realDays=Object.entries(dailyData).filter(([k,v])=>v>0&&k!==todayKey);
+  const avg7=realDays.length?realDays.reduce((s,[,v])=>s+v,0)/realDays.length:0;
+  set('ins-avg',avg7>0?avg7.toFixed(0)+' L':'-- L');
+  set('ins-avg-sub',realDays.length>=1?'past '+realDays.length+' day'+( realDays.length>1?'s':''):'not enough data yet');
 
-  let pHr=null,pL=0;
-  Object.entries(hourlyData).forEach(([k,v])=>{const c=v.consumedL||0;if(c>pL){pL=c;pHr=k.slice(-2);}});
-  set('ins-peak',pHr!=null?(parseInt(pHr)+':00'):'--:00');
-  set('ins-peak-sub',pL>0?pL.toFixed(1)+' L consumed':'No peak yet');
+  // Per-hour: show today's avg L/hr
+  set('ins-peak',avgLph>0?avgLph.toFixed(1)+' L':'-- L');
+  set('ins-peak-sub',avgLph>0?'avg L/hr today':'no usage today');
 
-  let score=Math.round(pct*0.40);
-  const age=S.lastUpdate?(Date.now()-S.lastUpdate.getTime())/1000:9999;
-  score+=age<30?20:age<120?14:age<300?7:0;
+  // ── Takeaway Banner (smart, real data based) ──
+  const tb=document.getElementById('takeawayBanner');
+  const tt=document.getElementById('takeawayText');
+  let takeaway='';
+  if(todayUsed>0&&S.total>0){
+    const pctUsed=todayUsed/S.total*100;
+    const daysLeft=S.vol>0&&avgLph>0?S.vol/(avgLph*24):null;
+    if(pctUsed>60)takeaway=`⚠️ <strong>High usage today:</strong> You've used ${pctUsed.toFixed(0)}% of your tank capacity (${todayUsed.toFixed(0)} L) today. At this rate, plan a refill ${daysLeft?'within '+Math.floor(daysLeft)+' day'+(Math.floor(daysLeft)===1?'':'s'):'soon'}.`;
+    else if(nightUsed>20&&dayUsed2>0)takeaway=`🔍 <strong>Night usage detected:</strong> ${nightUsed.toFixed(0)} L consumed between midnight–6 AM. This may indicate a slow leak or running tap. Check all taps and float valves.`;
+    else if(avgLph>0&&avg7>0&&todayUsed>avg7*1.3)takeaway=`📈 <strong>Above average today:</strong> Today's usage (${todayUsed.toFixed(0)} L) is higher than your daily average (${avg7.toFixed(0)} L). Identify if an appliance or tap is running longer than usual.`;
+    else if(avgLph>0&&avg7>0&&todayUsed<avg7*0.7)takeaway=`✅ <strong>Great conservation!</strong> Today's usage (${todayUsed.toFixed(0)} L) is ${((1-todayUsed/avg7)*100).toFixed(0)}% below your average. Keep it up!`;
+    else if(avgLph>0)takeaway=`💧 <strong>Normal usage:</strong> Consuming approximately ${avgLph.toFixed(1)} L/hr today. Tank has roughly ${daysLeft?Math.floor(daysLeft)+' days':Math.floor(S.vol/Math.max(avgLph*24,1))+' days'} of water at this rate.`;
+    if(takeaway){if(tb)tb.style.display='block';if(tt)tt.innerHTML=takeaway;}
+  } else {
+    if(tb)tb.style.display='none';
+  }
+
+  // ── 3. Water Health Score ──
+  let score=0;
+  score+=Math.round(pct*0.40);
+  const usageRatio=S.usage>0?(S.usage/(S.total/24)):0;
+  const usageScore=Math.max(0,30-Math.round(usageRatio*60));
+  score+=usageScore;
+  const ageSec=S.lastUpdate?(Date.now()-S.lastUpdate.getTime())/1000:9999;
+  score+=ageSec<30?20:ageSec<120?15:ageSec<300?8:0;
   const hasCrit=alerts.slice(0,5).some(a=>a.type==='ac');
   score+=hasCrit?0:10;
-  if(rd.length>=1){const avgR=rd.reduce((s,x)=>s+x.c,0)/rd.length;const ratio=avgR/(S.total||1000);score+=ratio<0.10?30:ratio<0.20?22:ratio<0.35?14:5;}else score+=15;
   score=Math.min(100,Math.max(0,score));
   const ring=document.getElementById('scoreRing');
-  if(ring){ring.style.strokeDashoffset=188.5*(1-score/100);ring.style.stroke=score>=70?'var(--ok)':score>=40?'var(--warn)':'var(--danger)';}
+  if(ring){const dash=175.9;const offset=dash*(1-score/100);ring.style.strokeDashoffset=offset;ring.style.stroke=score>=70?'var(--ok)':score>=40?'var(--warn)':'var(--danger)';}
   set('scoreNum',score);
   const badge=document.getElementById('healthBadge');
   if(badge){badge.className='badge';if(score>=80){badge.textContent='EXCELLENT';badge.classList.add('b-full');}else if(score>=60){badge.textContent='GOOD';badge.classList.add('b-ok');}else if(score>=40){badge.textContent='FAIR';badge.classList.add('b-low');}else{badge.textContent='POOR';badge.classList.add('b-crit');}}
-  set('healthDesc',!S.connected?'Device offline.':score>=80?'Tank healthy, usage efficient, data live.':score>=60?'Good water security. Monitor daily.':score>=40?'Attention needed. Plan a refill.':'Low level or high usage. Act now.');
-  
-  const dL=S.usage>0?Math.floor(S.vol/S.usage/24):null;
-  const facs=[{lbl:'Level',val:pct+'%',good:pct>=40},{lbl:'Usage',val:S.usage>0?S.usage.toFixed(1)+'L/h':'-- L/h',good:S.usage>0&&S.usage<(S.total/24*0.2)},{lbl:'Data',val:age<120?'Live':'Stale',good:age<120},{lbl:'Alerts',val:hasCrit?'? Crit':'? Clear',good:!hasCrit},{lbl:'Days Left',val:dL!=null?dL+'d':'\u221E',good:dL==null||dL>2}];
+  let healthDesc='';
+  if(score>=80)healthDesc='Tank is well-stocked and usage is efficient. No issues detected.';
+  else if(score>=60)healthDesc='Tank level is healthy. Monitor usage to maintain efficiency.';
+  else if(score>=40)healthDesc='Tank level or usage rate needs attention. Plan a refill soon.';
+  else healthDesc='Low tank or high usage detected. Take action to avoid running out.';
+  set('healthDesc',healthDesc);
+  const factors=[
+    {lbl:'Level',val:pct+'%',good:pct>=40},
+    {lbl:'L/hr',val:avgLph>0?avgLph.toFixed(1):'--',good:avgLph>0&&avgLph<(S.total/48)},
+    {lbl:'Data',val:ageSec<120?'Live':'Stale',good:ageSec<120},
+    {lbl:'Alerts',val:hasCrit?'Recent':'Clear',good:!hasCrit},
+    {lbl:'Days Left',val:avgLph>0?Math.floor(S.vol/(avgLph*24))+'d':'∞',good:avgLph>0?S.vol/(avgLph*24)>2:true},
+  ];
   const hf=document.getElementById('healthFactors');
-  if(hf)hf.innerHTML=facs.map(f=>`<div style="text-align:center;padding:8px 4px;background:rgba(${f.good?'52,211,153':'248,113,113'},.1);border:1px solid rgba(${f.good?'52,211,153':'248,113,113'},.3);border-radius:10px;box-shadow:inset 0 1px 3px rgba(0,0,0,0.15)"><div style="font-family:var(--mono);font-size:12px;color:${f.good?'var(--ok)':'var(--danger)'};font-weight:700">${f.val}</div><div style="font-size:9px;color:var(--muted);margin-top:4px;font-family:var(--head)">${f.lbl}</div></div>`).join('');
+  if(hf)hf.innerHTML=factors.map(f=>`<div style="text-align:center;padding:5px 4px;background:rgba(${f.good?'52,211,153':'248,113,113'},.07);border:1px solid rgba(${f.good?'52,211,153':'248,113,113'},.2);border-radius:7px"><div style="font-family:var(--mono);font-size:11px;color:${f.good?'var(--ok)':'var(--danger)'};font-weight:700">${f.val}</div><div style="font-size:8px;color:var(--muted);margin-top:2px;font-family:var(--head)">${f.lbl}</div></div>`).join('');
 
-  const vp=S.history.filter(v=>v!=null);
-  let ci='Chart populates as sensor data arrives.';
-  if(vp.length>=4){const mn=Math.min(...vp),mxH=Math.max(...vp),delta=vp.filter(v=>v!=null).slice(-1)[0]-vp.find(v=>v!=null);if(delta<-15)ci=`?? Level dropped <strong>${Math.abs(delta.toFixed(0))}%</strong> today (${mn}-${mxH}%). Active usage.`;else if(delta>10)ci=`?? Level rose <strong>${delta.toFixed(0)}%</strong> - refill event.`;else if(mxH-mn<4)ci=`?? Stable at <strong>${mn}-${mxH}%</strong>. Consistent usage.`;else ci=`?? Today range: <strong>${mn}-${mxH}%</strong>.`;}
-  set('chartInsight',ci);
+  // ── 4. Chart insight text ──
+  const validPts=S.history.filter(v=>v!=null);
+  let chartInsight='';
+  if(validPts.length>=4){
+    const first=validPts[0],last=validPts[validPts.length-1];
+    const delta=last-first;const mn=Math.min(...validPts),mxH=Math.max(...validPts);const range=mxH-mn;
+    if(delta<-20)chartInsight=`📉 Level dropped <strong>${Math.abs(delta).toFixed(0)}%</strong> in the past 24 hrs. Range: ${mn.toFixed(0)}–${mxH.toFixed(0)}%. At this rate, monitor consumption carefully.`;
+    else if(delta>15)chartInsight=`📈 Level rose <strong>${delta.toFixed(0)}%</strong> over 24 hrs — refilling in progress. Current trend is positive.`;
+    else if(range<5)chartInsight=`📊 Level has been stable between <strong>${mn.toFixed(0)}–${mxH.toFixed(0)}%</strong> — consistent usage pattern detected.`;
+    else chartInsight=`📊 24-hr swing: <strong>${mn.toFixed(0)}–${mxH.toFixed(0)}%</strong> (${range.toFixed(0)}% range). Normal household usage pattern.`;
+  } else {chartInsight='Accumulating history — chart will populate as data arrives.';}
+  set('chartInsight',chartInsight);
 
-  let ws=rd.length===0?'No data yet - connect sensor to start recording.':rd.length===1?`<strong style="color:var(--pri)">${rd[0].c.toFixed(0)} L</strong> consumed today. More days needed for weekly trend.`:(()=>{const wT=rd.reduce((s,x)=>s+x.c,0),wA=wT/rd.length,tr=rd[rd.length-1].c-rd[0].c;return `<strong style="color:var(--pri)">${wT.toFixed(0)} L</strong> over ${rd.length} days (avg <strong>${wA.toFixed(0)} L/day</strong>). `+(tr>15?`?? Usage <strong style="color:var(--warn)">trending up</strong> - conserve.`:tr<-15?`?? Usage <strong style="color:var(--ok)">trending down</strong> - great!`:`? Usage <strong style="color:var(--ok)">consistent</strong>.`);})();
-  set('weekSummary',ws);
+  // ── 5. Week summary ──
+  const weekVals=Object.values(dailyData).slice(-7).filter(v=>v>0);
+  let weekSummary='';
+  if(weekVals.length>=2){
+    const weekTotal=weekVals.reduce((a,b)=>a+b,0);const weekAvg=weekTotal/weekVals.length;
+    const trend=weekVals[weekVals.length-1]-weekVals[0];
+    weekSummary=`This week you've used <strong style="color:var(--pri)">${weekTotal.toFixed(0)} L</strong> total (avg ${weekAvg.toFixed(0)} L/day). `;
+    if(trend>20)weekSummary+=`Usage trending <strong style="color:var(--warn)">upward</strong> — consider reducing consumption.`;
+    else if(trend<-20)weekSummary+=`Usage trending <strong style="color:var(--ok)">downward</strong> — good conservation!`;
+    else weekSummary+=`Usage is <strong style="color:var(--ok)">consistent</strong> this week.`;
+  } else {weekSummary='Consumption data builds over time. Check back after a few days for your weekly report.';}
+  set('weekSummary',weekSummary);
 
+  // ── 6. Forecast ──
   const fc=document.getElementById('fc-cur');
   if(fc){
     fc.textContent=pct+'%';
-    if(S.usage>0&&S.connected){
-      const pph=(S.usage/S.total)*100,f6=Math.max(0,pct-pph*6),f24=Math.max(0,pct-pph*24),f3d=Math.max(0,pct-pph*72),eH=S.vol/S.usage;
-      set('fc-6',f6.toFixed(0)+'%');set('fc-24',f24.toFixed(0)+'%');set('fc-3d',f3d.toFixed(0)+'%');set('fc-emp',fmtHrs(eH));
-      const sb=(id,v)=>{const el=document.getElementById(id);if(el)el.style.width=v+'%';};sb('fc-bar-now',pct);sb('fc-bar-6',f6);sb('fc-bar-24',f24);sb('fc-bar-3d',f3d);
-      set('fc-advice',eH<12?'? <strong>Urgent:</strong> Empties in under 12 hrs. Refill now.':eH<24?'?? <strong>Caution:</strong> Under 24 hrs remaining.':eH<72?'?? About <strong>'+Math.floor(eH/24)+' days</strong> left. Refill this week.':pct>80?'? Well-stocked - <strong>'+Math.floor(eH/24)+'</strong> days of supply.':'?? Tank lasts about <strong>'+Math.floor(eH/24)+'</strong> more days.');
-      unlockAch(7);
-    } else {['fc-6','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));['fc-bar-6','fc-bar-24','fc-bar-3d'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.width='0%';});
-      set('fc-advice','<em>Forecast needs a live connection. Connect sensor to enable.</em>');
+    const usageRate=avgLph>0?avgLph:S.usage;
+    if(usageRate>0){
+      const pph=(usageRate/S.total)*100;
+      const f6=Math.max(0,pct-pph*6);const f24=Math.max(0,pct-pph*24);const f3d=Math.max(0,pct-pph*72);
+      const empH=S.vol/usageRate;
+      set('fc-6',f6.toFixed(0)+'%');set('fc-24',f24.toFixed(0)+'%');set('fc-3d',f3d.toFixed(0)+'%');set('fc-emp',fmtHrs(empH));
+      const setBar=(id,val)=>{const el=document.getElementById(id);if(el)el.style.width=val+'%';};
+      setBar('fc-bar-now',pct);setBar('fc-bar-6',f6);setBar('fc-bar-24',f24);setBar('fc-bar-3d',f3d);
+      let advice='';
+      if(empH<12)advice='⚡ <strong>Urgent:</strong> Tank will empty in under 12 hours at current usage. Refill now or reduce consumption immediately.';
+      else if(empH<24)advice='⚠️ <strong>Caution:</strong> Less than 24 hours of water remaining. Plan a refill today.';
+      else if(empH<72)advice='ℹ️ <strong>Tip:</strong> Approx '+Math.floor(empH/24)+' days of water remaining. Schedule a refill this week.';
+      else if(pct>80)advice='✅ <strong>Well stocked:</strong> At current usage you\'re set for '+Math.floor(empH/24)+' days.';
+      else advice='💧 <strong>Normal:</strong> Your tank can last about '+Math.floor(empH/24)+' more days.';
+      set('fc-advice',advice);unlockAch(7);
+    } else {
+      ['fc-6','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));
+      ['fc-bar-6','fc-bar-24','fc-bar-3d'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.width='0%';});
+      set('fc-advice','<em>Usage rate not yet available. The forecast updates automatically as real data accumulates.</em>');
     }
   }
-  updateExportUI();
 }
+
 
 function renderChart(){
   if(!chart)return;
@@ -1622,24 +1612,25 @@ function renderHeatmap(){
   const lbls=document.getElementById('hmLabels');
   if(!grid||!lbls)return;
   const now=new Date();
+  const cells=[];const labels=[];
   const usages=[];
-  const labels=[];
   for(let i=0;i<24;i++){
     const h=new Date(now);h.setHours(h.getHours()-(23-i));
     const hh=String(h.getHours()).padStart(2,'0');
     const key=`${h.toISOString().slice(0,10)}-${hh}`;
-    const used=(hourlyData[key]||{}).consumedL||0;
+    const used=(hourlyData[key]||{}).usedL||0;
     usages.push(used);
     labels.push(i%4===0?hh:'');
   }
   const mx=Math.max(...usages,1);
   lbls.innerHTML=labels.map(l=>`<span>${l}</span>`).join('');
   grid.innerHTML=usages.map((u,i)=>{
-    const alpha=0.1+0.8*(u/mx);
+    const alpha=0.08+0.72*(u/mx);
     const now2=new Date();now2.setHours(now2.getHours()-(23-i));
-    const tooltip=now2.getHours()+':00 - '+u.toFixed(1)+' L used';
+    const tooltip=now2.getHours()+':00 — '+u.toFixed(1)+' L used';
     return`<div class="hm-cell" title="${tooltip}" style="background:rgba(45,212,191,${alpha.toFixed(2)})"></div>`;
   }).join('');
+  // Peak label
   const peakIdx=usages.indexOf(mx);
   if(peakIdx>=0){
     const ph=new Date();ph.setHours(ph.getHours()-(23-peakIdx));
@@ -1652,47 +1643,40 @@ function renderDayBars(){
   const barsEl=document.getElementById('dayBars');
   const lblsEl=document.getElementById('dayBarLabels');
   if(!barsEl||!lblsEl)return;
+  // Build 7 days of data
   const days=[];
   for(let i=6;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     const key=d.toISOString().slice(0,10);
-    
-    let dayUsed = 0;
-    const rec = dailyData[key];
-    const cached = typeof rec === 'object' ? rec.consumedL || 0 : rec || 0;
-    
-    if (cached > 0) {
-      dayUsed = cached;
-    } else {
-      let tot = 0;
-      Object.entries(hourlyData).forEach(([k,v]) => { if(k.startsWith(key)) tot += v.consumedL || 0; });
-      if(tot > 0) {
-        dailyData[key] = { consumedL: tot, refilledL: 0 };
-        localStorage.setItem(DAILY_KEY, JSON.stringify(dailyData));
-        dayUsed = tot;
-      }
-    }
-    
+    const dayUsed=dailyData[key]||(()=>{
+      // Compute from hourly
+      let tot=0;Object.entries(hourlyData).forEach(([k,v])=>{if(k.startsWith(key))tot+=v.usedL||0;});
+      if(tot>0){dailyData[key]=tot;localStorage.setItem(DAILY_KEY,JSON.stringify(dailyData));}
+      return tot;
+    })();
     const lbl=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
     days.push({key,val:dayUsed,lbl,isToday:i===0});
   }
   const mx=Math.max(...days.map(d=>d.val),1);
   barsEl.innerHTML=days.map(d=>{
-    const h=Math.max(4,(d.val/mx)*80);
-    const color=d.isToday?'linear-gradient(to top,var(--pri),rgba(45,212,191,.4))':'linear-gradient(to top,rgba(45,212,191,.6),rgba(45,212,191,.15))';
+    const h=Math.max(4,(d.val/mx)*60);
+    const color=d.isToday?'linear-gradient(to top,var(--pri),rgba(45,212,191,.4))':'linear-gradient(to top,rgba(45,212,191,.5),rgba(45,212,191,.15))';
     return`<div class="day-bar-wrap"><div class="day-bar" style="height:${h}px;background:${color}"></div><div class="day-bar-val">${d.val>0?d.val.toFixed(0):''}</div></div>`;
   }).join('');
-  lblsEl.innerHTML=days.map(d=>`<div class="day-bar-wrap"><div class="day-bar-lbl" style="color:${d.isToday?'var(--pri)':'var(--muted)'};font-weight:${d.isToday?'700':'400'}">${d.lbl}</div></div>`).join('');
+  lblsEl.innerHTML=days.map(d=>`<div class="day-bar-wrap"><div class="day-bar-lbl" style="color:${d.isToday?'var(--pri)':'var(--muted)'}">${d.lbl}</div></div>`).join('');
 }
 
 function resetConsumption(){
-  if(!confirm('Reset all daily consumption data?'))return;
-  dailyData={};hourlyData={};
-  localStorage.removeItem(DAILY_KEY);localStorage.removeItem(HOURLY_KEY);
+  if(!confirm('Reset daily consumption data?'))return;
+  dailyData={};hourlyData={};todayRefillCount=0;_lastLevelForRefill=null;
+  localStorage.removeItem(DAILY_KEY);localStorage.removeItem(HOURLY_KEY);localStorage.removeItem('tasni_refills');
   renderDayBars();renderHeatmap();renderAnalytics();
-  showToast('Consumption data reset','ok',2500);
+  showToast('Consumption data reset — fresh tracking starts now','ok',2500);
 }
 
+// ═══════════════════════════════════════════
+//  CHART.JS
+// ═══════════════════════════════════════════
 function initChart(){
   const ctx=document.getElementById('histChart').getContext('2d');
   const now=new Date();
@@ -1701,21 +1685,20 @@ function initChart(){
     type:'line',
     data:{labels,datasets:[{label:'Level %',data:Array(24).fill(NaN),
       borderColor:'#2DD4BF',
-      backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,180);g.addColorStop(0,'rgba(45,212,191,.4)');g.addColorStop(1,'rgba(45,212,191,0)');return g;},
-      borderWidth:2,fill:true,tension:.45,pointRadius:0,pointHoverRadius:6,pointBackgroundColor:'#2DD4BF',
-      spanGaps:true,
+      backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,'rgba(45,212,191,.3)');g.addColorStop(1,'rgba(45,212,191,0)');return g;},
+      borderWidth:2,fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#2DD4BF',pointHoverRadius:6,
+      spanGaps:false,
     }]},
     options:{responsive:true,maintainAspectRatio:false,
-      interaction: { mode: 'index', intersect: false },
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.4)',borderWidth:1,titleColor:'#2DD4BF',bodyColor:'#cce7ff',padding:10,cornerRadius:8,callbacks:{label:c=>isNaN(c.parsed.y)?'No data':` ${c.parsed.y.toFixed(0)}% level`}}},
-      scales:{x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.4)',font:{size:10},maxTicksLimit:6}},
-              y:{min:0,max:100,grid:{color:'rgba(45,212,191,.05)'},ticks:{color:'rgba(200,230,255,.4)',font:{size:10},callback:v=>v+'%'}}}}
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,titleColor:'#2DD4BF',bodyColor:'#cce7ff',callbacks:{label:c=>isNaN(c.parsed.y)?'No data':` ${c.parsed.y.toFixed(0)}% level`}}},
+      scales:{x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},maxTicksLimit:6}},
+              y:{min:0,max:100,grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},callback:v=>v+'%'}}}}
   });
 }
 
-// ===========================================
-//  TIPS & ACHIEVEMENTS
-// ===========================================
+// ═══════════════════════════════════════════
+//  TIPS
+// ═══════════════════════════════════════════
 function renderTips(){
   const t=TIPS[tipIdx];
   document.getElementById('tipCat').textContent=t.cat;
@@ -1723,12 +1706,12 @@ function renderTips(){
   const prog=document.getElementById('tipProg');
   if(prog)prog.style.width=((tipIdx+1)/TIPS.length*100)+'%';
   document.getElementById('allTips').innerHTML=TIPS.map((t,i)=>`
-    <div class="tip-fact" style="opacity:${i===tipIdx?1:.7};border-left-color:${i===tipIdx?'var(--pri)':'var(--border)'};transform:${i===tipIdx?'translateX(4px)':'none'};background:${i===tipIdx?'rgba(45,212,191,.08)':'rgba(45,212,191,.03)'}">
+    <div class="tip-fact" style="opacity:${i===tipIdx?1:.8};border-left-color:${i===tipIdx?'var(--pri)':'var(--border)'}">
       <div class="tip-fact-icon">${t.icon}</div>
       <div class="tip-fact-body">
         <div class="tip-fact-cat">${t.cat}</div>
         <div class="tip-fact-txt">${t.txt}</div>
-        <div class="tip-saving">?? ${t.saving}</div>
+        <div class="tip-saving">💰 ${t.saving}</div>
       </div>
     </div>`).join('');
 }
@@ -1742,7 +1725,7 @@ function unlockAch(i){const e=JSON.parse(localStorage.getItem('tasni_ach')||'[0]
 
 function renderAlertLog(){
   const el=document.getElementById('alertLog');
-  if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:32px 20px;color:var(--muted);font-size:14px;background:rgba(0,0,0,0.2);border-radius:8px">No alerts yet</div>';return;}
+  if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div>';return;}
   el.innerHTML=alerts.slice(0,30).map(a=>`
     <div class="alert-item ${a.type}">
       <div class="adot"></div>
@@ -1750,6 +1733,9 @@ function renderAlertLog(){
     </div>`).join('');
 }
 
+// ═══════════════════════════════════════════
+//  ABOUT — session info
+// ═══════════════════════════════════════════
 function updateAbout(){
   const el=document.getElementById('ab-session');
   if(el)el.textContent=SESSION_START.toLocaleTimeString();
@@ -1761,41 +1747,38 @@ function updateAbout(){
   if(up){const s=Math.floor((Date.now()-SESSION_START)/1000);up.textContent=fmtUp(s);}
 }
 
-// ===========================================
+// ═══════════════════════════════════════════
 //  SETTINGS HANDLERS
-// ===========================================
+// ═══════════════════════════════════════════
 async function saveWifi(){
   const ip=g('c-ip'),ssid=g('c-ssid'),password=g('c-pass');
   saveCfg({ip,ssid});unlockAch(4);
-  if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','? WiFi sent to device at '+ip);}catch{push('aw','?? Could not reach device. Saved locally.');}}
+  if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','✅ WiFi sent to device at '+ip);}catch{push('aw','⚠️ Could not reach device. Saved locally.');}}
   if(ip)startPoll(ip);
 }
 async function saveTelegram(){
   const ip=cfg.ip,token=g('c-tgtoken'),chatid=g('c-tgchat');
   saveCfg({tgToken:token,tgChat:chatid});
-  if(ip&&token){try{await fetch(`http://${ip}/save-telegram`,{method:'POST',body:new URLSearchParams({token,chatid})});push('ai','? Telegram saved to device.');}catch{push('aw','?? Settings saved locally.');}}
+  if(ip&&token){try{await fetch(`http://${ip}/save-telegram`,{method:'POST',body:new URLSearchParams({token,chatid})});push('ai','✅ Telegram saved to device.');}catch{push('aw','⚠️ Settings saved locally.');}}
 }
 async function saveCalib(){
   const ip=cfg.ip,empty=g('c-empty'),full=g('c-full'),volume=g('c-vol'),name=g('c-tname')||'Main Tank';
   saveCfg({emptyDist:empty,fullDist:full,volume,tankName:name});
   S.total=parseFloat(volume)||1000;
   document.getElementById('tankNameLbl').textContent=name.toUpperCase();
-  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});push('ai','? Calibration saved. Empty='+empty+'cm Full='+full+'cm Vol='+volume+'L');}catch{push('aw','?? Calibration saved locally.');}}
+  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});push('ai','✅ Calibration saved. Empty='+empty+'cm Full='+full+'cm Vol='+volume+'L');}catch{push('aw','⚠️ Calibration saved locally.');}}
 }
 async function captureEmpty(){
-  if(!cfg.ip){push('aw','?? Enter device IP first.');return;}
+  if(!cfg.ip){push('aw','⚠️ Enter device IP first.');return;}
   try{const r=await fetch(`http://${cfg.ip}/capture-empty`);const d=await r.json();
-    if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);push('ai','?? Empty captured: '+d.empty.toFixed(1)+' cm');}
-    else push('aw','?? '+(d.msg||'Sensor error'));
-  }catch{push('aw','?? Could not reach device at '+cfg.ip);}
+    if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);push('ai','📷 Empty captured: '+d.empty.toFixed(1)+' cm');}
+    else push('aw','⚠️ '+(d.msg||'Sensor error'));
+  }catch{push('aw','⚠️ Could not reach device at '+cfg.ip);}
 }
-function saveSheetsConfig(){
-  const url=g('c-shurl'),name=g('c-shname')||'WaterLogs',enabled=document.getElementById('c-shenable').checked;
-  if(!url){showToast('Paste your Apps Script URL first','warn');return;}
-  sheetsCfg={url,name,enabled};
-  localStorage.setItem(SHEETS_KEY,JSON.stringify(sheetsCfg));
-  showToast('Config saved - testing connection...','info');
-  syncToSheets(true,true);
+async function saveSheets(){
+  const ip=cfg.ip,deploymentid=g('c-shid'),sheetname=g('c-shname'),enabled=document.getElementById('c-shenable').checked;
+  saveCfg({sheetsId:deploymentid,sheetsName:sheetname});
+  if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});push('ai','✅ Sheets saved to device.');}catch{push('aw','⚠️ Settings saved locally.');}}
 }
 function saveMQTT(){
   const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8884,mquser=g('c-mquser'),mqpass=g('c-mqpass');
@@ -1806,10 +1789,13 @@ function saveMQTT(){
 function disconnMQTT(){
   if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
   _mqttCfg=null;clearInterval(_hbTimer);clearTimeout(_wdTimer);
-  setChip('chip-mqtt',false);updatePill();push('ai','?? MQTT disconnected.');
+  setChip('chip-mqtt',false);updatePill();push('ai','ℹ️ MQTT disconnected.');
 }
 function resetApp(){if(!confirm('Clear all local data?'))return;localStorage.clear();alerts=[];renderAlertLog();location.reload();}
 
+// ═══════════════════════════════════════════
+//  DEMO MODE
+// ═══════════════════════════════════════════
 function startDemo(){
   let lvl=72,dir=-1;
   const tick=()=>{
@@ -1818,30 +1804,39 @@ function startDemo(){
     lvl=Math.max(0,Math.min(100,lvl));
     const pct=Math.round(lvl),vol=(pct/100*1000).toFixed(1),dist=((1-pct/100)*115+10).toFixed(1);
     ingest({m:pct,vol:parseFloat(vol),total:1000,s:pct<=10?'Critical':pct<=30?'Low':pct<=75?'Good':'Full',
-      dist:parseFloat(dist),t:dir>0?'??':'??',usage:(1+Math.random()*2.5).toFixed(1),
+      dist:parseFloat(dist),t:dir>0?'⬆️':'⬇️',usage:(1+Math.random()*2.5).toFixed(1),
       up:Math.floor(Date.now()/1000%86400),rssi:-58,boot:7,isFull:parseFloat(dist)<=10?1:0,name:'Demo Tank'},false);
   };
   tick();setInterval(tick,2500);setChip('chip-local',true);updatePill();
 }
 
-function askNotif(){Notification.requestPermission().then(p=>{if(p==='granted'){document.getElementById('notifBar').classList.add('hidden');unlockAch(2);push('ai','?? Notifications enabled!');showToast('Notifications ON - alerts will fire even when app is closed','ok',5000);}});}
+// ═══════════════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════════════
+function askNotif(){Notification.requestPermission().then(p=>{if(p==='granted'){document.getElementById('notifBar').classList.add('hidden');unlockAch(2);push('ai','🔔 Notifications enabled!');showToast('Notifications ON — alerts will fire even when app is closed','ok',5000);}});}
 function checkNotifPerm(){if(Notification.permission==='granted')document.getElementById('notifBar').classList.add('hidden');}
 
+// ═══════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════
 function showToast(msg,type='info',duration=4000){
-  const icons={info:'??',warn:'??',danger:'??',ok:'?'};
+  const icons={info:'💧',warn:'⚠️',danger:'🚨',ok:'✅'};
   const el=document.createElement('div');
   el.className=`toast ${type}`;
-  el.innerHTML=`<span style="font-size:20px">${icons[type]||'??'}</span><span style="flex:1">${msg}</span>`;
+  el.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span style="flex:1">${msg}</span>`;
   el.onclick=()=>el.classList.add('out');
   document.getElementById('toast-wrap').appendChild(el);
   setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),350);},duration);
 }
 
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
 function g(id){const e=document.getElementById(id);return e?e.value.trim():'';}
 function ck(id){const e=document.getElementById(id);return e?e.checked:false;}
 function set(id,html){const e=document.getElementById(id);if(e)e.innerHTML=html;}
 function fmtUp(s){if(!s)return'--';if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';return Math.floor(s/86400)+'d '+Math.floor((s%86400)/3600)+'h';}
-function fmtHrs(h){if(!isFinite(h)||h<=0)return'\u221E';if(h<1)return Math.round(h*60)+' min';if(h<24)return Math.round(h)+' hrs';return Math.floor(h/24)+'d '+Math.round(h%24)+'h';}
+function fmtHrs(h){if(!isFinite(h)||h<=0)return'∞';if(h<1)return Math.round(h*60)+' min';if(h<24)return Math.round(h)+' hrs';return Math.floor(h/24)+'d '+Math.round(h%24)+'h';}
 function goTab(name,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
