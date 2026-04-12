@@ -225,12 +225,16 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .made-in{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text);background:rgba(255,153,0,.08);border:1px solid rgba(255,153,0,.2);border-radius:20px;padding:3px 12px;margin-top:6px}
 .india-flag{font-size:14px}
 /* India waves */
-.india-waves{flex-shrink:0;overflow:hidden;border-radius:4px}
-.iw{transform-origin:center}
-.iw1{animation:waveFlow 2.2s ease-in-out infinite}
-.iw2{animation:waveFlow 2.6s ease-in-out infinite .3s}
-.iw3{animation:waveFlow 2.0s ease-in-out infinite .6s}
-@keyframes waveFlow{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(-5px) scaleY(.88)}}
+.india-waves{flex-shrink:0;display:flex;align-items:center;gap:2px}
+#indiaFlag{animation:flagWave 1.6s ease-in-out infinite;transform-origin:left center}
+@keyframes flagWave{
+  0%  {transform:skewY(0deg) scaleX(1)}
+  20% {transform:skewY(1.5deg) scaleX(.98)}
+  40% {transform:skewY(-1deg) scaleX(.99)}
+  60% {transform:skewY(2deg) scaleX(.97)}
+  80% {transform:skewY(-0.5deg) scaleX(.99)}
+  100%{transform:skewY(0deg) scaleX(1)}
+}
 /* Tech pills */
 .tech-pills{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
 .tech-pill{padding:3px 10px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:1px;background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.15);color:var(--muted);font-family:var(--head)}
@@ -375,6 +379,41 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <!-- ANALYTICS -->
   <div class="tab" id="tab-analytics">
 
+    <!-- Analytics Reset Banner -->
+    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(45,212,191,.04);border:1px solid rgba(45,212,191,.12);border-radius:10px;padding:10px 14px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--pri);font-family:var(--head)">📊 REAL-TIME ANALYTICS</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">Data from actual tank level changes only</div>
+      </div>
+      <button class="btn btn-d btn-sm" onclick="resetAllAnalytics()" style="font-size:9px;padding:5px 12px;white-space:nowrap">↺ Reset All</button>
+    </div>
+
+    <!-- Live Per-Hour Consumption Row -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:10px">⚡ Live Consumption Metrics</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="text-align:center;background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-bottom:4px">THIS HOUR</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--pri)" id="live-hr">-- L</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px" id="live-hr-sub">so far</div>
+        </div>
+        <div style="text-align:center;background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-bottom:4px">L / HOUR AVG</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--ok)" id="live-lph">-- L</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px">today's average</div>
+        </div>
+        <div style="text-align:center;background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-bottom:4px">REFILLS TODAY</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--warn)" id="live-refills">0</div>
+          <div style="font-size:9px;color:var(--muted);margin-top:2px" id="live-refills-sub">tank refilled</div>
+        </div>
+      </div>
+      <!-- Data source note -->
+      <div style="margin-top:10px;font-size:10px;color:var(--muted);text-align:center;padding:5px;background:rgba(0,0,0,.15);border-radius:6px" id="dataSourceNote">
+        Waiting for real sensor data…
+      </div>
+    </div>
+
     <!-- Water Health Score -->
     <div class="card" id="healthCard">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -433,14 +472,20 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <div class="insight-icon">📅</div>
         <div class="insight-lbl">Daily Avg</div>
         <div class="insight-val" id="ins-avg">-- L</div>
-        <div class="insight-sub" id="ins-avg-sub">7-day basis</div>
+        <div class="insight-sub" id="ins-avg-sub">from real data</div>
       </div>
       <div class="insight-card">
-        <div class="insight-icon">⚡</div>
-        <div class="insight-lbl">Peak Hour</div>
-        <div class="insight-val" id="ins-peak">--:00</div>
-        <div class="insight-sub" id="ins-peak-sub">Highest use</div>
+        <div class="insight-icon">🕐</div>
+        <div class="insight-lbl">Per Hour</div>
+        <div class="insight-val" id="ins-peak">-- L</div>
+        <div class="insight-sub" id="ins-peak-sub">avg L/hr today</div>
       </div>
+    </div>
+
+    <!-- Takeaway / Insight Banner -->
+    <div id="takeawayBanner" class="card" style="padding:12px 14px;display:none">
+      <div class="card-title" style="margin-bottom:8px">💡 Smart Takeaway</div>
+      <div id="takeawayText" style="font-size:13px;line-height:1.7;color:var(--text)"></div>
     </div>
 
     <!-- Usage by time of day — with explanations -->
@@ -632,7 +677,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="about-hero">
       <div class="about-logo">TASNI®</div>
       <div class="about-tagline">INTELLIGENT WATER MONITORING SYSTEM</div>
-      <div class="about-version">Version 2.1 — PWA Edition</div>
+      <div class="about-version">Version 2.1</div>
       <div class="feat-grid">
         <div class="feat-item"><div class="feat-icon">📡</div><div class="feat-txt">Real-time MQTT Cloud Monitoring</div></div>
         <div class="feat-item"><div class="feat-icon">📶</div><div class="feat-txt">Local WiFi Direct Connection</div></div>
@@ -651,20 +696,29 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <div class="dev-name">Mohammed Imran Ahmed Soofi</div>
         <div class="dev-sub">Founder & Engineer — Tasni Trading Private Limited</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.75;margin-top:10px;padding:10px 12px;background:rgba(45,212,191,.04);border-radius:10px;border-left:2px solid var(--pri)">
-          Designed and developed <strong style="color:var(--pri)">end-to-end</strong> — from embedded hardware to cloud infrastructure, intelligent PWA dashboard, alert systems, and analytics engine. Built for real-world commercial IoT deployment.
+          Designed and developed <strong style="color:var(--pri)">end-to-end</strong> — from embedded hardware to cloud infrastructure, intelligent dashboard, alert systems, and analytics engine. Built for real-world commercial IoT deployment.
         </div>
-        <!-- Made in India — 3 animated waves: Saffron · White · Green -->
+        <!-- Made in India — Animated waving flag with pole -->
         <div class="made-in" style="margin-top:14px;padding:8px 18px;gap:10px">
-          <div class="india-waves">
-            <svg width="38" height="22" viewBox="0 0 38 22" xmlns="http://www.w3.org/2000/svg">
-              <!-- Saffron wave -->
-              <path class="iw iw1" d="M0,3 Q5,0 9,3 Q14,6 19,3 Q24,0 28,3 Q33,6 38,3 L38,8 Q33,11 28,8 Q24,5 19,8 Q14,11 9,8 Q5,5 0,8 Z" fill="#FF9933"/>
-              <!-- White wave -->
-              <path class="iw iw2" d="M0,9 Q5,6 9,9 Q14,12 19,9 Q24,6 28,9 Q33,12 38,9 L38,14 Q33,17 28,14 Q24,11 19,14 Q14,17 9,14 Q5,11 0,14 Z" fill="#FFFFFF" fill-opacity="0.92"/>
-              <!-- Chakra dot (Navy blue) -->
-              <circle cx="19" cy="11" r="1.5" fill="#000080" opacity="0.7"/>
-              <!-- India green wave -->
-              <path class="iw iw3" d="M0,15 Q5,12 9,15 Q14,18 19,15 Q24,12 28,15 Q33,18 38,15 L38,20 Q33,23 28,20 Q24,17 19,20 Q14,23 9,20 Q5,17 0,20 Z" fill="#138808"/>
+          <div class="india-waves" style="display:flex;align-items:center;gap:2px">
+            <!-- Pole -->
+            <div style="width:2px;height:22px;background:linear-gradient(to bottom,#bbb,#888);border-radius:1px;flex-shrink:0"></div>
+            <!-- Flag body: 3 stripes that wave -->
+            <svg id="indiaFlag" width="40" height="18" viewBox="0 0 40 18" xmlns="http://www.w3.org/2000/svg" style="display:block">
+              <defs>
+                <clipPath id="flagClip"><rect width="40" height="18"/></clipPath>
+              </defs>
+              <g clip-path="url(#flagClip)">
+                <!-- Saffron stripe -->
+                <rect class="stripe" x="0" y="0"  width="40" height="6"  fill="#FF9933"/>
+                <!-- White stripe -->
+                <rect class="stripe" x="0" y="6"  width="40" height="6"  fill="#FFFFFF"/>
+                <!-- Green stripe -->
+                <rect class="stripe" x="0" y="12" width="40" height="6"  fill="#138808"/>
+                <!-- Ashoka Chakra (navy blue circle with 24 spokes) -->
+                <circle cx="20" cy="9" r="2.8" fill="none" stroke="#000080" stroke-width="0.5"/>
+                <circle cx="20" cy="9" r="0.5" fill="#000080"/>
+              </g>
             </svg>
           </div>
           <span style="font-weight:700;font-size:12px;letter-spacing:.05em">Made in India</span>
@@ -964,6 +1018,12 @@ function ingest(d,fromMQTT=false){
   if(d.boot  !=null)S.boot  =parseInt(d.boot);
   if(d.isFull!=null)S.isFull=parseInt(d.isFull);
   if(d.name  !=null)S.name  =d.name;
+
+  // Track refill events (level rising significantly = refill happening)
+  if(_lastLevelForRefill!==null&&S.m-_lastLevelForRefill>=10){
+    todayRefillCount++;localStorage.setItem('tasni_refills',todayRefillCount);
+  }
+  _lastLevelForRefill=S.m;
 
   // Hourly history slot
   const now=new Date();
@@ -1334,159 +1394,209 @@ function renderDash(){
 }
 
 // ═══════════════════════════════════════════
-//  ANALYTICS — rich render
+//  ANALYTICS — rich render (REAL DATA ONLY)
 // ═══════════════════════════════════════════
+
+// Track refill events today
+let todayRefillCount=parseInt(localStorage.getItem('tasni_refills')||'0');
+let _lastLevelForRefill=null;
+
+function resetAllAnalytics(){
+  if(!confirm('Reset ALL analytics data (hourly, daily, refill counts)?\nThis cannot be undone.'))return;
+  dailyData={};hourlyData={};todayRefillCount=0;_lastLevelForRefill=null;
+  localStorage.removeItem(DAILY_KEY);localStorage.removeItem(HOURLY_KEY);
+  localStorage.removeItem('tasni_refills');
+  renderDayBars();renderHeatmap();renderAnalytics();
+  showToast('Analytics data cleared — tracking fresh from now','ok',3000);
+}
+
 function renderAnalytics(){
   const h=S.history.filter(v=>v!=null);
   const pct=Math.max(0,Math.min(100,S.m));
+  const now=new Date();
+  const todayKey=now.toISOString().slice(0,10);
+  const hKey=`${todayKey}-${String(now.getHours()).padStart(2,'0')}`;
 
-  // ── 1. Usage bars by time of day ──
-  if(h.length>=4){
-    const q=Math.floor(h.length/4);
-    const segs=[h.slice(0,q),h.slice(q,q*2),h.slice(q*2,q*3),h.slice(q*3)];
-    const vals=segs.map(seg=>seg.reduce((s,v,i)=>i>0&&seg[i-1]>v?s+(seg[i-1]-v):s,0));
-    const mx=Math.max(...vals,1);
-    ['morn','aft','eve','ngt'].forEach((id,i)=>{
-      const l=((vals[i]/100)*S.total).toFixed(0);
-      set('u-'+id,l+' L');
-      document.getElementById('b-'+id).style.width=(vals[i]/mx*100)+'%';
-    });
-    // Night-time leak heuristic
-    const nightPct=vals[3]/mx*100;
-    const lb=document.getElementById('leakBanner');
-    if(lb){if(nightPct>35&&vals[3]>0)lb.classList.remove('hidden');else lb.classList.add('hidden');}
+  // ── LIVE: This Hour consumed ──
+  const thisHourData=hourlyData[hKey];
+  const thisHourUsed=thisHourData?(thisHourData.usedL||0):0;
+  const minElapsed=now.getMinutes()||1;
+
+  const lhEl=document.getElementById('live-hr');
+  if(lhEl)lhEl.textContent=thisHourUsed>0?thisHourUsed.toFixed(1)+' L':'0 L';
+  const lhSub=document.getElementById('live-hr-sub');
+  if(lhSub)lhSub.textContent='in past '+minElapsed+' min';
+
+  // ── LIVE: Today total consumed (sum of all hourly drops today) ──
+  let todayUsed=0;
+  let todayHoursWithData=0;
+  Object.entries(hourlyData).forEach(([k,v])=>{
+    if(k.startsWith(todayKey)&&(v.usedL||0)>0){todayUsed+=v.usedL;todayHoursWithData++;}
+  });
+
+  // Avg L/hr today (only hours with actual data)
+  const hoursElapsed=now.getHours()+(now.getMinutes()/60)||1;
+  const avgLph=todayUsed>0?(todayUsed/hoursElapsed):0;
+  const lphEl=document.getElementById('live-lph');
+  if(lphEl)lphEl.textContent=avgLph>0?avgLph.toFixed(1)+' L':'-- L';
+
+  // Refill count
+  const rfEl=document.getElementById('live-refills');
+  if(rfEl)rfEl.textContent=todayRefillCount;
+  const rfSub=document.getElementById('live-refills-sub');
+  if(rfSub)rfSub.textContent=todayRefillCount===1?'time today':todayRefillCount>1?'times today':'no refills yet';
+
+  // Data source note
+  const dsNote=document.getElementById('dataSourceNote');
+  if(dsNote){
+    if(!S.connected){dsNote.textContent='⚠️ Offline — data from last session shown';}
+    else if(todayHoursWithData>0){dsNote.textContent=`✅ Live data — ${todayHoursWithData} hour${todayHoursWithData>1?'s':''} tracked today from real sensor readings`;}
+    else{dsNote.textContent='🔄 Connected — accumulating first readings…';}
   }
 
-  // ── 2. Insights ──
-  const todayKey=new Date().toISOString().slice(0,10);
-  let todayUsed=0;
-  Object.entries(hourlyData).forEach(([k,v])=>{if(k.startsWith(todayKey))todayUsed+=v.usedL||0;});
-  set('ins-today',todayUsed.toFixed(0)+' L');
-  const todayPct=S.total>0?(todayUsed/S.total*100).toFixed(0):0;
-  set('ins-today-sub',todayPct+'% of capacity');
+  // ── 1. Usage bars by time of day (from real hourly data) ──
+  const timeSlots=[
+    {id:'morn',label:'Morning',hours:[6,7,8,9,10,11]},
+    {id:'aft', label:'Afternoon',hours:[12,13,14,15,16,17]},
+    {id:'eve', label:'Evening',hours:[18,19,20,21,22,23]},
+    {id:'ngt', label:'Night',hours:[0,1,2,3,4,5]},
+  ];
+  const slotVals=timeSlots.map(slot=>{
+    let total=0;
+    slot.hours.forEach(hr=>{
+      const k=`${todayKey}-${String(hr).padStart(2,'0')}`;
+      if(hourlyData[k])total+=hourlyData[k].usedL||0;
+    });
+    return total;
+  });
+  const mx=Math.max(...slotVals,1);
+  timeSlots.forEach((slot,i)=>{
+    set('u-'+slot.id,slotVals[i]>0?slotVals[i].toFixed(0)+' L':'0 L');
+    const el=document.getElementById('b-'+slot.id);
+    if(el)el.style.width=(slotVals[i]/mx*100)+'%';
+  });
+  // Night-time leak heuristic
+  const nightUsed=slotVals[3];const dayUsed2=slotVals[0]+slotVals[1]+slotVals[2];
+  const lb=document.getElementById('leakBanner');
+  if(lb){if(nightUsed>0&&dayUsed2>0&&nightUsed/dayUsed2>0.3)lb.classList.remove('hidden');else lb.classList.add('hidden');}
 
-  const days7=Object.keys(dailyData).slice(-7);
-  const avg7=days7.length?days7.reduce((s,k)=>s+(dailyData[k]||0),0)/days7.length:S.usage*24;
-  set('ins-avg',avg7.toFixed(0)+' L');
-  set('ins-avg-sub',days7.length?'Past '+days7.length+' days':'Est. from usage rate');
+  // ── 2. Insight cards — real data ──
+  set('ins-today',todayUsed>0?todayUsed.toFixed(0)+' L':'0 L');
+  const todayPct=S.total>0?(todayUsed/S.total*100):0;
+  set('ins-today-sub',todayUsed>0?todayPct.toFixed(0)+'% of tank used':'waiting for data');
 
-  let peakHour=null,peakUsed=0;
-  Object.entries(hourlyData).forEach(([k,v])=>{if((v.usedL||0)>peakUsed){peakUsed=v.usedL;peakHour=k.slice(-2);}});
-  set('ins-peak',peakHour!=null?peakHour+':00':'--:00');
-  set('ins-peak-sub',peakUsed>0?peakUsed.toFixed(0)+' L/hr':'No data yet');
+  // Daily avg from real dailyData only
+  const realDays=Object.entries(dailyData).filter(([k,v])=>v>0&&k!==todayKey);
+  const avg7=realDays.length?realDays.reduce((s,[,v])=>s+v,0)/realDays.length:0;
+  set('ins-avg',avg7>0?avg7.toFixed(0)+' L':'-- L');
+  set('ins-avg-sub',realDays.length>=1?'past '+realDays.length+' day'+( realDays.length>1?'s':''):'not enough data yet');
+
+  // Per-hour: show today's avg L/hr
+  set('ins-peak',avgLph>0?avgLph.toFixed(1)+' L':'-- L');
+  set('ins-peak-sub',avgLph>0?'avg L/hr today':'no usage today');
+
+  // ── Takeaway Banner (smart, real data based) ──
+  const tb=document.getElementById('takeawayBanner');
+  const tt=document.getElementById('takeawayText');
+  let takeaway='';
+  if(todayUsed>0&&S.total>0){
+    const pctUsed=todayUsed/S.total*100;
+    const daysLeft=S.vol>0&&avgLph>0?S.vol/(avgLph*24):null;
+    if(pctUsed>60)takeaway=`⚠️ <strong>High usage today:</strong> You've used ${pctUsed.toFixed(0)}% of your tank capacity (${todayUsed.toFixed(0)} L) today. At this rate, plan a refill ${daysLeft?'within '+Math.floor(daysLeft)+' day'+(Math.floor(daysLeft)===1?'':'s'):'soon'}.`;
+    else if(nightUsed>20&&dayUsed2>0)takeaway=`🔍 <strong>Night usage detected:</strong> ${nightUsed.toFixed(0)} L consumed between midnight–6 AM. This may indicate a slow leak or running tap. Check all taps and float valves.`;
+    else if(avgLph>0&&avg7>0&&todayUsed>avg7*1.3)takeaway=`📈 <strong>Above average today:</strong> Today's usage (${todayUsed.toFixed(0)} L) is higher than your daily average (${avg7.toFixed(0)} L). Identify if an appliance or tap is running longer than usual.`;
+    else if(avgLph>0&&avg7>0&&todayUsed<avg7*0.7)takeaway=`✅ <strong>Great conservation!</strong> Today's usage (${todayUsed.toFixed(0)} L) is ${((1-todayUsed/avg7)*100).toFixed(0)}% below your average. Keep it up!`;
+    else if(avgLph>0)takeaway=`💧 <strong>Normal usage:</strong> Consuming approximately ${avgLph.toFixed(1)} L/hr today. Tank has roughly ${daysLeft?Math.floor(daysLeft)+' days':Math.floor(S.vol/Math.max(avgLph*24,1))+' days'} of water at this rate.`;
+    if(takeaway){if(tb)tb.style.display='block';if(tt)tt.innerHTML=takeaway;}
+  } else {
+    if(tb)tb.style.display='none';
+  }
 
   // ── 3. Water Health Score ──
   let score=0;
-  // Factor A: level (40 pts max)
   score+=Math.round(pct*0.40);
-  // Factor B: usage efficiency (30 pts) — lower rate vs capacity is better
   const usageRatio=S.usage>0?(S.usage/(S.total/24)):0;
   const usageScore=Math.max(0,30-Math.round(usageRatio*60));
   score+=usageScore;
-  // Factor C: data freshness (20 pts)
   const ageSec=S.lastUpdate?(Date.now()-S.lastUpdate.getTime())/1000:9999;
   score+=ageSec<30?20:ageSec<120?15:ageSec<300?8:0;
-  // Factor D: no critical alert recently (10 pts)
   const hasCrit=alerts.slice(0,5).some(a=>a.type==='ac');
   score+=hasCrit?0:10;
   score=Math.min(100,Math.max(0,score));
-
-  // Animate ring
   const ring=document.getElementById('scoreRing');
-  if(ring){
-    const dash=175.9;
-    const offset=dash*(1-score/100);
-    ring.style.strokeDashoffset=offset;
-    ring.style.stroke=score>=70?'var(--ok)':score>=40?'var(--warn)':'var(--danger)';
-  }
+  if(ring){const dash=175.9;const offset=dash*(1-score/100);ring.style.strokeDashoffset=offset;ring.style.stroke=score>=70?'var(--ok)':score>=40?'var(--warn)':'var(--danger)';}
   set('scoreNum',score);
   const badge=document.getElementById('healthBadge');
-  if(badge){
-    badge.className='badge';
-    if(score>=80){badge.textContent='EXCELLENT';badge.classList.add('b-full');}
-    else if(score>=60){badge.textContent='GOOD';badge.classList.add('b-ok');}
-    else if(score>=40){badge.textContent='FAIR';badge.classList.add('b-low');}
-    else{badge.textContent='POOR';badge.classList.add('b-crit');}
-  }
+  if(badge){badge.className='badge';if(score>=80){badge.textContent='EXCELLENT';badge.classList.add('b-full');}else if(score>=60){badge.textContent='GOOD';badge.classList.add('b-ok');}else if(score>=40){badge.textContent='FAIR';badge.classList.add('b-low');}else{badge.textContent='POOR';badge.classList.add('b-crit');}}
   let healthDesc='';
-  if(score>=80)healthDesc='Your tank is well-stocked and usage is efficient. No issues detected.';
+  if(score>=80)healthDesc='Tank is well-stocked and usage is efficient. No issues detected.';
   else if(score>=60)healthDesc='Tank level is healthy. Monitor usage to maintain efficiency.';
   else if(score>=40)healthDesc='Tank level or usage rate needs attention. Plan a refill soon.';
   else healthDesc='Low tank or high usage detected. Take action to avoid running out.';
   set('healthDesc',healthDesc);
-
-  // Health factor mini-badges
   const factors=[
     {lbl:'Level',val:pct+'%',good:pct>=40},
-    {lbl:'Usage',val:S.usage>0?S.usage.toFixed(1)+'L/h':'--',good:usageScore>=20},
+    {lbl:'L/hr',val:avgLph>0?avgLph.toFixed(1):'--',good:avgLph>0&&avgLph<(S.total/48)},
     {lbl:'Data',val:ageSec<120?'Live':'Stale',good:ageSec<120},
     {lbl:'Alerts',val:hasCrit?'Recent':'Clear',good:!hasCrit},
-    {lbl:'Days Left',val:S.usage>0?Math.floor(S.vol/S.usage/24)+'d':'∞',good:S.usage>0?S.vol/S.usage/24>2:true},
+    {lbl:'Days Left',val:avgLph>0?Math.floor(S.vol/(avgLph*24))+'d':'∞',good:avgLph>0?S.vol/(avgLph*24)>2:true},
   ];
   const hf=document.getElementById('healthFactors');
-  if(hf)hf.innerHTML=factors.map(f=>`
-    <div style="text-align:center;padding:5px 4px;background:rgba(${f.good?'52,211,153':'248,113,113'},.07);border:1px solid rgba(${f.good?'52,211,153':'248,113,113'},.2);border-radius:7px">
-      <div style="font-family:var(--mono);font-size:11px;color:${f.good?'var(--ok)':'var(--danger)'};font-weight:700">${f.val}</div>
-      <div style="font-size:8px;color:var(--muted);margin-top:2px;font-family:var(--head)">${f.lbl}</div>
-    </div>`).join('');
+  if(hf)hf.innerHTML=factors.map(f=>`<div style="text-align:center;padding:5px 4px;background:rgba(${f.good?'52,211,153':'248,113,113'},.07);border:1px solid rgba(${f.good?'52,211,153':'248,113,113'},.2);border-radius:7px"><div style="font-family:var(--mono);font-size:11px;color:${f.good?'var(--ok)':'var(--danger)'};font-weight:700">${f.val}</div><div style="font-size:8px;color:var(--muted);margin-top:2px;font-family:var(--head)">${f.lbl}</div></div>`).join('');
 
   // ── 4. Chart insight text ──
   const validPts=S.history.filter(v=>v!=null);
   let chartInsight='';
   if(validPts.length>=4){
     const first=validPts[0],last=validPts[validPts.length-1];
-    const delta=last-first;
-    const mn=Math.min(...validPts),mx=Math.max(...validPts);
-    const range=mx-mn;
-    if(delta<-20)chartInsight=`📉 Level dropped <strong>${Math.abs(delta.toFixed(0))}%</strong> in the past 24 hrs. Range: ${mn.toFixed(0)}–${mx.toFixed(0)}%. At this rate, monitor consumption carefully.`;
+    const delta=last-first;const mn=Math.min(...validPts),mxH=Math.max(...validPts);const range=mxH-mn;
+    if(delta<-20)chartInsight=`📉 Level dropped <strong>${Math.abs(delta).toFixed(0)}%</strong> in the past 24 hrs. Range: ${mn.toFixed(0)}–${mxH.toFixed(0)}%. At this rate, monitor consumption carefully.`;
     else if(delta>15)chartInsight=`📈 Level rose <strong>${delta.toFixed(0)}%</strong> over 24 hrs — refilling in progress. Current trend is positive.`;
-    else if(range<5)chartInsight=`📊 Level has been stable between <strong>${mn.toFixed(0)}–${mx.toFixed(0)}%</strong> — consistent usage pattern detected.`;
-    else chartInsight=`📊 24-hr swing: <strong>${mn.toFixed(0)}–${mx.toFixed(0)}%</strong> (${range.toFixed(0)}% range). Normal household usage pattern.`;
-  }else{chartInsight='Accumulating history — chart will populate as data arrives.';}
+    else if(range<5)chartInsight=`📊 Level has been stable between <strong>${mn.toFixed(0)}–${mxH.toFixed(0)}%</strong> — consistent usage pattern detected.`;
+    else chartInsight=`📊 24-hr swing: <strong>${mn.toFixed(0)}–${mxH.toFixed(0)}%</strong> (${range.toFixed(0)}% range). Normal household usage pattern.`;
+  } else {chartInsight='Accumulating history — chart will populate as data arrives.';}
   set('chartInsight',chartInsight);
 
   // ── 5. Week summary ──
   const weekVals=Object.values(dailyData).slice(-7).filter(v=>v>0);
   let weekSummary='';
   if(weekVals.length>=2){
-    const weekTotal=weekVals.reduce((a,b)=>a+b,0);
-    const weekAvg=weekTotal/weekVals.length;
+    const weekTotal=weekVals.reduce((a,b)=>a+b,0);const weekAvg=weekTotal/weekVals.length;
     const trend=weekVals[weekVals.length-1]-weekVals[0];
     weekSummary=`This week you've used <strong style="color:var(--pri)">${weekTotal.toFixed(0)} L</strong> total (avg ${weekAvg.toFixed(0)} L/day). `;
-    if(trend>20)weekSummary+=`Usage is trending <strong style="color:var(--warn)">upward</strong> — consider reducing consumption.`;
-    else if(trend<-20)weekSummary+=`Usage is trending <strong style="color:var(--ok)">downward</strong> — good conservation habit!`;
+    if(trend>20)weekSummary+=`Usage trending <strong style="color:var(--warn)">upward</strong> — consider reducing consumption.`;
+    else if(trend<-20)weekSummary+=`Usage trending <strong style="color:var(--ok)">downward</strong> — good conservation!`;
     else weekSummary+=`Usage is <strong style="color:var(--ok)">consistent</strong> this week.`;
-  }else{weekSummary='Consumption data builds over time. Check back after a few days for your weekly report.';}
+  } else {weekSummary='Consumption data builds over time. Check back after a few days for your weekly report.';}
   set('weekSummary',weekSummary);
 
   // ── 6. Forecast ──
   const fc=document.getElementById('fc-cur');
   if(fc){
     fc.textContent=pct+'%';
-    if(S.usage>0){
-      const pph=(S.usage/S.total)*100;
-      const f6=Math.max(0,pct-pph*6);
-      const f24=Math.max(0,pct-pph*24);
-      const f3d=Math.max(0,pct-pph*72);
-      const empH=S.vol/S.usage;
+    const usageRate=avgLph>0?avgLph:S.usage;
+    if(usageRate>0){
+      const pph=(usageRate/S.total)*100;
+      const f6=Math.max(0,pct-pph*6);const f24=Math.max(0,pct-pph*24);const f3d=Math.max(0,pct-pph*72);
+      const empH=S.vol/usageRate;
       set('fc-6',f6.toFixed(0)+'%');set('fc-24',f24.toFixed(0)+'%');set('fc-3d',f3d.toFixed(0)+'%');set('fc-emp',fmtHrs(empH));
       const setBar=(id,val)=>{const el=document.getElementById(id);if(el)el.style.width=val+'%';};
       setBar('fc-bar-now',pct);setBar('fc-bar-6',f6);setBar('fc-bar-24',f24);setBar('fc-bar-3d',f3d);
       let advice='';
       if(empH<12)advice='⚡ <strong>Urgent:</strong> Tank will empty in under 12 hours at current usage. Refill now or reduce consumption immediately.';
-      else if(empH<24)advice='⚠️ <strong>Caution:</strong> Less than 24 hours of water remaining at current rate. Plan a refill today.';
-      else if(empH<72)advice='ℹ️ <strong>Tip:</strong> Approximately '+Math.floor(empH/24)+' days of water remaining. Schedule a refill this week.';
-      else if(pct>80)advice='✅ <strong>Well stocked:</strong> Tank has plenty of water. At current usage you\'re set for '+Math.floor(empH/24)+' days.';
-      else advice='💧 <strong>Normal:</strong> Usage is steady. Your tank can last about '+Math.floor(empH/24)+' more days.';
-      set('fc-advice',advice);
-      unlockAch(7);
+      else if(empH<24)advice='⚠️ <strong>Caution:</strong> Less than 24 hours of water remaining. Plan a refill today.';
+      else if(empH<72)advice='ℹ️ <strong>Tip:</strong> Approx '+Math.floor(empH/24)+' days of water remaining. Schedule a refill this week.';
+      else if(pct>80)advice='✅ <strong>Well stocked:</strong> At current usage you\'re set for '+Math.floor(empH/24)+' days.';
+      else advice='💧 <strong>Normal:</strong> Your tank can last about '+Math.floor(empH/24)+' more days.';
+      set('fc-advice',advice);unlockAch(7);
     } else {
       ['fc-6','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));
       ['fc-bar-6','fc-bar-24','fc-bar-3d'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.width='0%';});
-      set('fc-advice','<em>Usage rate not yet available. The forecast updates automatically as data accumulates.</em>');
+      set('fc-advice','<em>Usage rate not yet available. The forecast updates automatically as real data accumulates.</em>');
     }
   }
 }
+
 
 function renderChart(){
   if(!chart)return;
@@ -1557,11 +1667,11 @@ function renderDayBars(){
 }
 
 function resetConsumption(){
-  if(!confirm('Reset all daily consumption data?'))return;
-  dailyData={};hourlyData={};
-  localStorage.removeItem(DAILY_KEY);localStorage.removeItem(HOURLY_KEY);
+  if(!confirm('Reset daily consumption data?'))return;
+  dailyData={};hourlyData={};todayRefillCount=0;_lastLevelForRefill=null;
+  localStorage.removeItem(DAILY_KEY);localStorage.removeItem(HOURLY_KEY);localStorage.removeItem('tasni_refills');
   renderDayBars();renderHeatmap();renderAnalytics();
-  showToast('Consumption data reset','ok',2500);
+  showToast('Consumption data reset — fresh tracking starts now','ok',2500);
 }
 
 // ═══════════════════════════════════════════
