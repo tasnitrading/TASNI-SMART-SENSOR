@@ -14,208 +14,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
-<script>
-// ===========================================
-//  EXPORT & SYNC ENGINE
-// ===========================================
-const APPS_SCRIPT_CODE = `
-// TASNI Water Monitor - Google Apps Script
-// Deploy as Web App: Execute as Me, Anyone can access
-function doPost(e) {
-  try {
-    const payload = JSON.parse(e.postData.contents);
-    const sheetName = payload.sheet || 'WaterLogs';
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sh = ss.getSheetByName(sheetName);
-    if (!sh) { sh = ss.insertSheet(sheetName); }
-    const rows = payload.rows;
-    if (!rows || rows.length === 0) {
-      return ContentService.createTextOutput(JSON.stringify({ok:true,appended:0})).setMimeType(ContentService.MimeType.JSON);
-    }
-    if (sh.getLastRow() === 0) {
-      sh.appendRow(payload.headers || Object.keys(rows[0]));
-    }
-    rows.forEach(r => sh.appendRow(Object.values(r)));
-    SpreadsheetApp.flush();
-    return ContentService.createTextOutput(JSON.stringify({ok:true,appended:rows.length})).setMimeType(ContentService.MimeType.JSON);
-  } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.message})).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({ok:true,msg:'TASNI Water Monitor Sheets endpoint is live.'})).setMimeType(ContentService.MimeType.JSON);
-}`;
-
-function copyAppsScript(){
-  navigator.clipboard.writeText(APPS_SCRIPT_CODE).then(()=>{
-    showToast('✅ Apps Script code copied! Paste into script.google.com','ok',5000);
-  }).catch(()=>{
-    const ta=document.createElement('textarea');ta.value=APPS_SCRIPT_CODE;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-    showToast('✅ Code copied - paste into script.google.com','ok',5000);
-  });
-}
-
-function _csvRow(arr){ return arr.map(v=>{ const s=String(v==null?'':v); return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s; }).join(','); }
-function _csvDownload(filename, content){
-  const blob=new Blob(['\uFEFF'+content],{type:'text/csv;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-}
-
-function downloadCSV(type){
-  const ts=new Date().toISOString().slice(0,10);
-  const tankName=(S.name||'TASNI').replace(/\s+/g,'_');
-
-  if(type==='all'){
-    ['readings','hourly','daily','alerts'].forEach((t,i)=>setTimeout(()=>downloadCSV(t),i*400));
-    return;
-  }
-
-  if(type==='readings'){
-    if(readings.length===0){showToast('No readings recorded yet','warn');return;}
-    const headers=['Timestamp','Level %','Volume (L)','Tank Total (L)','Distance (cm)','Usage Rate (L/hr)','WiFi RSSI (dBm)','Is Full','Trend'];
-    const rows=readings.map(r=>[r.ts,r.level,r.vol,r.total,r.dist,r.usage,r.rssi,r.isFull?'Yes':'No',r.trend]);
-    const csv=[_csvRow(headers),...rows.map(_csvRow)].join('\r\n');
-    _csvDownload(`TASNI_Readings_${tankName}_${ts}.csv`,csv);
-    showToast(`Downloaded ${readings.length} readings as CSV`,'ok');
-    return;
-  }
-
-  if(type==='hourly'){
-    const entries=Object.entries(hourlyData).sort(([a],[b])=>a.localeCompare(b));
-    if(entries.length===0){showToast('No hourly data yet','warn');return;}
-    const headers=['Date','Hour','First Level %','Last Level %','Min Level %','Max Level %','Used (L)'];
-    const rows=entries.map(([k,v])=>{
-      const [date,hr]=k.split(/-(?=\d{2}$)/);
-      return[date,hr+':00',v.start||'--',v.end||'--',v.min||'--',v.max||'--',v.usedL||0];
-    });
-    const csv=[_csvRow(headers),...rows.map(_csvRow)].join('\r\n');
-    _csvDownload(`TASNI_Hourly_${tankName}_${ts}.csv`,csv);
-    showToast(`Downloaded ${entries.length} hourly records`,'ok');
-    return;
-  }
-
-  if(type==='daily'){
-    const dailyMap = {};
-    Object.entries(hourlyData).forEach(([k,v])=>{
-      const date = k.slice(0,10);
-      dailyMap[date] = (dailyMap[date]||0) + (v.usedL||0);
-    });
-    const entries=Object.entries(dailyMap).sort(([a],[b])=>a.localeCompare(b));
-    if(entries.length===0){showToast('No daily data yet','warn');return;}
-    const headers=['Date','Consumed (L)'];
-    const rows=entries.map(([k,v])=>[k,v.toFixed(2)]);
-    const csv=[_csvRow(headers),...rows.map(_csvRow)].join('\r\n');
-    _csvDownload(`TASNI_Daily_${tankName}_${ts}.csv`,csv);
-    showToast(`Downloaded ${entries.length} daily records`,'ok');
-    return;
-  }
-
-  if(type==='alerts'){
-    if(alerts.length===0){showToast('No alerts recorded yet','warn');return;}
-    const headers=['Timestamp','Type','Message'];
-    const rows=alerts.map(a=>[a.time,a.type,a.msg]);
-    const csv=[_csvRow(headers),...rows.map(_csvRow)].join('\r\n');
-    _csvDownload(`TASNI_Alerts_${tankName}_${ts}.csv`,csv);
-    showToast(`Downloaded ${alerts.length} alert records`,'ok');
-  }
-}
-
-async function syncToSheets(manual=false, testMode=false){
-  const cfg=sheetsCfg;
-  if(!cfg||!cfg.url){
-    if(manual)showToast('Configure Google Sheets in Settings first','warn');
-    return;
-  }
-  const newReadings=readings.filter(r=>new Date(r.ts).getTime()>lastSyncTs);
-  if(newReadings.length===0&&!testMode){
-    if(manual)showToast('All data already synced - nothing new','info');
-    updateSyncStatus('All data synced',true);
-    return;
-  }
-  const statusEl=document.getElementById('sheetsSyncStatus');
-  if(statusEl)statusEl.innerHTML='⏳ Syncing '+newReadings.length+' records to Sheets...';
-
-  try{
-    const payload={
-      sheet: cfg.name||'WaterLogs',
-      headers:['Timestamp','Level %','Volume (L)','Total (L)','Distance (cm)','Usage (L/hr)','RSSI','Is Full','Trend'],
-      rows: testMode?[{ts:new Date().toISOString(),level:S.m,vol:S.vol,total:S.total,dist:S.dist,usage:S.usage,rssi:S.rssi,isFull:S.isFull,trend:S.t||'TEST'}]:newReadings
-    };
-    const res=await fetch(cfg.url,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
-    const json=await res.json();
-    if(json.ok){
-      lastSyncTs=Date.now();
-      localStorage.setItem(EXPORT_KEY,String(lastSyncTs));
-      const msg=testMode?'✅ Connection works! Sheet is ready.':'✅ Synced '+newReadings.length+' readings';
-      showToast(msg,'ok',4000);
-      updateSyncStatus(msg,true);
-      unlockAch(3);
-    }else{
-      throw new Error(json.error||'Sheets returned error');
-    }
-  }catch(e){
-    const msg='Sync failed: '+e.message;
-    showToast(msg,'danger',5000);
-    updateSyncStatus('⚠️ '+msg,false);
-  }
-}
-
-function updateSyncStatus(msg,ok){
-  const el=document.getElementById('sheetsSyncStatus');
-  if(el) el.innerHTML=`<span style="color:${ok?'var(--ok)':'var(--danger)'}">${msg}</span><br><span style="font-size:10px;color:var(--muted)">Last sync: ${new Date().toLocaleTimeString()}</span>`;
-  const lbl=document.getElementById('lastSyncLbl');
-  if(lbl) lbl.textContent=new Date().toLocaleString();
-}
-
-function startAutoSync(){
-  clearInterval(_autoSyncTimer);
-  const sc=sheetsCfg;
-  if(!sc||!sc.url||!sc.enabled) return;
-  _autoSyncTimer=setInterval(()=>syncToSheets(false),30*60*1000);
-}
-
-function initExportUI(){
-  if(lastSyncTs>0){
-    const lbl=document.getElementById('lastSyncLbl');
-    if(lbl) lbl.textContent=new Date(lastSyncTs).toLocaleString();
-  }
-  if(sheetsCfg.url){
-    const el=document.getElementById('c-shurl');
-    if(el) el.value=sheetsCfg.url;
-  }
-  if(sheetsCfg.name){
-    const el=document.getElementById('c-shname');
-    if(el) el.value=sheetsCfg.name;
-  }
-  if(sheetsCfg.enabled !== undefined){
-    const el=document.getElementById('c-shenable');
-    if(el) el.checked=sheetsCfg.enabled;
-  }
-  updateExportUI();
-}
-
-function updateExportUI(){
-  const rc=document.getElementById('exportRecCount');
-  if(rc) rc.textContent=readings.length+' readings';
-  const pending=readings.filter(r=>new Date(r.ts).getTime()>lastSyncTs).length;
-  const ss=document.getElementById('sheetsSyncStatus');
-  if(ss&&sheetsCfg.url){
-    if(pending===0) ss.innerHTML='✅ All '+readings.length+' readings synced to Sheets.';
-    else ss.innerHTML=`<strong style="color:var(--warn)">${pending} new readings</strong> pending sync. Wait for auto-sync or tap Sync Now.`;
-  }
-}
-
-function saveSheetsConfig(){
-  const url=g('c-shurl'),name=g('c-shname')||'WaterLogs',enabled=document.getElementById('c-shenable').checked;
-  if(!url){showToast('Paste your Apps Script URL first','warn');return;}
-  sheetsCfg={url,name,enabled};
-  localStorage.setItem(SHEETS_KEY,JSON.stringify(sheetsCfg));
-  showToast('Config saved - testing connection...','info');
-  syncToSheets(true,true);
-  startAutoSync();
-}
-</script>
 <style>
 :root{
   --bg:#040d1a;--surf:rgba(8,22,50,.90);--surf2:rgba(3,12,32,.94);
@@ -253,13 +51,14 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,.2),transparent)}
 .card-title{font-size:10px;font-weight:700;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:14px;font-family:var(--head)}
 
-/* TANK */
+/* ═══ TANK ═══ */
 .tank-section{display:flex;align-items:center;gap:20px;padding:18px 16px 14px}
 .tank-wrap{position:relative;flex-shrink:0}
 .pipe-top{width:22px;height:12px;margin:0 auto 0;position:relative;left:16px;background:var(--surf2);border:1px solid var(--border);border-bottom:none;border-radius:4px 4px 0 0}
 .pipe-bot{width:18px;height:10px;margin:0 auto;position:relative;left:-22px;background:var(--surf2);border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px}
 .tank-body{width:115px;height:215px;position:relative;border:2px solid rgba(45,212,191,.35);border-radius:5px 5px 8px 8px;overflow:hidden;background:rgba(0,8,25,.92);box-shadow:0 0 0 1px rgba(45,212,191,.06),inset 0 0 24px rgba(0,0,0,.5)}
 .tank-body::after{content:'';position:absolute;top:5%;left:7%;width:7px;height:38%;background:linear-gradient(to bottom,rgba(255,255,255,.1),transparent);border-radius:4px;z-index:5;pointer-events:none}
+/* tank glow ring that changes with level */
 .tank-glow{position:absolute;inset:-2px;border-radius:5px 5px 8px 8px;pointer-events:none;z-index:6;transition:box-shadow 1.2s ease}
 .gline{position:absolute;left:0;right:0;height:1px;background:rgba(45,212,191,.07);z-index:2}
 .tmarks{position:absolute;right:-38px;top:0;height:100%;display:flex;flex-direction:column;justify-content:space-between}
@@ -274,9 +73,12 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 @keyframes wb{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(-5%) scaleY(.8)}}
 .bubble{position:absolute;border-radius:50%;background:rgba(255,255,255,.3);animation:bup 3.5s ease-in infinite}
 @keyframes bup{0%{transform:translateY(0) scale(1);opacity:.7}100%{transform:translateY(-230px) scale(.2);opacity:0}}
+/* ── FALLING DROPLETS ── */
 .drp{position:absolute;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:rgba(45,212,191,.85);z-index:10;animation:drpfall linear infinite;opacity:0;top:0}
 @keyframes drpfall{0%{opacity:0;transform:translateY(-4px) scaleY(1.3)}15%{opacity:.9}85%{opacity:.7}100%{opacity:0;transform:translateY(230px) scaleY(.7)}}
+/* ── SPLASH RINGS — appear at water surface when droplet hits ── */
 .splash-canvas{position:absolute;inset:0;z-index:11;pointer-events:none}
+/* ── RIPPLE RINGS on water surface ── */
 .ripple{position:absolute;border-radius:50%;border:1.5px solid rgba(45,212,191,.7);pointer-events:none;z-index:12;transform:translate(-50%,-50%) scale(0);animation:rippleOut .9s ease-out forwards}
 @keyframes rippleOut{0%{transform:translate(-50%,-50%) scale(0);opacity:.8}100%{transform:translate(-50%,-50%) scale(2.8);opacity:0}}
 
@@ -313,6 +115,7 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .chip.on .cd{background:var(--ok);box-shadow:0 0 6px var(--ok)}
 /* Chart */
 .chart-box{position:relative;height:175px}
+/* Usage bars */
 .ubar-row{margin:10px 0}
 .ubar-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px;align-items:center}
 .ubar-lbl .ubval{font-family:var(--mono);font-size:13px;color:var(--pri)}
@@ -509,7 +312,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 </div>
 
 <header>
-  <div class="brand">TASNI&reg;<small>WATER MONITOR v2.1</small></div>
+  <div class="brand">TASNI®<small>WATER MONITOR v2.1</small></div>
   <div class="conn-pill" id="connPill" onclick="document.getElementById('connModal').classList.remove('hidden')">
     <div class="dot" id="dotInd"></div><span id="connLbl">OFFLINE</span>
   </div>
@@ -728,49 +531,6 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div id="weekSummary" style="margin-top:10px;font-size:11px;color:var(--muted);line-height:1.65;padding:8px 10px;background:rgba(45,212,191,.04);border-radius:8px;border-left:2px solid var(--ok)"></div>
     </div>
 
-    <!-- Export / Save Data -->
-    <div class="card" id="exportCard">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <div class="card-title" style="margin:0">💾 Save & Export Data</div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--pri)" id="exportRecCount">0 readings</div>
-      </div>
-      <div style="background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px">
-        <span style="font-size:20px;flex-shrink:0">✅</span>
-        <div>
-          <div style="font-size:12px;font-weight:700;color:var(--ok);letter-spacing:.5px">CSV download works right now</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:3px;line-height:1.55">Files open in Excel or Google Sheets. Data stays private.</div>
-        </div>
-      </div>
-      <div class="sec-hd" style="margin-bottom:10px">📥 DOWNLOAD CSV FILES</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <button class="btn btn-o" style="font-size:11px;padding:10px 8px;flex-direction:column;display:flex;align-items:center;gap:3px" onclick="downloadCSV('readings')">
-          <span>📋 Raw Readings</span>
-          <small style="font-size:9px;color:var(--muted);font-family:var(--sans)">Every data point</small>
-        </button>
-        <button class="btn btn-o" style="font-size:11px;padding:10px 8px;flex-direction:column;display:flex;align-items:center;gap:3px" onclick="downloadCSV('hourly')">
-          <span>🕐 Hourly Summary</span>
-          <small style="font-size:9px;color:var(--muted);font-family:var(--sans)">Litres per hour</small>
-        </button>
-        <button class="btn btn-o" style="font-size:11px;padding:10px 8px;flex-direction:column;display:flex;align-items:center;gap:3px" onclick="downloadCSV('daily')">
-          <span>📅 Daily Summary</span>
-          <small style="font-size:9px;color:var(--muted);font-family:var(--sans)">Per-day totals</small>
-        </button>
-        <button class="btn btn-o" style="font-size:11px;padding:10px 8px;flex-direction:column;display:flex;align-items:center;gap:3px" onclick="downloadCSV('alerts')">
-          <span>🔔 Alert Log</span>
-          <small style="font-size:9px;color:var(--muted);font-family:var(--sans)">All notifications</small>
-        </button>
-      </div>
-      <button class="btn btn-p btn-full" style="margin-bottom:14px" onclick="downloadCSV('all')">📦 Download Full Report (All 4 files)</button>
-      <div class="sec-hd" style="margin-bottom:10px">☁️ GOOGLE SHEETS AUTO-SYNC</div>
-      <div style="font-size:11px;color:var(--muted);line-height:1.65;margin-bottom:10px">
-        Google Sheets sync pushes new readings to a live spreadsheet automatically every 30 minutes.
-      </div>
-      <div id="sheetsSyncStatus" style="padding:10px;background:rgba(45,212,191,.04);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6">
-        Not configured. Set up in Settings &rarr; Google Sheets to enable.
-      </div>
-      <button class="btn btn-o btn-full" onclick="syncToSheets(true)" id="syncNowBtn" style="margin-bottom:8px">⬆️ Sync to Google Sheets Now</button>
-    </div>
-
     <!-- Smart Forecast — with explanations -->
     <div class="card">
       <div class="card-title">Smart Water Forecast</div>
@@ -866,30 +626,15 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <button class="btn btn-p btn-full" onclick="saveCalib()">Save Calibration to Device</button>
       </div>
     </div>
-    
-    <!-- DIRECT GOOGLE SHEETS SYNC -->
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>📊 Google Sheets &mdash; Direct Sync</span><span class="acc-arr">▾</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>📊 Google Sheets</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
-        <div class="info-box" style="margin-bottom:12px">
-          <strong>Quick Setup:</strong><br>
-          1. Open <a href="https://script.google.com" target="_blank" style="color:var(--pri)">script.google.com</a> &rarr; New Project<br>
-          2. Paste the code below &rarr; Deploy as Web App (Anyone)<br>
-          3. Copy the Web App URL and paste it here.
-        </div>
-        <button class="btn btn-o btn-full" style="margin-bottom:12px;font-size:11px" onclick="copyAppsScript()">📋 Copy Apps Script Code</button>
-        <div class="form-grp"><label class="form-lbl">Web App URL</label><input class="form-in" id="c-shurl" type="url" placeholder="https://script.google.com/macros/s/.../exec"></div>
-        <div class="form-grp"><label class="form-lbl">Sheet Tab Name</label><input class="form-in" id="c-shname" type="text" placeholder="WaterLogs" value="WaterLogs"></div>
-        <div class="tog-row" style="margin-top:4px">
-          <div><div class="tog-lbl">Auto-Sync</div><div class="tog-sub">Push new readings automatically</div></div>
-          <label class="toggle"><input type="checkbox" id="c-shenable" checked><div class="tslider"></div></label>
-        </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:8px;font-family:var(--mono)">Last sync: <span id="lastSyncLbl">Never</span></div>
-        <button class="btn btn-p btn-full" style="margin-top:10px" onclick="saveSheetsConfig()">💾 Save & Test Connection</button>
-        <button class="btn btn-o btn-full" style="margin-top:6px" onclick="syncToSheets(true)">⬆️ Push Data to Sheets Now</button>
+        <div class="form-grp"><label class="form-lbl">Deployment ID</label><input class="form-in" id="c-shid" type="text" placeholder="AKfycbx..."></div>
+        <div class="form-grp"><label class="form-lbl">Sheet Name</label><input class="form-in" id="c-shname" type="text" placeholder="WaterLogs"></div>
+        <div class="tog-row" style="margin-top:4px"><div><div class="tog-lbl">Enable Auto-Sync</div><div class="tog-sub">Upload data every hour</div></div><label class="toggle"><input type="checkbox" id="c-shenable"><div class="tslider"></div></label></div>
+        <button class="btn btn-p btn-full" style="margin-top:12px" onclick="saveSheets()">Save Sheets to Device</button>
       </div>
     </div>
-
     <div class="card">
       <div class="acc-h" onclick="toggleAcc(this)"><span>🌐 MQTT Remote Broker</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
@@ -918,10 +663,10 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="tip-txt" id="tipTxt">Loading…</div>
       <div class="tip-nav">
         <div class="tip-prog"><div class="tip-prog-fill" id="tipProg"></div></div>
-        <button class="btn btn-o btn-sm" onclick="nextTip()">Next &rarr;</button>
+        <button class="btn btn-o btn-sm" onclick="nextTip()">Next →</button>
       </div>
     </div>
-    <div class="sec-hd">WATER WISDOM &mdash; ALL TIPS</div>
+    <div class="sec-hd">WATER WISDOM — ALL TIPS</div>
     <div id="allTips"></div>
     <div class="sec-hd" style="margin-top:18px">ACHIEVEMENTS</div>
     <div class="ach-grid" id="achGrid"></div>
@@ -930,17 +675,17 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <!-- ABOUT -->
   <div class="tab" id="tab-about">
     <div class="about-hero">
-      <div class="about-logo">TASNI&reg;</div>
+      <div class="about-logo">TASNI®</div>
       <div class="about-tagline">INTELLIGENT WATER MONITORING SYSTEM</div>
       <div class="about-version">Version 2.1</div>
       <div class="feat-grid">
         <div class="feat-item"><div class="feat-icon">📡</div><div class="feat-txt">Real-time MQTT Cloud Monitoring</div></div>
         <div class="feat-item"><div class="feat-icon">📶</div><div class="feat-txt">Local WiFi Direct Connection</div></div>
-        <div class="feat-item"><div class="feat-icon">🔔</div><div class="feat-txt">Push Alerts &mdash; Silent Mode Override</div></div>
+        <div class="feat-item"><div class="feat-icon">🔔</div><div class="feat-txt">Push Alerts — Silent Mode Override</div></div>
         <div class="feat-item"><div class="feat-icon">💧</div><div class="feat-txt">Splash & Droplet Animations</div></div>
         <div class="feat-item"><div class="feat-icon">📊</div><div class="feat-txt">Hourly History & Insights</div></div>
-        <div class="feat-item"><div class="feat-icon">🔮</div><div class="feat-txt">AI Forecast &mdash; Days to Empty</div></div>
-        <div class="feat-item"><div class="feat-icon">📱</div><div class="feat-txt">Installable PWA &mdash; Works Offline</div></div>
+        <div class="feat-item"><div class="feat-icon">🔮</div><div class="feat-txt">AI Forecast — Days to Empty</div></div>
+        <div class="feat-item"><div class="feat-icon">📱</div><div class="feat-txt">Installable PWA — Works Offline</div></div>
         <div class="feat-item"><div class="feat-icon">🌡️</div><div class="feat-txt">Ultrasonic Distance Sensor</div></div>
         <div class="feat-item"><div class="feat-icon">✈️</div><div class="feat-txt">Telegram Bot Integration</div></div>
         <div class="feat-item"><div class="feat-icon">📋</div><div class="feat-txt">Google Sheets Auto Logging</div></div>
@@ -949,20 +694,28 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
       <div class="about-dev">
         <div class="dev-name">Mohammed Imran Ahmed Soofi</div>
-        <div class="dev-sub">Founder & Engineer &mdash; Tasni Trading Private Limited</div>
+        <div class="dev-sub">Founder & Engineer — Tasni Trading Private Limited</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.75;margin-top:10px;padding:10px 12px;background:rgba(45,212,191,.04);border-radius:10px;border-left:2px solid var(--pri)">
-          Designed and developed <strong style="color:var(--pri)">end-to-end</strong> &mdash; from embedded hardware to cloud infrastructure, intelligent dashboard, alert systems, and analytics engine. Built for real-world commercial IoT deployment.
+          Designed and developed <strong style="color:var(--pri)">end-to-end</strong> — from embedded hardware to cloud infrastructure, intelligent dashboard, alert systems, and analytics engine. Built for real-world commercial IoT deployment.
         </div>
-        <!-- Made in India -->
+        <!-- Made in India — Animated waving flag with pole -->
         <div class="made-in" style="margin-top:14px;padding:8px 18px;gap:10px">
           <div class="india-waves" style="display:flex;align-items:center;gap:2px">
+            <!-- Pole -->
             <div style="width:2px;height:22px;background:linear-gradient(to bottom,#bbb,#888);border-radius:1px;flex-shrink:0"></div>
+            <!-- Flag body: 3 stripes that wave -->
             <svg id="indiaFlag" width="40" height="18" viewBox="0 0 40 18" xmlns="http://www.w3.org/2000/svg" style="display:block">
-              <defs><clipPath id="flagClip"><rect width="40" height="18"/></clipPath></defs>
+              <defs>
+                <clipPath id="flagClip"><rect width="40" height="18"/></clipPath>
+              </defs>
               <g clip-path="url(#flagClip)">
+                <!-- Saffron stripe -->
                 <rect class="stripe" x="0" y="0"  width="40" height="6"  fill="#FF9933"/>
+                <!-- White stripe -->
                 <rect class="stripe" x="0" y="6"  width="40" height="6"  fill="#FFFFFF"/>
+                <!-- Green stripe -->
                 <rect class="stripe" x="0" y="12" width="40" height="6"  fill="#138808"/>
+                <!-- Ashoka Chakra (navy blue circle with 24 spokes) -->
                 <circle cx="20" cy="9" r="2.8" fill="none" stroke="#000080" stroke-width="0.5"/>
                 <circle cx="20" cy="9" r="0.5" fill="#000080"/>
               </g>
@@ -1014,9 +767,1087 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 
 <script>
 // ═══════════════════════════════════════════
-//  STATE & THROTTLE VARIABLES
+//  STATE
 // ═══════════════════════════════════════════
-let _lastLogTs = 0; // Ensures we don't save readings too fast!
+const CFG_KEY='tasni_cfg';
+let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'{}');
+const S={m:0,vol:0,total:1000,s:'Offline',dist:0,t:'',usage:0,up:0,rssi:0,boot:0,isFull:0,name:'Main Tank',
+  history:Array(24).fill(null), // null = no data for that hour
+  connected:false,lastUpdate:null,_wasFull:false};
+let alerts=JSON.parse(localStorage.getItem('tasni_alerts')||'[]');
+let unread=0,demoMode=false,pollingTimer=null,mqttClient=null,chart=null,tipIdx=0,audioCtx=null;
+let _mqttCfg=null,_hbTimer=null,_wdTimer=null,_lastAck=0,_silent=false;
+const STALE_MS=30000;
+let _staleTimer=null;
+
+// Session tracking
+const SESSION_START=new Date();
+let dataPointCount=0;
+
+// Persistent hourly data (localStorage)
+const HOURLY_KEY='tasni_hourly';
+const DAILY_KEY='tasni_daily';
+let hourlyData=JSON.parse(localStorage.getItem(HOURLY_KEY)||'{}');  // {YYYY-MM-DD-HH: {start,end,used}}
+let dailyData=JSON.parse(localStorage.getItem(DAILY_KEY)||'{}');    // {YYYY-MM-DD: litres}
+
+// ═══════════════════════════════════════════
+//  TIPS — expanded with savings data
+// ═══════════════════════════════════════════
+const TIPS=[
+  {cat:'CONSERVATION',icon:'🚿',txt:'A dripping tap wastes up to 15 litres per day. One worn washer can cost you 5,400 litres a year.',saving:'Save 5,400 L/year'},
+  {cat:'HABIT',icon:'⏱️',txt:'Cutting your shower from 10 to 5 minutes saves 50 litres per shower. For a family of 4, that\'s 73,000 L/year.',saving:'Save 73,000 L/year'},
+  {cat:'SAVINGS',icon:'🌧️',txt:'Rainwater harvesting from a 40 m² roof can collect 20,000+ litres annually — enough for all your gardening.',saving:'Save 20,000+ L/year'},
+  {cat:'GARDEN',icon:'🌿',txt:'Water plants at 6 AM or after 6 PM — midday watering loses 40% to evaporation before roots absorb it.',saving:'Save 40% garden water'},
+  {cat:'LEAKS',icon:'🚽',txt:'A silent toilet leak can waste 500 litres daily. Add food colouring to the cistern — blue in the bowl = leak.',saving:'Save 180,000 L/year'},
+  {cat:'HABIT',icon:'🪥',txt:'Turning off the tap while brushing teeth saves 6 litres per minute — that\'s 4,380 L/person/year.',saving:'Save 4,380 L/year'},
+  {cat:'APPLIANCES',icon:'🍽️',txt:'A full dishwasher uses 10–15 L. Hand-washing dishes runs 40–60 L. Always run full loads only.',saving:'Save 50 L per wash'},
+  {cat:'APPLIANCES',icon:'👕',txt:'Modern washing machines use 50–80 L per cycle. Running half-loads doubles your water per kg of laundry.',saving:'Save 50% laundry water'},
+  {cat:'LEAKS',icon:'🔍',txt:'Read your water meter at 9 PM, turn off all taps, check at 6 AM. Any increase = hidden leak somewhere.',saving:'Detect leaks early'},
+  {cat:'GARDEN',icon:'🪣',txt:'Mulching garden beds with 5 cm of organic matter reduces watering frequency by 50% and cools roots naturally.',saving:'Save 50% garden water'},
+  {cat:'SAVINGS',icon:'♻️',txt:'Greywater from sinks and washing machines can safely water gardens — saving 30–50% of household usage.',saving:'Save 30–50% total'},
+  {cat:'HABIT',icon:'🧹',txt:'Sweeping a driveway instead of hosing saves 350+ litres per clean. Use a leaf blower for dry debris.',saving:'Save 350 L per clean'},
+  {cat:'CONSERVATION',icon:'💡',txt:'Install flow-restricting aerators on taps (costs ₹100–300). They cut water use by 50% with no noticeable difference.',saving:'Save 50% tap flow'},
+  {cat:'GARDEN',icon:'☔',txt:'Soft, chemical-free rainwater is ideal for plants. A 200-L barrel fills from one moderate rain shower.',saving:'Free water source'},
+  {cat:'CONSERVATION',icon:'🌊',txt:'Every litre saved today preserves aquifer levels that take decades to replenish. Your monitor matters.',saving:'Future generations'},
+];
+
+const ACHIEVEMENTS=[
+  {icon:'💧',name:'First Drop',desc:'Started monitoring'},
+  {icon:'📊',name:'Analyst',desc:'Viewed analytics'},
+  {icon:'🔔',name:'Alert Ready',desc:'Notifications on'},
+  {icon:'☁️',name:'Cloud Sync',desc:'MQTT connected'},
+  {icon:'⚙️',name:'Configured',desc:'Settings saved'},
+  {icon:'🌱',name:'Eco Warrior',desc:'Read all tips'},
+  {icon:'🏆',name:'24h Champion',desc:'Monitored 24 hrs'},
+  {icon:'🔮',name:'Forecaster',desc:'Viewed forecast'},
+  {icon:'ℹ️',name:'In The Know',desc:'Read About page'},
+];
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+window.addEventListener('load',()=>{
+  loadFormValues(); initChart(); renderTips(); renderAchievements(); renderAlertLog(); checkNotifPerm();
+  renderDash();
+  renderDayBars(); renderHeatmap();
+  updateAbout();
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  unlockAch(0);
+  if(!cfg.ip&&!cfg.broker){
+    document.getElementById('connModal').classList.remove('hidden');
+  } else {
+    document.getElementById('connModal').classList.add('hidden');
+    startConnections();
+  }
+  document.addEventListener('touchstart',()=>{if(!audioCtx)getAudioCtx();},{once:true});
+  document.addEventListener('click',()=>{if(!audioCtx)getAudioCtx();},{once:true});
+  requestWakeLock();
+  // Update about section every minute
+  setInterval(updateAbout,60000);
+  // Auto-advance tips every 12 seconds
+  setInterval(()=>{if(document.getElementById('tab-tips').classList.contains('active')){nextTip();}},12000);
+  // Splash animation loop
+  initSplash();
+});
+
+// ═══════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════
+function saveCfg(u){Object.assign(cfg,u);localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+function loadFormValues(){
+  const sv=(id,v)=>{if(v!=null&&v!==''&&document.getElementById(id))document.getElementById(id).value=v;};
+  sv('s-ip',cfg.ip);sv('s-broker',cfg.broker);sv('s-port',cfg.port||8884);
+  sv('s-mquser',cfg.mquser);sv('s-name',cfg.tankName||'Main Tank');sv('s-topic',cfg.topic||'');
+  sv('c-ip',cfg.ip);sv('c-ssid',cfg.ssid);sv('c-tgtoken',cfg.tgToken);sv('c-tgchat',cfg.tgChat);
+  sv('c-empty',cfg.emptyDist||125);sv('c-full',cfg.fullDist||10);sv('c-vol',cfg.volume||1000);sv('c-tname',cfg.tankName||'Main Tank');
+  sv('c-shid',cfg.sheetsId);sv('c-shname',cfg.sheetsName);sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8884);
+  sv('c-mquser',cfg.mquser);sv('c-mqtopic',cfg.topic||'');
+  if(cfg.tankName)document.getElementById('tankNameLbl').textContent=cfg.tankName.toUpperCase();
+}
+
+// ═══════════════════════════════════════════
+//  CONNECTIONS
+// ═══════════════════════════════════════════
+function applySetup(){
+  const ip=g('s-ip'),broker=g('s-broker'),port=parseInt(g('s-port'))||8884;
+  const mquser=g('s-mquser'),mqpass=g('s-mqpass'),name=g('s-name')||'Main Tank';
+  const topic=g('s-topic')||'tasni-water/+/state';
+  saveCfg({ip,broker,port,mquser,mqpass,tankName:name,topic});
+  document.getElementById('tankNameLbl').textContent=name.toUpperCase();
+  document.getElementById('connModal').classList.add('hidden');
+  startConnections();
+}
+function useDemoMode(){
+  demoMode=true;
+  document.getElementById('connModal').classList.add('hidden');
+  document.getElementById('demoBanner').classList.remove('hidden');
+  startDemo();
+}
+function startConnections(){
+  demoMode=false;
+  document.getElementById('demoBanner').classList.add('hidden');
+  if(cfg.ip) startPoll(cfg.ip);
+  if(cfg.broker) _connectMQTT({host:cfg.broker,port:cfg.port||8884,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
+  _resetStaleTimer();
+}
+
+// ═══════════════════════════════════════════
+//  LOCAL WIFI POLL
+// ═══════════════════════════════════════════
+function startPoll(ip){
+  if(pollingTimer)clearInterval(pollingTimer);
+  fetchSensor(ip);
+  pollingTimer=setInterval(()=>fetchSensor(ip),2500);
+}
+async function fetchSensor(ip){
+  try{
+    const r=await fetch(`http://${ip}/sensor-reading`,{signal:AbortSignal.timeout(3000)});
+    if(!r.ok)throw new Error();
+    const d=await r.json();
+    setChip('chip-local',true); ingest(d,false);
+  }catch{setChip('chip-local',false);}
+  updatePill();
+}
+
+// ═══════════════════════════════════════════
+//  MQTT — ALWAYS-ALIVE ENGINE
+// ═══════════════════════════════════════════
+function _connectMQTT(mc){_mqttCfg=mc;_silent=false;_doConnect(mc);}
+function _doConnect(mc){
+  if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
+  clearInterval(_hbTimer);clearTimeout(_wdTimer);
+  setChip('chip-mqtt',false);updatePill();
+  const rawHost=(mc.host||'').replace(/^wss?:\/\//,'');
+  const proto=(mc.port===8884||mc.port===8084||mc.port===443||mc.port===8083)?'wss':'ws';
+  const url=`${proto}://${rawHost}:${mc.port}/mqtt`;
+  const cid=`tasni_web_${Date.now().toString(36)}`;
+  try{
+    mqttClient=mqtt.connect(url,{clientId:cid,username:mc.user||undefined,password:mc.pass||undefined,keepalive:25,reconnectPeriod:3000,connectTimeout:12000,clean:true});
+    mqttClient.on('connect',()=>{
+      _lastAck=Date.now();
+      const t=mc.topic||'tasni-water/+/state';
+      mqttClient.subscribe(t,{qos:1});
+      setChip('chip-mqtt',true);updatePill();unlockAch(3);
+      if(!_silent){push('ai','☁️ MQTT connected to '+rawHost);showToast('MQTT connected!','ok');}
+      else{showToast('🔄 Reconnected','ok',2000);}
+      _silent=true;
+      _startHB(mc);
+    });
+    mqttClient.on('message',(_t,pl)=>{
+      _lastAck=Date.now();
+      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT JSON:',e);}
+    });
+    mqttClient.on('reconnect',()=>{setChip('chip-mqtt',false);updatePill();});
+    mqttClient.on('close',()=>{setChip('chip-mqtt',false);updatePill();});
+    mqttClient.on('offline',()=>{setChip('chip-mqtt',false);updatePill();});
+    mqttClient.on('error',(e)=>{console.warn('MQTT error:',e.message);});
+  }catch(e){
+    setChip('chip-mqtt',false);updatePill();
+    showToast('MQTT init failed: '+e.message,'danger');
+    setTimeout(()=>_mqttCfg&&_doConnect(_mqttCfg),5000);
+  }
+}
+function _startHB(mc){
+  clearInterval(_hbTimer);
+  _hbTimer=setInterval(()=>{
+    if(!mqttClient||!mqttClient.connected)return;
+    mqttClient.publish('tasni-water/web/ping',JSON.stringify({ts:Date.now()}),{qos:0});
+    clearTimeout(_wdTimer);
+    _wdTimer=setTimeout(()=>{
+      if(Date.now()-_lastAck>40000&&_mqttCfg){console.warn('TASNI watchdog: hard reconnect');_doConnect(_mqttCfg);}
+    },40000);
+  },25000);
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&_mqttCfg){
+    if(!mqttClient||!mqttClient.connected)_doConnect(_mqttCfg);
+    else _startHB(_mqttCfg);
+    requestWakeLock();
+  }
+});
+window.addEventListener('online',()=>{
+  if(_mqttCfg&&(!mqttClient||!mqttClient.connected)){showToast('📶 Network restored','info',2500);_doConnect(_mqttCfg);}
+});
+window.addEventListener('offline',()=>{
+  showToast('📡 Network lost — waiting for data…','warn',4000);
+  clearTimeout(_staleTimer);
+  _staleTimer=setTimeout(_markStale,5000);
+});
+async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await navigator.wakeLock.request('screen');}catch(_){}}
+
+// ═══════════════════════════════════════════
+//  MQTT FIELD MAP
+// ═══════════════════════════════════════════
+function ingestMQTT(d){
+  ingest({
+    m:    d.level??d.m,       vol:  d.volume??d.vol,
+    total:d.total,            s:    d.status??d.s,
+    dist: d.dist,             t:    d.trend??d.t,
+    usage:d.usage,            up:   d.uptime??d.up,
+    rssi: d.rssi,             boot: d.boot,
+    isFull:d.isFull,          name: d.name,
+  },true);
+}
+function setChip(id,on){document.getElementById(id).classList.toggle('on',on);}
+function updatePill(){
+  const lc=document.getElementById('chip-local').classList.contains('on');
+  const mc=document.getElementById('chip-mqtt').classList.contains('on');
+  const pill=document.getElementById('connPill');
+  pill.className='conn-pill';
+  if(lc&&mc)    {pill.classList.add('pill-both'); document.getElementById('connLbl').textContent='BOTH';}
+  else if(lc)   {pill.classList.add('pill-local');document.getElementById('connLbl').textContent='LOCAL';}
+  else if(mc)   {pill.classList.add('pill-mqtt'); document.getElementById('connLbl').textContent='MQTT';}
+  else if(demoMode){pill.classList.add('pill-demo');document.getElementById('connLbl').textContent='DEMO';}
+  else          {document.getElementById('connLbl').textContent='OFFLINE';}
+}
+
+// ═══════════════════════════════════════════
+//  DATA INGEST
+// ═══════════════════════════════════════════
+function ingest(d,fromMQTT=false){
+  const prev=S.m;
+  if(d.m     !=null)S.m     =parseInt(d.m);
+  if(d.vol   !=null)S.vol   =parseFloat(d.vol);
+  if(d.total !=null)S.total =parseFloat(d.total);
+  if(d.s     !=null)S.s     =d.s;
+  if(d.dist  !=null)S.dist  =parseFloat(d.dist);
+  if(d.t     !=null)S.t     =d.t;
+  if(d.usage !=null)S.usage =parseFloat(d.usage);
+  if(d.up    !=null)S.up    =parseInt(d.up);
+  if(d.rssi  !=null)S.rssi  =parseInt(d.rssi);
+  if(d.boot  !=null)S.boot  =parseInt(d.boot);
+  if(d.isFull!=null)S.isFull=parseInt(d.isFull);
+  if(d.name  !=null)S.name  =d.name;
+
+  // Track refill events (level rising significantly = refill happening)
+  if(_lastLevelForRefill!==null&&S.m-_lastLevelForRefill>=10){
+    todayRefillCount++;localStorage.setItem('tasni_refills',todayRefillCount);
+  }
+  _lastLevelForRefill=S.m;
+
+  // Hourly history slot
+  const now=new Date();
+  const hKey=`${now.toISOString().slice(0,10)}-${String(now.getHours()).padStart(2,'0')}`;
+  if(!hourlyData[hKey])hourlyData[hKey]={start:S.m,end:S.m,min:S.m,max:S.m,ts:Date.now()};
+  hourlyData[hKey].end=S.m;
+  hourlyData[hKey].min=Math.min(hourlyData[hKey].min,S.m);
+  hourlyData[hKey].max=Math.max(hourlyData[hKey].max,S.m);
+  // Compute used litres in this hour (drops only)
+  const drop=Math.max(0,hourlyData[hKey].start-S.m);
+  hourlyData[hKey].usedL=(drop/100)*S.total;
+  localStorage.setItem(HOURLY_KEY,JSON.stringify(hourlyData));
+
+  // Update 24h rolling history (for chart)
+  if(!fromMQTT){S.history.shift();S.history.push(S.m);}
+
+  S.connected=true;S.lastUpdate=now;
+  dataPointCount++;
+  _resetStaleTimer();
+  checkAlerts(prev,S.m,S.isFull);
+  renderDash();renderChart();renderAnalytics();
+  renderHeatmap();renderDayBars();
+}
+
+// ═══════════════════════════════════════════
+//  STALENESS WATCHDOG
+// ═══════════════════════════════════════════
+function _resetStaleTimer(){
+  if(demoMode)return;
+  clearTimeout(_staleTimer);
+  _staleTimer=setTimeout(_markStale,STALE_MS);
+}
+function _markStale(){
+  if(S.connected){S.connected=false;push('aw','📡 No data received — device may be offline.');}
+  renderDash();
+}
+
+// ═══════════════════════════════════════════
+//  ALERT ENGINE
+// ═══════════════════════════════════════════
+function checkAlerts(prev,cur,isFull){
+  if(!prev&&!cur)return;
+
+  if(prev>=10&&cur<10&&ck('t-crit')){
+    push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
+    playSound('critical_alarm');
+  } else if(prev>=30&&cur<30&&ck('t-low')){
+    push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
+  }
+
+  // Every 10% DROP while draining
+  if(ck('t-drop10')){
+    const prevBand=Math.floor(prev/10);
+    const curBand=Math.floor(cur/10);
+    if(curBand<prevBand&&cur>=10){
+      for(let b=prevBand-1;b>=curBand&&b>=1;b--){
+        push('aw','💧 DROP: Tank crossed '+(b*10)+'% mark — now at '+cur+'%.');
+        playSound('drop_10');
+      }
+    }
+  }
+
+  // Every 10% RISE while filling — distinct ascending tones
+  if(ck('t-fill10')){
+    const prevBand=Math.floor(prev/10);
+    const curBand=Math.floor(cur/10);
+    if(curBand>prevBand&&cur>10&&prev>=0){
+      for(let b=prevBand+1;b<=curBand&&b<=9;b++){
+        const milestone=b*10;
+        push('ai','⬆️ FILLING: Tank reached '+milestone+'%'+(milestone===90?' — almost full!':milestone===50?' — halfway there!':'')+'');
+        playSound('fill_10',false,milestone);
+      }
+    }
+  }
+
+  if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
+
+  if(prev<90&&cur>=90&&ck('t-fill')){
+    push('ai','✅ REFILLING: Tank above 90% — almost full!');
+    playSound('refill');
+  }
+
+  if(!S._wasFull&&isFull===1&&ck('t-full')){
+    push('ai','💧 FULL TANK: Water level is at maximum!',true);
+    playSound('full_tank');
+    // Extra push notification for full tank
+    if(Notification.permission==='granted'){
+      try{
+        navigator.serviceWorker.ready.then(reg=>{
+          reg.showNotification('🎉 TASNI — Tank Full!',{
+            body:'Your water tank has reached 100% capacity. You can stop filling now.',
+            icon:'icon.svg',badge:'icon.svg',
+            tag:'tasni-full-'+Date.now(),
+            vibrate:[200,80,200,80,400,80,600,80,1000],
+            requireInteraction:true,
+            data:{url:'./'},
+            actions:[{action:'view',title:'View Dashboard'}]
+          });
+        });
+      }catch(e){}
+    }
+  }
+  S._wasFull=isFull===1;
+}
+
+function push(type,msg,critical=false){
+  const a={type,msg,time:new Date().toISOString()};
+  alerts.unshift(a);if(alerts.length>60)alerts=alerts.slice(0,60);
+  localStorage.setItem('tasni_alerts',JSON.stringify(alerts));
+  unread++;const b=document.getElementById('alertBadge');
+  b.textContent=unread;b.classList.remove('hidden');
+  // Vibration patterns
+  if('vibrate' in navigator){
+    if(critical||type==='ac')
+      navigator.vibrate([200,80,200,80,400,80,200,80,600,80,200]);
+    else if(type==='aw')
+      navigator.vibrate([150,60,150,60,300,60,150]);
+    else
+      navigator.vibrate([80,40,80]);
+  }
+  // Push notification — works even when app is in background
+  if(Notification.permission==='granted'){
+    try{
+      // Use service worker notification for background delivery
+      if(navigator.serviceWorker&&navigator.serviceWorker.controller){
+        navigator.serviceWorker.ready.then(reg=>{
+          reg.showNotification('TASNI Water Monitor',{
+            body:msg,icon:'icon.svg',badge:'icon.svg',
+            tag:'tasni-'+type+'-'+Date.now(),
+            vibrate:critical?[200,80,200,80,400,80,200]:[150,60,150,60,300],
+            requireInteraction:critical||type==='ac',
+            data:{url:'./'},
+            actions:[{action:'view',title:'View Dashboard'}]
+          });
+        });
+      } else {
+        new Notification('TASNI Water Monitor',{body:msg,icon:'icon.svg',
+          vibrate:critical?[200,80,200,80,400]:[100,50,100],
+          requireInteraction:critical||type==='ac'});
+      }
+    }catch(e){console.warn('Notif:',e);}
+  }
+  showToast(msg,type==='ac'?'danger':type==='aw'?'warn':'info');
+  if(ck('t-sound'))playSound(type,critical);
+}
+
+function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
+
+// ═══════════════════════════════════════════
+//  SOUND ENGINE — Web Audio API
+// ═══════════════════════════════════════════
+function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function _osc(ctx,freq,startT,dur,wave,vol,freqEnd){
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.connect(g);g.connect(ctx.destination);
+  o.type=wave;
+  o.frequency.setValueAtTime(freq,ctx.currentTime+startT);
+  if(freqEnd!=null)o.frequency.linearRampToValueAtTime(freqEnd,ctx.currentTime+startT+dur);
+  g.gain.setValueAtTime(0,ctx.currentTime+startT);
+  g.gain.linearRampToValueAtTime(vol,ctx.currentTime+startT+0.015);
+  g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+startT+dur);
+  o.start(ctx.currentTime+startT);o.stop(ctx.currentTime+startT+dur+0.05);
+}
+function _noise(ctx,startT,dur,vol){
+  const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
+  const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1);
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const flt=ctx.createBiquadFilter();flt.type='bandpass';flt.frequency.value=800;flt.Q.value=0.5;
+  const g=ctx.createGain();
+  src.connect(flt);flt.connect(g);g.connect(ctx.destination);
+  g.gain.setValueAtTime(0,ctx.currentTime+startT);
+  g.gain.linearRampToValueAtTime(vol,ctx.currentTime+startT+0.01);
+  g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+startT+dur);
+  src.start(ctx.currentTime+startT);src.stop(ctx.currentTime+startT+dur+0.05);
+}
+function playSound(type,critical,milestone){
+  try{
+    const ctx=getAudioCtx();
+    if(type==='full_tank'){
+      [523,659,784,1047,1319].forEach((f,i)=>{_osc(ctx,f,i*0.07,0.5,'sine',0.22);_osc(ctx,f*2,i*0.07+0.04,0.3,'sine',0.10);});
+      [784,988,1175,1319,1568,1976,2093].forEach((f,i)=>_osc(ctx,f,0.5+i*0.09,0.25,'sine',0.18));
+      [2093,2349,2637,3136].forEach((f,i)=>_osc(ctx,f,0.9+i*0.07,0.3,'sine',0.10));
+      _noise(ctx,0,0.12,0.30);_noise(ctx,0.5,0.10,0.25);
+      [2093,2637,3136].forEach((f,i)=>_osc(ctx,f,1.55+i*0.18,0.4,'sine',0.22));
+      return;
+    }
+    if(type==='critical_alarm'||critical||type==='ac'){
+      for(let rep=0;rep<3;rep++){[880,660,440,330].forEach((f,i)=>_osc(ctx,f,rep*0.72+i*0.17,0.15,'sawtooth',0.25));}
+      [110,110,110].forEach((_,i)=>_osc(ctx,110,i*0.72,0.65,'square',0.15));
+      [0,0.72,1.44].forEach(t=>_noise(ctx,t,0.08,0.35));
+      for(let i=0;i<6;i++)_osc(ctx,1200+(i%2)*400,i*0.36,0.32,'sawtooth',0.12);
+      return;
+    }
+    if(type==='drop_10'){
+      _osc(ctx,1800,0,0.18,'sine',0.20,600);_osc(ctx,600,0.05,0.22,'sine',0.18,300);
+      _osc(ctx,1800,0.35,0.18,'sine',0.16,600);_osc(ctx,600,0.40,0.20,'sine',0.14,300);
+      _noise(ctx,0,0.04,0.12);_noise(ctx,0.35,0.04,0.10);
+      return;
+    }
+    if(type==='refill'){
+      [523,659,784,1047,1319,1568].forEach((f,i)=>{_osc(ctx,f,i*0.11,0.35,'sine',0.20);if(i%2===0)_osc(ctx,f*1.5,i*0.11+0.05,0.20,'sine',0.08);});
+      _noise(ctx,0,0.06,0.15);return;
+    }
+    if(type==='fill_10'){
+      // Ascending water-drop tones — pitch rises with milestone (10%→low, 90%→high)
+      const pct=milestone||50;
+      const baseFreq=300+(pct/100)*900; // 300Hz at 10%, 1200Hz at 100%
+      _osc(ctx,baseFreq*0.5, 0,    0.06,'sine',0.12,baseFreq*0.8);
+      _osc(ctx,baseFreq,     0.05, 0.22,'sine',0.22,baseFreq*1.05);
+      _osc(ctx,baseFreq*1.2, 0.15, 0.18,'sine',0.18,baseFreq*1.35);
+      _osc(ctx,baseFreq*1.5, 0.28, 0.25,'sine',0.14,baseFreq*1.7);
+      _noise(ctx,0.02,0.04,0.12);
+      // Extra sparkle at high milestones (70%+)
+      if(pct>=70){
+        _osc(ctx,baseFreq*2,0.32,0.20,'sine',0.12);
+        _osc(ctx,baseFreq*2.5,0.42,0.18,'sine',0.09);
+      }
+      return;
+    }
+    if(type==='aw'){
+      [700,700,900].forEach((f,i)=>{_osc(ctx,f,i*0.28,0.20,'sine',0.22);_osc(ctx,f*0.5,i*0.28,0.20,'square',0.08);_noise(ctx,i*0.28,0.05,0.18);});
+      return;
+    }
+    [523,659,784,1047].forEach((f,i)=>{_osc(ctx,f,i*0.13,0.28,'sine',0.18);_osc(ctx,f*2,i*0.13+0.04,0.15,'sine',0.07);});
+  }catch(e){console.warn('Audio:',e);}
+}
+
+// ═══════════════════════════════════════════
+//  SPLASH ANIMATION — Canvas-based realistic droplet splash
+// ═══════════════════════════════════════════
+let splashCtx=null;
+const splashParticles=[];
+function initSplash(){
+  const canvas=document.getElementById('splashCanvas');
+  if(!canvas)return;
+  splashCtx=canvas.getContext('2d');
+  // Trigger splashes timed to droplet fall animations
+  // Drp1: 1.8s cycle, Drp2: 2.2s, Drp3: 1.5s
+  const drpTimings=[
+    {x:0.30,duration:1800,delay:0},
+    {x:0.50,duration:2200,delay:700},
+    {x:0.66,duration:1500,delay:1300},
+  ];
+  drpTimings.forEach(({x,duration,delay})=>{
+    const fire=()=>{
+      const pct=Math.max(0,Math.min(100,S.m));
+      if(pct>5){
+        const canvasH=215;
+        const waterY=canvasH*(1-pct/100);
+        spawnSplash(x*115, waterY);
+      }
+    };
+    setTimeout(()=>{fire();setInterval(fire,duration);},delay+duration*0.87);
+  });
+  requestAnimationFrame(animateSplash);
+}
+function spawnSplash(x,y){
+  const count=8+Math.floor(Math.random()*6);
+  for(let i=0;i<count;i++){
+    const angle=-Math.PI/2+(Math.random()-.5)*Math.PI*0.9;
+    const speed=0.8+Math.random()*1.8;
+    splashParticles.push({
+      x,y,
+      vx:Math.cos(angle)*speed,
+      vy:Math.sin(angle)*speed,
+      r:0.8+Math.random()*1.4,
+      life:1,decay:0.035+Math.random()*0.025,
+      color:`rgba(45,212,191,`
+    });
+  }
+  // Ripple ring at surface
+  const tank=document.getElementById('tankBody');
+  if(tank){
+    const rip=document.createElement('div');
+    rip.className='ripple';
+    rip.style.left=x+'px';rip.style.top=y+'px';
+    rip.style.width='16px';rip.style.height='8px';
+    tank.appendChild(rip);
+    setTimeout(()=>rip.remove(),900);
+  }
+}
+function animateSplash(){
+  if(!splashCtx){requestAnimationFrame(animateSplash);return;}
+  splashCtx.clearRect(0,0,115,215);
+  for(let i=splashParticles.length-1;i>=0;i--){
+    const p=splashParticles[i];
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.08;// gravity
+    p.life-=p.decay;
+    if(p.life<=0){splashParticles.splice(i,1);continue;}
+    splashCtx.beginPath();
+    splashCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    splashCtx.fillStyle=p.color+p.life+')';
+    splashCtx.fill();
+  }
+  requestAnimationFrame(animateSplash);
+}
+
+// ═══════════════════════════════════════════
+//  RENDER DASH
+// ═══════════════════════════════════════════
+function renderDash(){
+  const pct=Math.max(0,Math.min(100,S.m));
+  const fill=document.getElementById('waterFill');
+  const glow=document.getElementById('tankGlow');
+
+  if(!S.connected&&!demoMode){
+    fill.style.height='0%';
+    fill.style.background='linear-gradient(to top,rgba(80,80,110,.4),rgba(80,80,110,.2))';
+    if(glow)glow.style.boxShadow='none';
+    set('levelNum','<span class="pct" style="font-size:28px;color:var(--muted)">NIL</span>');
+    const bar=document.getElementById('lvlBar');bar.style.width='0%';
+    set('volL','--');set('distCm','--');set('usageRate','--');
+    set('uptimeVal','--');set('rssiVal','--');set('bootVal','--');set('trendLbl','--');
+    const b=document.getElementById('statusBadge');b.className='badge b-off';b.textContent='NO DATA';
+    set('estEmpty','--');
+    if(S.lastUpdate)set('updLbl','Last seen '+S.lastUpdate.toLocaleTimeString());
+    else set('updLbl','Waiting for device…');
+    return;
+  }
+
+  fill.style.height=pct+'%';
+
+  // Water colour + tank glow ring changes by level
+  let waterBg,glowColor;
+  if(S.isFull===1||pct>=100){
+    waterBg='linear-gradient(to top,rgba(0,180,120,.95),rgba(0,220,140,.75),rgba(52,211,153,.5))';
+    glowColor='0 0 20px 4px rgba(52,211,153,.5),inset 0 0 0 2px rgba(52,211,153,.2)';
+  } else if(pct<10){
+    waterBg='linear-gradient(to top,rgba(180,30,50,.95),rgba(248,113,113,.6))';
+    glowColor='0 0 20px 4px rgba(248,113,113,.55),inset 0 0 0 2px rgba(248,113,113,.2)';
+  } else if(pct<30){
+    waterBg='linear-gradient(to top,rgba(160,100,0,.95),rgba(251,191,36,.6))';
+    glowColor='0 0 16px 3px rgba(251,191,36,.45),inset 0 0 0 2px rgba(251,191,36,.15)';
+  } else {
+    waterBg='linear-gradient(to top,rgba(0,100,200,.95),rgba(0,160,240,.8),rgba(45,212,191,.55))';
+    glowColor='0 0 14px 2px rgba(45,212,191,.3),inset 0 0 0 2px rgba(45,212,191,.08)';
+  }
+  fill.style.background=waterBg;
+  if(glow)glow.style.boxShadow=glowColor;
+
+  // Level number
+  if(S.isFull===1){
+    set('levelNum','FULL<span class="pct" style="font-size:16px"> TANK</span>');
+  } else {
+    set('levelNum',pct+'<span class="pct">%</span>');
+  }
+
+  // Progress bar
+  const bar=document.getElementById('lvlBar');
+  bar.style.width=pct+'%';
+  bar.style.background=pct<10?'linear-gradient(90deg,#7a0000,#f87171)':pct<30?'linear-gradient(90deg,#806600,#fbbf24)':'linear-gradient(90deg,var(--purple),var(--pri))';
+
+  set('volL',S.vol.toFixed(0));set('totalVol',S.total);set('distCm',S.dist.toFixed(1));
+  set('usageRate',S.usage.toFixed(1));set('uptimeVal',fmtUp(S.up));
+  set('rssiVal',S.rssi||'--');set('bootVal',S.boot||'--');set('trendLbl',S.t);
+  if(S.name)document.getElementById('tankNameLbl').textContent=S.name.toUpperCase();
+
+  // Status badge
+  const b=document.getElementById('statusBadge');b.className='badge';
+  if(S.isFull===1)    {b.textContent='FULL TANK';b.classList.add('b-full');}
+  else if(!S.connected){b.textContent='OFFLINE';  b.classList.add('b-off');}
+  else if(pct<10)     {b.textContent='CRITICAL';  b.classList.add('b-crit');}
+  else if(pct<30)     {b.textContent='LOW';        b.classList.add('b-low');}
+  else                {b.textContent=S.s||'NORMAL';b.classList.add('b-ok');}
+
+  document.getElementById('estEmpty').textContent=S.usage>0?fmtHrs(S.vol/S.usage):'∞';
+  if(S.lastUpdate)set('updLbl','Updated '+S.lastUpdate.toLocaleTimeString());
+}
+
+// ═══════════════════════════════════════════
+//  ANALYTICS — rich render (REAL DATA ONLY)
+// ═══════════════════════════════════════════
+
+// Track refill events today
+let todayRefillCount=parseInt(localStorage.getItem('tasni_refills')||'0');
+let _lastLevelForRefill=null;
+
+function resetAllAnalytics(){
+  if(!confirm('Reset ALL analytics data (hourly, daily, refill counts)?\nThis cannot be undone.'))return;
+  dailyData={};hourlyData={};todayRefillCount=0;_lastLevelForRefill=null;
+  localStorage.removeItem(DAILY_KEY);localStorage.removeItem(HOURLY_KEY);
+  localStorage.removeItem('tasni_refills');
+  renderDayBars();renderHeatmap();renderAnalytics();
+  showToast('Analytics data cleared — tracking fresh from now','ok',3000);
+}
+
+function renderAnalytics(){
+  const h=S.history.filter(v=>v!=null);
+  const pct=Math.max(0,Math.min(100,S.m));
+  const now=new Date();
+  const todayKey=now.toISOString().slice(0,10);
+  const hKey=`${todayKey}-${String(now.getHours()).padStart(2,'0')}`;
+
+  // ── LIVE: This Hour consumed ──
+  const thisHourData=hourlyData[hKey];
+  const thisHourUsed=thisHourData?(thisHourData.usedL||0):0;
+  const minElapsed=now.getMinutes()||1;
+
+  const lhEl=document.getElementById('live-hr');
+  if(lhEl)lhEl.textContent=thisHourUsed>0?thisHourUsed.toFixed(1)+' L':'0 L';
+  const lhSub=document.getElementById('live-hr-sub');
+  if(lhSub)lhSub.textContent='in past '+minElapsed+' min';
+
+  // ── LIVE: Today total consumed (sum of all hourly drops today) ──
+  let todayUsed=0;
+  let todayHoursWithData=0;
+  Object.entries(hourlyData).forEach(([k,v])=>{
+    if(k.startsWith(todayKey)&&(v.usedL||0)>0){todayUsed+=v.usedL;todayHoursWithData++;}
+  });
+
+  // Avg L/hr today (only hours with actual data)
+  const hoursElapsed=now.getHours()+(now.getMinutes()/60)||1;
+  const avgLph=todayUsed>0?(todayUsed/hoursElapsed):0;
+  const lphEl=document.getElementById('live-lph');
+  if(lphEl)lphEl.textContent=avgLph>0?avgLph.toFixed(1)+' L':'-- L';
+
+  // Refill count
+  const rfEl=document.getElementById('live-refills');
+  if(rfEl)rfEl.textContent=todayRefillCount;
+  const rfSub=document.getElementById('live-refills-sub');
+  if(rfSub)rfSub.textContent=todayRefillCount===1?'time today':todayRefillCount>1?'times today':'no refills yet';
+
+  // Data source note
+  const dsNote=document.getElementById('dataSourceNote');
+  if(dsNote){
+    if(!S.connected){dsNote.textContent='⚠️ Offline — data from last session shown';}
+    else if(todayHoursWithData>0){dsNote.textContent=`✅ Live data — ${todayHoursWithData} hour${todayHoursWithData>1?'s':''} tracked today from real sensor readings`;}
+    else{dsNote.textContent='🔄 Connected — accumulating first readings…';}
+  }
+
+  // ── 1. Usage bars by time of day (from real hourly data) ──
+  const timeSlots=[
+    {id:'morn',label:'Morning',hours:[6,7,8,9,10,11]},
+    {id:'aft', label:'Afternoon',hours:[12,13,14,15,16,17]},
+    {id:'eve', label:'Evening',hours:[18,19,20,21,22,23]},
+    {id:'ngt', label:'Night',hours:[0,1,2,3,4,5]},
+  ];
+  const slotVals=timeSlots.map(slot=>{
+    let total=0;
+    slot.hours.forEach(hr=>{
+      const k=`${todayKey}-${String(hr).padStart(2,'0')}`;
+      if(hourlyData[k])total+=hourlyData[k].usedL||0;
+    });
+    return total;
+  });
+  const mx=Math.max(...slotVals,1);
+  timeSlots.forEach((slot,i)=>{
+    set('u-'+slot.id,slotVals[i]>0?slotVals[i].toFixed(0)+' L':'0 L');
+    const el=document.getElementById('b-'+slot.id);
+    if(el)el.style.width=(slotVals[i]/mx*100)+'%';
+  });
+  // Night-time leak heuristic
+  const nightUsed=slotVals[3];const dayUsed2=slotVals[0]+slotVals[1]+slotVals[2];
+  const lb=document.getElementById('leakBanner');
+  if(lb){if(nightUsed>0&&dayUsed2>0&&nightUsed/dayUsed2>0.3)lb.classList.remove('hidden');else lb.classList.add('hidden');}
+
+  // ── 2. Insight cards — real data ──
+  set('ins-today',todayUsed>0?todayUsed.toFixed(0)+' L':'0 L');
+  const todayPct=S.total>0?(todayUsed/S.total*100):0;
+  set('ins-today-sub',todayUsed>0?todayPct.toFixed(0)+'% of tank used':'waiting for data');
+
+  // Daily avg from real dailyData only
+  const realDays=Object.entries(dailyData).filter(([k,v])=>v>0&&k!==todayKey);
+  const avg7=realDays.length?realDays.reduce((s,[,v])=>s+v,0)/realDays.length:0;
+  set('ins-avg',avg7>0?avg7.toFixed(0)+' L':'-- L');
+  set('ins-avg-sub',realDays.length>=1?'past '+realDays.length+' day'+( realDays.length>1?'s':''):'not enough data yet');
+
+  // Per-hour: show today's avg L/hr
+  set('ins-peak',avgLph>0?avgLph.toFixed(1)+' L':'-- L');
+  set('ins-peak-sub',avgLph>0?'avg L/hr today':'no usage today');
+
+  // ── Takeaway Banner (smart, real data based) ──
+  const tb=document.getElementById('takeawayBanner');
+  const tt=document.getElementById('takeawayText');
+  let takeaway='';
+  if(todayUsed>0&&S.total>0){
+    const pctUsed=todayUsed/S.total*100;
+    const daysLeft=S.vol>0&&avgLph>0?S.vol/(avgLph*24):null;
+    if(pctUsed>60)takeaway=`⚠️ <strong>High usage today:</strong> You've used ${pctUsed.toFixed(0)}% of your tank capacity (${todayUsed.toFixed(0)} L) today. At this rate, plan a refill ${daysLeft?'within '+Math.floor(daysLeft)+' day'+(Math.floor(daysLeft)===1?'':'s'):'soon'}.`;
+    else if(nightUsed>20&&dayUsed2>0)takeaway=`🔍 <strong>Night usage detected:</strong> ${nightUsed.toFixed(0)} L consumed between midnight–6 AM. This may indicate a slow leak or running tap. Check all taps and float valves.`;
+    else if(avgLph>0&&avg7>0&&todayUsed>avg7*1.3)takeaway=`📈 <strong>Above average today:</strong> Today's usage (${todayUsed.toFixed(0)} L) is higher than your daily average (${avg7.toFixed(0)} L). Identify if an appliance or tap is running longer than usual.`;
+    else if(avgLph>0&&avg7>0&&todayUsed<avg7*0.7)takeaway=`✅ <strong>Great conservation!</strong> Today's usage (${todayUsed.toFixed(0)} L) is ${((1-todayUsed/avg7)*100).toFixed(0)}% below your average. Keep it up!`;
+    else if(avgLph>0)takeaway=`💧 <strong>Normal usage:</strong> Consuming approximately ${avgLph.toFixed(1)} L/hr today. Tank has roughly ${daysLeft?Math.floor(daysLeft)+' days':Math.floor(S.vol/Math.max(avgLph*24,1))+' days'} of water at this rate.`;
+    if(takeaway){if(tb)tb.style.display='block';if(tt)tt.innerHTML=takeaway;}
+  } else {
+    if(tb)tb.style.display='none';
+  }
+
+  // ── 3. Water Health Score ──
+  let score=0;
+  score+=Math.round(pct*0.40);
+  const usageRatio=S.usage>0?(S.usage/(S.total/24)):0;
+  const usageScore=Math.max(0,30-Math.round(usageRatio*60));
+  score+=usageScore;
+  const ageSec=S.lastUpdate?(Date.now()-S.lastUpdate.getTime())/1000:9999;
+  score+=ageSec<30?20:ageSec<120?15:ageSec<300?8:0;
+  const hasCrit=alerts.slice(0,5).some(a=>a.type==='ac');
+  score+=hasCrit?0:10;
+  score=Math.min(100,Math.max(0,score));
+  const ring=document.getElementById('scoreRing');
+  if(ring){const dash=175.9;const offset=dash*(1-score/100);ring.style.strokeDashoffset=offset;ring.style.stroke=score>=70?'var(--ok)':score>=40?'var(--warn)':'var(--danger)';}
+  set('scoreNum',score);
+  const badge=document.getElementById('healthBadge');
+  if(badge){badge.className='badge';if(score>=80){badge.textContent='EXCELLENT';badge.classList.add('b-full');}else if(score>=60){badge.textContent='GOOD';badge.classList.add('b-ok');}else if(score>=40){badge.textContent='FAIR';badge.classList.add('b-low');}else{badge.textContent='POOR';badge.classList.add('b-crit');}}
+  let healthDesc='';
+  if(score>=80)healthDesc='Tank is well-stocked and usage is efficient. No issues detected.';
+  else if(score>=60)healthDesc='Tank level is healthy. Monitor usage to maintain efficiency.';
+  else if(score>=40)healthDesc='Tank level or usage rate needs attention. Plan a refill soon.';
+  else healthDesc='Low tank or high usage detected. Take action to avoid running out.';
+  set('healthDesc',healthDesc);
+  const factors=[
+    {lbl:'Level',val:pct+'%',good:pct>=40},
+    {lbl:'L/hr',val:avgLph>0?avgLph.toFixed(1):'--',good:avgLph>0&&avgLph<(S.total/48)},
+    {lbl:'Data',val:ageSec<120?'Live':'Stale',good:ageSec<120},
+    {lbl:'Alerts',val:hasCrit?'Recent':'Clear',good:!hasCrit},
+    {lbl:'Days Left',val:avgLph>0?Math.floor(S.vol/(avgLph*24))+'d':'∞',good:avgLph>0?S.vol/(avgLph*24)>2:true},
+  ];
+  const hf=document.getElementById('healthFactors');
+  if(hf)hf.innerHTML=factors.map(f=>`<div style="text-align:center;padding:5px 4px;background:rgba(${f.good?'52,211,153':'248,113,113'},.07);border:1px solid rgba(${f.good?'52,211,153':'248,113,113'},.2);border-radius:7px"><div style="font-family:var(--mono);font-size:11px;color:${f.good?'var(--ok)':'var(--danger)'};font-weight:700">${f.val}</div><div style="font-size:8px;color:var(--muted);margin-top:2px;font-family:var(--head)">${f.lbl}</div></div>`).join('');
+
+  // ── 4. Chart insight text ──
+  const validPts=S.history.filter(v=>v!=null);
+  let chartInsight='';
+  if(validPts.length>=4){
+    const first=validPts[0],last=validPts[validPts.length-1];
+    const delta=last-first;const mn=Math.min(...validPts),mxH=Math.max(...validPts);const range=mxH-mn;
+    if(delta<-20)chartInsight=`📉 Level dropped <strong>${Math.abs(delta).toFixed(0)}%</strong> in the past 24 hrs. Range: ${mn.toFixed(0)}–${mxH.toFixed(0)}%. At this rate, monitor consumption carefully.`;
+    else if(delta>15)chartInsight=`📈 Level rose <strong>${delta.toFixed(0)}%</strong> over 24 hrs — refilling in progress. Current trend is positive.`;
+    else if(range<5)chartInsight=`📊 Level has been stable between <strong>${mn.toFixed(0)}–${mxH.toFixed(0)}%</strong> — consistent usage pattern detected.`;
+    else chartInsight=`📊 24-hr swing: <strong>${mn.toFixed(0)}–${mxH.toFixed(0)}%</strong> (${range.toFixed(0)}% range). Normal household usage pattern.`;
+  } else {chartInsight='Accumulating history — chart will populate as data arrives.';}
+  set('chartInsight',chartInsight);
+
+  // ── 5. Week summary ──
+  const weekVals=Object.values(dailyData).slice(-7).filter(v=>v>0);
+  let weekSummary='';
+  if(weekVals.length>=2){
+    const weekTotal=weekVals.reduce((a,b)=>a+b,0);const weekAvg=weekTotal/weekVals.length;
+    const trend=weekVals[weekVals.length-1]-weekVals[0];
+    weekSummary=`This week you've used <strong style="color:var(--pri)">${weekTotal.toFixed(0)} L</strong> total (avg ${weekAvg.toFixed(0)} L/day). `;
+    if(trend>20)weekSummary+=`Usage trending <strong style="color:var(--warn)">upward</strong> — consider reducing consumption.`;
+    else if(trend<-20)weekSummary+=`Usage trending <strong style="color:var(--ok)">downward</strong> — good conservation!`;
+    else weekSummary+=`Usage is <strong style="color:var(--ok)">consistent</strong> this week.`;
+  } else {weekSummary='Consumption data builds over time. Check back after a few days for your weekly report.';}
+  set('weekSummary',weekSummary);
+
+  // ── 6. Forecast ──
+  const fc=document.getElementById('fc-cur');
+  if(fc){
+    fc.textContent=pct+'%';
+    const usageRate=avgLph>0?avgLph:S.usage;
+    if(usageRate>0){
+      const pph=(usageRate/S.total)*100;
+      const f6=Math.max(0,pct-pph*6);const f24=Math.max(0,pct-pph*24);const f3d=Math.max(0,pct-pph*72);
+      const empH=S.vol/usageRate;
+      set('fc-6',f6.toFixed(0)+'%');set('fc-24',f24.toFixed(0)+'%');set('fc-3d',f3d.toFixed(0)+'%');set('fc-emp',fmtHrs(empH));
+      const setBar=(id,val)=>{const el=document.getElementById(id);if(el)el.style.width=val+'%';};
+      setBar('fc-bar-now',pct);setBar('fc-bar-6',f6);setBar('fc-bar-24',f24);setBar('fc-bar-3d',f3d);
+      let advice='';
+      if(empH<12)advice='⚡ <strong>Urgent:</strong> Tank will empty in under 12 hours at current usage. Refill now or reduce consumption immediately.';
+      else if(empH<24)advice='⚠️ <strong>Caution:</strong> Less than 24 hours of water remaining. Plan a refill today.';
+      else if(empH<72)advice='ℹ️ <strong>Tip:</strong> Approx '+Math.floor(empH/24)+' days of water remaining. Schedule a refill this week.';
+      else if(pct>80)advice='✅ <strong>Well stocked:</strong> At current usage you\'re set for '+Math.floor(empH/24)+' days.';
+      else advice='💧 <strong>Normal:</strong> Your tank can last about '+Math.floor(empH/24)+' more days.';
+      set('fc-advice',advice);unlockAch(7);
+    } else {
+      ['fc-6','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));
+      ['fc-bar-6','fc-bar-24','fc-bar-3d'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.width='0%';});
+      set('fc-advice','<em>Usage rate not yet available. The forecast updates automatically as real data accumulates.</em>');
+    }
+  }
+}
+
+
+function renderChart(){
+  if(!chart)return;
+  const now=new Date();
+  const labels=Array.from({length:24},(_,i)=>{const h=new Date(now);h.setHours(h.getHours()-(23-i));return h.getHours()+':00';});
+  chart.data.labels=labels;
+  chart.data.datasets[0].data=S.history.map(v=>v===null?NaN:v);
+  chart.update('none');
+}
+
+function renderHeatmap(){
+  const grid=document.getElementById('hmGrid');
+  const lbls=document.getElementById('hmLabels');
+  if(!grid||!lbls)return;
+  const now=new Date();
+  const cells=[];const labels=[];
+  const usages=[];
+  for(let i=0;i<24;i++){
+    const h=new Date(now);h.setHours(h.getHours()-(23-i));
+    const hh=String(h.getHours()).padStart(2,'0');
+    const key=`${h.toISOString().slice(0,10)}-${hh}`;
+    const used=(hourlyData[key]||{}).usedL||0;
+    usages.push(used);
+    labels.push(i%4===0?hh:'');
+  }
+  const mx=Math.max(...usages,1);
+  lbls.innerHTML=labels.map(l=>`<span>${l}</span>`).join('');
+  grid.innerHTML=usages.map((u,i)=>{
+    const alpha=0.08+0.72*(u/mx);
+    const now2=new Date();now2.setHours(now2.getHours()-(23-i));
+    const tooltip=now2.getHours()+':00 — '+u.toFixed(1)+' L used';
+    return`<div class="hm-cell" title="${tooltip}" style="background:rgba(45,212,191,${alpha.toFixed(2)})"></div>`;
+  }).join('');
+  // Peak label
+  const peakIdx=usages.indexOf(mx);
+  if(peakIdx>=0){
+    const ph=new Date();ph.setHours(ph.getHours()-(23-peakIdx));
+    const pl=document.getElementById('hmPeakLbl');
+    if(pl)pl.textContent='Peak: '+ph.getHours()+':00 ('+mx.toFixed(0)+' L)';
+  }
+}
+
+function renderDayBars(){
+  const barsEl=document.getElementById('dayBars');
+  const lblsEl=document.getElementById('dayBarLabels');
+  if(!barsEl||!lblsEl)return;
+  // Build 7 days of data
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const key=d.toISOString().slice(0,10);
+    const dayUsed=dailyData[key]||(()=>{
+      // Compute from hourly
+      let tot=0;Object.entries(hourlyData).forEach(([k,v])=>{if(k.startsWith(key))tot+=v.usedL||0;});
+      if(tot>0){dailyData[key]=tot;localStorage.setItem(DAILY_KEY,JSON.stringify(dailyData));}
+      return tot;
+    })();
+    const lbl=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+    days.push({key,val:dayUsed,lbl,isToday:i===0});
+  }
+  const mx=Math.max(...days.map(d=>d.val),1);
+  barsEl.innerHTML=days.map(d=>{
+    const h=Math.max(4,(d.val/mx)*60);
+    const color=d.isToday?'linear-gradient(to top,var(--pri),rgba(45,212,191,.4))':'linear-gradient(to top,rgba(45,212,191,.5),rgba(45,212,191,.15))';
+    return`<div class="day-bar-wrap"><div class="day-bar" style="height:${h}px;background:${color}"></div><div class="day-bar-val">${d.val>0?d.val.toFixed(0):''}</div></div>`;
+  }).join('');
+  lblsEl.innerHTML=days.map(d=>`<div class="day-bar-wrap"><div class="day-bar-lbl" style="color:${d.isToday?'var(--pri)':'var(--muted)'}">${d.lbl}</div></div>`).join('');
+}
+
+function resetConsumption(){
+  if(!confirm('Reset daily consumption data?'))return;
+  dailyData={};hourlyData={};todayRefillCount=0;_lastLevelForRefill=null;
+  localStorage.removeItem(DAILY_KEY);localStorage.removeItem(HOURLY_KEY);localStorage.removeItem('tasni_refills');
+  renderDayBars();renderHeatmap();renderAnalytics();
+  showToast('Consumption data reset — fresh tracking starts now','ok',2500);
+}
+
+// ═══════════════════════════════════════════
+//  CHART.JS
+// ═══════════════════════════════════════════
+function initChart(){
+  const ctx=document.getElementById('histChart').getContext('2d');
+  const now=new Date();
+  const labels=Array.from({length:24},(_,i)=>{const h=new Date(now);h.setHours(h.getHours()-(23-i));return h.getHours()+':00';});
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{label:'Level %',data:Array(24).fill(NaN),
+      borderColor:'#2DD4BF',
+      backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,'rgba(45,212,191,.3)');g.addColorStop(1,'rgba(45,212,191,0)');return g;},
+      borderWidth:2,fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#2DD4BF',pointHoverRadius:6,
+      spanGaps:false,
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,titleColor:'#2DD4BF',bodyColor:'#cce7ff',callbacks:{label:c=>isNaN(c.parsed.y)?'No data':` ${c.parsed.y.toFixed(0)}% level`}}},
+      scales:{x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},maxTicksLimit:6}},
+              y:{min:0,max:100,grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},callback:v=>v+'%'}}}}
+  });
+}
+
+// ═══════════════════════════════════════════
+//  TIPS
+// ═══════════════════════════════════════════
+function renderTips(){
+  const t=TIPS[tipIdx];
+  document.getElementById('tipCat').textContent=t.cat;
+  document.getElementById('tipTxt').textContent=t.txt;
+  const prog=document.getElementById('tipProg');
+  if(prog)prog.style.width=((tipIdx+1)/TIPS.length*100)+'%';
+  document.getElementById('allTips').innerHTML=TIPS.map((t,i)=>`
+    <div class="tip-fact" style="opacity:${i===tipIdx?1:.8};border-left-color:${i===tipIdx?'var(--pri)':'var(--border)'}">
+      <div class="tip-fact-icon">${t.icon}</div>
+      <div class="tip-fact-body">
+        <div class="tip-fact-cat">${t.cat}</div>
+        <div class="tip-fact-txt">${t.txt}</div>
+        <div class="tip-saving">💰 ${t.saving}</div>
+      </div>
+    </div>`).join('');
+}
+function nextTip(){tipIdx=(tipIdx+1)%TIPS.length;renderTips();}
+
+function renderAchievements(){
+  const earned=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');
+  document.getElementById('achGrid').innerHTML=ACHIEVEMENTS.map((a,i)=>`<div class="ach ${earned.includes(i)?'earned':''}"><div class="ach-icon">${a.icon}</div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`).join('');
+}
+function unlockAch(i){const e=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');if(!e.includes(i)){e.push(i);localStorage.setItem('tasni_ach',JSON.stringify(e));renderAchievements();}}
+
+function renderAlertLog(){
+  const el=document.getElementById('alertLog');
+  if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div>';return;}
+  el.innerHTML=alerts.slice(0,30).map(a=>`
+    <div class="alert-item ${a.type}">
+      <div class="adot"></div>
+      <div><div class="al-msg">${a.msg}</div><div class="al-time">${new Date(a.time).toLocaleString()}</div></div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+//  ABOUT — session info
+// ═══════════════════════════════════════════
+function updateAbout(){
+  const el=document.getElementById('ab-session');
+  if(el)el.textContent=SESSION_START.toLocaleTimeString();
+  const pts=document.getElementById('ab-points');
+  if(pts)pts.textContent=dataPointCount;
+  const al=document.getElementById('ab-alerts');
+  if(al)al.textContent=alerts.length;
+  const up=document.getElementById('ab-uptime');
+  if(up){const s=Math.floor((Date.now()-SESSION_START)/1000);up.textContent=fmtUp(s);}
+}
+
+// ═══════════════════════════════════════════
+//  SETTINGS HANDLERS
+// ═══════════════════════════════════════════
+async function saveWifi(){
+  const ip=g('c-ip'),ssid=g('c-ssid'),password=g('c-pass');
+  saveCfg({ip,ssid});unlockAch(4);
+  if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','✅ WiFi sent to device at '+ip);}catch{push('aw','⚠️ Could not reach device. Saved locally.');}}
+  if(ip)startPoll(ip);
+}
+async function saveTelegram(){
+  const ip=cfg.ip,token=g('c-tgtoken'),chatid=g('c-tgchat');
+  saveCfg({tgToken:token,tgChat:chatid});
+  if(ip&&token){try{await fetch(`http://${ip}/save-telegram`,{method:'POST',body:new URLSearchParams({token,chatid})});push('ai','✅ Telegram saved to device.');}catch{push('aw','⚠️ Settings saved locally.');}}
+}
+async function saveCalib(){
+  const ip=cfg.ip,empty=g('c-empty'),full=g('c-full'),volume=g('c-vol'),name=g('c-tname')||'Main Tank';
+  saveCfg({emptyDist:empty,fullDist:full,volume,tankName:name});
+  S.total=parseFloat(volume)||1000;
+  document.getElementById('tankNameLbl').textContent=name.toUpperCase();
+  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});push('ai','✅ Calibration saved. Empty='+empty+'cm Full='+full+'cm Vol='+volume+'L');}catch{push('aw','⚠️ Calibration saved locally.');}}
+}
+async function captureEmpty(){
+  if(!cfg.ip){push('aw','⚠️ Enter device IP first.');return;}
+  try{const r=await fetch(`http://${cfg.ip}/capture-empty`);const d=await r.json();
+    if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);push('ai','📷 Empty captured: '+d.empty.toFixed(1)+' cm');}
+    else push('aw','⚠️ '+(d.msg||'Sensor error'));
+  }catch{push('aw','⚠️ Could not reach device at '+cfg.ip);}
+}
+async function saveSheets(){
+  const ip=cfg.ip,deploymentid=g('c-shid'),sheetname=g('c-shname'),enabled=document.getElementById('c-shenable').checked;
+  saveCfg({sheetsId:deploymentid,sheetsName:sheetname});
+  if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});push('ai','✅ Sheets saved to device.');}catch{push('aw','⚠️ Settings saved locally.');}}
+}
+function saveMQTT(){
+  const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8884,mquser=g('c-mquser'),mqpass=g('c-mqpass');
+  const topic=g('c-mqtopic')||'tasni-water/+/state';
+  saveCfg({broker:host,port,mquser,mqpass,topic});
+  if(host){_silent=false;_connectMQTT({host,port,user:mquser,pass:mqpass,topic});}
+}
+function disconnMQTT(){
+  if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
+  _mqttCfg=null;clearInterval(_hbTimer);clearTimeout(_wdTimer);
+  setChip('chip-mqtt',false);updatePill();push('ai','ℹ️ MQTT disconnected.');
+}
+function resetApp(){if(!confirm('Clear all local data?'))return;localStorage.clear();alerts=[];renderAlertLog();location.reload();}
+
+// ═══════════════════════════════════════════
+//  DEMO MODE
+// ═══════════════════════════════════════════
+function startDemo(){
+  let lvl=72,dir=-1;
+  const tick=()=>{
+    lvl+=dir*(Math.random()*1.5);
+    if(lvl<=3)dir=1;if(lvl>=98)dir=-1;
+    lvl=Math.max(0,Math.min(100,lvl));
+    const pct=Math.round(lvl),vol=(pct/100*1000).toFixed(1),dist=((1-pct/100)*115+10).toFixed(1);
+    ingest({m:pct,vol:parseFloat(vol),total:1000,s:pct<=10?'Critical':pct<=30?'Low':pct<=75?'Good':'Full',
+      dist:parseFloat(dist),t:dir>0?'⬆️':'⬇️',usage:(1+Math.random()*2.5).toFixed(1),
+      up:Math.floor(Date.now()/1000%86400),rssi:-58,boot:7,isFull:parseFloat(dist)<=10?1:0,name:'Demo Tank'},false);
+  };
+  tick();setInterval(tick,2500);setChip('chip-local',true);updatePill();
+}
+
+// ═══════════════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════════════
+function askNotif(){Notification.requestPermission().then(p=>{if(p==='granted'){document.getElementById('notifBar').classList.add('hidden');unlockAch(2);push('ai','🔔 Notifications enabled!');showToast('Notifications ON — alerts will fire even when app is closed','ok',5000);}});}
+function checkNotifPerm(){if(Notification.permission==='granted')document.getElementById('notifBar').classList.add('hidden');}
+
+// ═══════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════
+function showToast(msg,type='info',duration=4000){
+  const icons={info:'💧',warn:'⚠️',danger:'🚨',ok:'✅'};
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span style="flex:1">${msg}</span>`;
+  el.onclick=()=>el.classList.add('out');
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),350);},duration);
+}
+
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
+function g(id){const e=document.getElementById(id);return e?e.value.trim():'';}
+function ck(id){const e=document.getElementById(id);return e?e.checked:false;}
+function set(id,html){const e=document.getElementById(id);if(e)e.innerHTML=html;}
+function fmtUp(s){if(!s)return'--';if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';return Math.floor(s/86400)+'d '+Math.floor((s%86400)/3600)+'h';}
+function fmtHrs(h){if(!isFinite(h)||h<=0)return'∞';if(h<1)return Math.round(h*60)+' min';if(h<24)return Math.round(h)+' hrs';return Math.floor(h/24)+'d '+Math.round(h%24)+'h';}
+function goTab(name,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
+  if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
+  if(name==='analytics'){unlockAch(1);renderAnalytics();renderDayBars();renderHeatmap();}
+  if(name==='tips'){unlockAch(5);renderTips();}
+  if(name==='settings')unlockAch(4);
+  if(name==='about'){unlockAch(8);updateAbout();}
+}
+function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
 </script>
 </body>
 </html>
