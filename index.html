@@ -1,22 +1,3 @@
-
-
-
-
-
-The "question marks" (often showing up as  or `?`) happen because certain typography characters (like em-dashes `—`, ellipses `…`, or the Rupee symbol `₹`) and newer emojis are corrupted when your text editor saves the file in **ANSI** encoding instead of **UTF-8**. 
-
-To permanently fix this inside the app, I have:
-1. Replaced all problematic typographic dashes (`—`, `–`) with standard hyphens (`-`).
-2. Replaced special symbols like `…`, `’`, `₹`, and `²` with universally safe text equivalents.
-3. Replaced the "White/Blue Square Emojis" in the Heatmap legend (which often fail to render) with **custom HTML colored blocks** which look much more professional.
-4. Swapped out newer emojis (like the Toothbrush and Bucket) with older, universally supported ones.
-5. Replaced the Infinity symbol `∞` with its safe unicode escape `\u221E`.
-
-Here is the fully sanitized, safe code. **(Important: When you save this file, make sure your text editor's "Encoding" is set to "UTF-8" just to be doubly safe!)**
-
-### Fully Fixed Code:
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
