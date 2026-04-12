@@ -563,6 +563,44 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div id="fc-advice" style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.65;padding:10px 12px;background:rgba(45,212,191,.04);border-radius:8px;border-left:2px solid var(--pri)"></div>
     </div>
 
+    <!-- ═══ EXPORT & SAVE DATA ═══ -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="card-title" style="margin:0">💾 Save &amp; Export Data</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--pri)" id="exportRecCount">0 readings</div>
+      </div>
+      <!-- CSV no-setup banner -->
+      <div style="background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:18px;flex-shrink:0">✅</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--ok)">CSV works right now — no setup needed</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;line-height:1.5">Downloads to your device. Opens in Excel or Google Sheets. Your data never leaves your phone.</div>
+        </div>
+      </div>
+      <div class="sec-hd" style="margin-bottom:10px">📥 DOWNLOAD CSV</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <button class="btn btn-o" style="font-size:11px;padding:10px 6px;flex-direction:column;display:flex;align-items:center;gap:2px" onclick="downloadCSV('readings')">
+          <span>📋 Raw Readings</span><small style="font-size:9px;color:var(--muted);font-family:var(--sans);font-weight:400">Every data point</small>
+        </button>
+        <button class="btn btn-o" style="font-size:11px;padding:10px 6px;flex-direction:column;display:flex;align-items:center;gap:2px" onclick="downloadCSV('hourly')">
+          <span>🕐 Hourly Summary</span><small style="font-size:9px;color:var(--muted);font-family:var(--sans);font-weight:400">Litres per hour</small>
+        </button>
+        <button class="btn btn-o" style="font-size:11px;padding:10px 6px;flex-direction:column;display:flex;align-items:center;gap:2px" onclick="downloadCSV('daily')">
+          <span>📅 Daily Summary</span><small style="font-size:9px;color:var(--muted);font-family:var(--sans);font-weight:400">Per-day totals</small>
+        </button>
+        <button class="btn btn-o" style="font-size:11px;padding:10px 6px;flex-direction:column;display:flex;align-items:center;gap:2px" onclick="downloadCSV('alerts')">
+          <span>🔔 Alert Log</span><small style="font-size:9px;color:var(--muted);font-family:var(--sans);font-weight:400">All notifications</small>
+        </button>
+      </div>
+      <button class="btn btn-p btn-full" style="margin-bottom:14px" onclick="downloadCSV('all')">📦 Download Full Report (All 4 Files)</button>
+
+      <div class="sec-hd" style="margin-bottom:8px">☁️ GOOGLE SHEETS SYNC <span style="font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(optional)</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6">Automatically push readings to a live Google Sheet. Needs a free Apps Script — tap the button in Settings → Google Sheets to get the code.</div>
+      <div id="sheetsSyncStatus" style="padding:9px 12px;background:rgba(45,212,191,.04);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6">Not configured — set up in Settings → Google Sheets.</div>
+      <button class="btn btn-o btn-full" style="margin-bottom:8px" onclick="syncToSheets(true)">⬆️ Sync to Google Sheets Now</button>
+      <button class="btn btn-d btn-full" onclick="resetAllAnalytics()">↺ Reset All Analytics Data</button>
+    </div>
+
   </div>
 
   <!-- ALERTS -->
@@ -627,12 +665,23 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>📊 Google Sheets</span><span class="acc-arr">▾</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>📊 Google Sheets — Direct Sync</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
-        <div class="form-grp"><label class="form-lbl">Deployment ID</label><input class="form-in" id="c-shid" type="text" placeholder="AKfycbx..."></div>
-        <div class="form-grp"><label class="form-lbl">Sheet Name</label><input class="form-in" id="c-shname" type="text" placeholder="WaterLogs"></div>
-        <div class="tog-row" style="margin-top:4px"><div><div class="tog-lbl">Enable Auto-Sync</div><div class="tog-sub">Upload data every hour</div></div><label class="toggle"><input type="checkbox" id="c-shenable"><div class="tslider"></div></label></div>
-        <button class="btn btn-p btn-full" style="margin-top:12px" onclick="saveSheets()">Save Sheets to Device</button>
+        <div class="info-box" style="margin-bottom:12px">
+          <strong>3-step setup:</strong><br>
+          1. Tap <em>Copy Apps Script Code</em> below<br>
+          2. Go to <a href="https://script.google.com" target="_blank" style="color:var(--pri)">script.google.com</a> → New project → Paste → Save<br>
+          3. Deploy → Web App → Anyone → Copy URL → Paste below
+        </div>
+        <button class="btn btn-o btn-full" style="margin-bottom:12px" onclick="copyAppsScript()">📋 Copy Apps Script Code</button>
+        <div class="form-grp"><label class="form-lbl">Apps Script Web App URL</label><input class="form-in" id="c-shurl" type="url" placeholder="https://script.google.com/macros/s/.../exec"></div>
+        <div class="form-grp"><label class="form-lbl">Sheet Tab Name</label><input class="form-in" id="c-shname" type="text" placeholder="WaterLogs" value="WaterLogs"></div>
+        <div class="tog-row" style="margin-top:4px">
+          <div><div class="tog-lbl">Auto-Sync Every 30 min</div><div class="tog-sub">Push new readings automatically</div></div>
+          <label class="toggle"><input type="checkbox" id="c-shenable" checked><div class="tslider"></div></label>
+        </div>
+        <button class="btn btn-p btn-full" style="margin-top:12px" onclick="saveSheetsConfig()">💾 Save &amp; Test Connection</button>
+        <button class="btn btn-o btn-full" style="margin-top:8px" onclick="syncToSheets(true)">⬆️ Push Data to Sheets Now</button>
       </div>
     </div>
     <div class="card">
@@ -831,6 +880,14 @@ window.addEventListener('load',()=>{
   renderDash();
   renderDayBars(); renderHeatmap();
   updateAbout();
+  // Load sheets config from saved cfg
+  sheetsCfg={url:cfg.sheetsUrl||'',name:cfg.sheetsName||'WaterLogs',enabled:cfg.sheetsEnabled||false};
+  // Populate export count
+  const rc=document.getElementById('exportRecCount');
+  if(rc)rc.textContent=readings.length+' readings';
+  // Restore sheets URL in settings field if saved
+  setTimeout(()=>{const el=document.getElementById('c-shurl');if(el&&cfg.sheetsUrl)el.value=cfg.sheetsUrl;const en=document.getElementById('c-shenable');if(en)en.checked=!!cfg.sheetsEnabled;},100);
+  startAutoSync();
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
   unlockAch(0);
   if(!cfg.ip&&!cfg.broker){
@@ -1042,6 +1099,7 @@ function ingest(d,fromMQTT=false){
 
   S.connected=true;S.lastUpdate=now;
   dataPointCount++;
+  _saveReading(d);
   _resetStaleTimer();
   checkAlerts(prev,S.m,S.isFull);
   renderDash();renderChart();renderAnalytics();
@@ -1848,6 +1906,217 @@ function goTab(name,btn){
   if(name==='about'){unlockAch(8);updateAbout();}
 }
 function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
+
+// ═══════════════════════════════════════════
+//  EXPORT & CSV ENGINE
+// ═══════════════════════════════════════════
+
+// Raw readings store — every sensor data point saved here
+const READINGS_KEY='tasni_readings';
+const EXPORT_KEY='tasni_last_sync';
+let readings=JSON.parse(localStorage.getItem(READINGS_KEY)||'[]');
+let lastSyncTs=parseInt(localStorage.getItem(EXPORT_KEY)||'0');
+let _autoSyncTimer=null;
+
+// Sheets config stored in cfg
+let sheetsCfg={url:cfg.sheetsUrl||'',name:cfg.sheetsName||'WaterLogs',enabled:cfg.sheetsEnabled||false};
+
+// Save a raw reading on every ingest (called from ingest())
+function _saveReading(d){
+  const row={
+    ts:new Date().toISOString(),
+    level:d.m??S.m,
+    vol:(d.vol??S.vol).toFixed(1),
+    total:d.total??S.total,
+    dist:(d.dist??S.dist).toFixed(1),
+    usage:(d.usage??S.usage).toFixed(2),
+    rssi:d.rssi??S.rssi,
+    isFull:d.isFull??S.isFull,
+    trend:d.t??S.t||''
+  };
+  readings.push(row);
+  // Keep max 5000 readings (~3 days at 30s interval)
+  if(readings.length>5000)readings=readings.slice(-5000);
+  localStorage.setItem(READINGS_KEY,JSON.stringify(readings));
+  // Update count badge
+  const rc=document.getElementById('exportRecCount');
+  if(rc)rc.textContent=readings.length+' readings';
+}
+
+// ── CSV helpers ──
+function _csvRow(arr){
+  return arr.map(v=>{
+    const s=String(v==null?'':v);
+    return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;
+  }).join(',');
+}
+function _csvDownload(filename,content){
+  const blob=new Blob(['\uFEFF'+content],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+// ── Main download function ──
+function downloadCSV(type){
+  const ts=new Date().toISOString().slice(0,10);
+  const tank=(S.name||'TASNI').replace(/\s+/g,'_');
+
+  if(type==='all'){
+    ['readings','hourly','daily','alerts'].forEach((t,i)=>setTimeout(()=>downloadCSV(t),i*500));
+    return;
+  }
+
+  if(type==='readings'){
+    if(!readings.length){showToast('No readings recorded yet — connect your device first','warn');return;}
+    const hdr=['Timestamp','Level %','Volume (L)','Tank Total (L)','Distance (cm)','Usage Rate (L/hr)','WiFi RSSI (dBm)','Is Full','Trend'];
+    const rows=readings.map(r=>[r.ts,r.level,r.vol,r.total,r.dist,r.usage,r.rssi,r.isFull?'Yes':'No',r.trend]);
+    _csvDownload('TASNI_Readings_'+tank+'_'+ts+'.csv',[_csvRow(hdr),...rows.map(_csvRow)].join('\r\n'));
+    showToast('Downloaded '+readings.length+' readings','ok',3000);
+    return;
+  }
+
+  if(type==='hourly'){
+    const entries=Object.entries(hourlyData).sort(([a],[b])=>a.localeCompare(b));
+    if(!entries.length){showToast('No hourly data yet','warn');return;}
+    const hdr=['Date','Hour','Consumed (L)','First Level %','Last Level %','Min Level %','Max Level %'];
+    const rows=entries.map(([k,v])=>{
+      const parts=k.split('-');
+      const date=parts.slice(0,3).join('-');
+      const hr=(parts[3]||'00')+':00';
+      return[date,hr,(v.usedL||0).toFixed(2),v.start??'--',v.end??'--',v.min??'--',v.max??'--'];
+    });
+    _csvDownload('TASNI_Hourly_'+tank+'_'+ts+'.csv',[_csvRow(hdr),...rows.map(_csvRow)].join('\r\n'));
+    showToast('Downloaded '+entries.length+' hourly records','ok',3000);
+    return;
+  }
+
+  if(type==='daily'){
+    const entries=Object.entries(dailyData).sort(([a],[b])=>a.localeCompare(b));
+    if(!entries.length){showToast('No daily data yet','warn');return;}
+    const hdr=['Date','Consumed (L)'];
+    const rows=entries.map(([k,v])=>[k,(typeof v==='object'?v.consumedL||0:v||0).toFixed(2)]);
+    _csvDownload('TASNI_Daily_'+tank+'_'+ts+'.csv',[_csvRow(hdr),...rows.map(_csvRow)].join('\r\n'));
+    showToast('Downloaded '+entries.length+' daily records','ok',3000);
+    return;
+  }
+
+  if(type==='alerts'){
+    if(!alerts.length){showToast('No alerts recorded yet','warn');return;}
+    const hdr=['Timestamp','Type','Message'];
+    const rows=alerts.map(a=>[a.time,a.type,a.msg]);
+    _csvDownload('TASNI_Alerts_'+tank+'_'+ts+'.csv',[_csvRow(hdr),...rows.map(_csvRow)].join('\r\n'));
+    showToast('Downloaded '+alerts.length+' alert records','ok',3000);
+    return;
+  }
+}
+
+// ── Google Sheets Apps Script code (copy to script.google.com) ──
+const APPS_SCRIPT_CODE=`// TASNI Water Monitor — Google Apps Script
+// SETUP: Deploy → New Deployment → Web App → Execute as: Me → Anyone → Deploy
+// Paste the Web App URL into TASNI Settings → Google Sheets
+
+function doPost(e) {
+  try {
+    var payload = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheetName = payload.sheet || 'WaterLogs';
+    var sh = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+    if (sh.getLastRow() === 0) {
+      sh.appendRow(payload.headers || Object.keys(payload.rows[0]));
+      sh.getRange(1,1,1,sh.getLastColumn()).setFontWeight('bold');
+      sh.setFrozenRows(1);
+    }
+    (payload.rows || []).forEach(function(r){ sh.appendRow(Object.values(r)); });
+    SpreadsheetApp.flush();
+    return ContentService.createTextOutput(JSON.stringify({ok:true,appended:(payload.rows||[]).length}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ok:false,error:err.message}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({ok:true,msg:'TASNI endpoint live'}))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+function copyAppsScript(){
+  const fallback=()=>{
+    const ta=document.createElement('textarea');ta.value=APPS_SCRIPT_CODE;
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(APPS_SCRIPT_CODE)
+      .then(()=>showToast('✅ Apps Script code copied! Paste into script.google.com','ok',5000))
+      .catch(()=>{fallback();showToast('✅ Code copied — paste into script.google.com','ok',5000);});
+  } else {
+    fallback();
+    showToast('✅ Code copied — paste into script.google.com','ok',5000);
+  }
+}
+
+function saveSheetsConfig(){
+  const url=g('c-shurl'),name=g('c-shname')||'WaterLogs';
+  const enabled=document.getElementById('c-shenable').checked;
+  sheetsCfg={url,name,enabled};
+  saveCfg({sheetsUrl:url,sheetsName:name,sheetsEnabled:enabled});
+  if(url){syncToSheets(false,true);}
+  else showToast('Enter the Apps Script URL first','warn');
+}
+
+async function syncToSheets(manual=false,testMode=false){
+  if(!sheetsCfg.url){
+    if(manual)showToast('Configure Google Sheets in Settings first','warn');
+    return;
+  }
+  const newRows=testMode
+    ?[{ts:new Date().toISOString(),level:S.m,vol:S.vol,total:S.total,dist:S.dist,usage:S.usage,rssi:S.rssi,isFull:S.isFull,trend:S.t||'TEST'}]
+    :readings.filter(r=>new Date(r.ts).getTime()>lastSyncTs);
+  if(!newRows.length&&!testMode){
+    if(manual)showToast('All data already synced','info');
+    _setSyncStatus('All data synced ✅',true);
+    return;
+  }
+  _setSyncStatus('⏳ Syncing '+newRows.length+' records…',null);
+  try{
+    const res=await fetch(sheetsCfg.url,{method:'POST',body:JSON.stringify({
+      sheet:sheetsCfg.name||'WaterLogs',
+      headers:['Timestamp','Level %','Volume (L)','Total (L)','Distance (cm)','Usage (L/hr)','RSSI','Is Full','Trend'],
+      rows:newRows
+    }),headers:{'Content-Type':'text/plain'}});
+    const json=await res.json();
+    if(json.ok){
+      lastSyncTs=Date.now();
+      localStorage.setItem(EXPORT_KEY,String(lastSyncTs));
+      const msg=testMode?'✅ Connection works! Sheet is ready.':'✅ Synced '+newRows.length+' readings';
+      showToast(msg,'ok',4000);
+      _setSyncStatus(msg,true);
+    } else {throw new Error(json.error||'Sheets error');}
+  }catch(e){
+    const msg='Sync failed: '+e.message;
+    showToast(msg,'danger',5000);
+    _setSyncStatus('⚠️ '+msg,false);
+  }
+}
+
+function _setSyncStatus(msg,ok){
+  const el=document.getElementById('sheetsSyncStatus');
+  if(!el)return;
+  if(ok===null){el.innerHTML=msg;return;}
+  el.innerHTML='<span style="color:'+(ok?'var(--ok)':'var(--danger)')+'">'+msg+'</span>'
+    +'<br><span style="font-size:10px;color:var(--muted)">Last attempt: '+new Date().toLocaleTimeString()+'</span>';
+}
+
+function startAutoSync(){
+  clearInterval(_autoSyncTimer);
+  if(sheetsCfg.url&&sheetsCfg.enabled)
+    _autoSyncTimer=setInterval(()=>syncToSheets(false),30*60*1000);
+}
+
 </script>
 </body>
 </html>
