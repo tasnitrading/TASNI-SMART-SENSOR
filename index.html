@@ -49,10 +49,10 @@ function doGet(e) {
 
 function copyAppsScript(){
   navigator.clipboard.writeText(APPS_SCRIPT_CODE).then(()=>{
-    showToast('✅ Apps Script code copied! Paste into script.google.com','ok',5000);
+    showToast('? Apps Script code copied! Paste into script.google.com','ok',5000);
   }).catch(()=>{
     const ta=document.createElement('textarea');ta.value=APPS_SCRIPT_CODE;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-    showToast('✅ Code copied - paste into script.google.com','ok',5000);
+    showToast('? Code copied - paste into script.google.com','ok',5000);
   });
 }
 
@@ -135,7 +135,7 @@ async function syncToSheets(manual=false, testMode=false){
   }
 
   const statusEl=document.getElementById('sheetsSyncStatus');
-  if(statusEl)statusEl.innerHTML='⏳ Syncing '+newReadings.length+' records to Sheets...';
+  if(statusEl)statusEl.innerHTML='? Syncing '+newReadings.length+' records to Sheets...';
 
   try{
     const payload={
@@ -148,7 +148,7 @@ async function syncToSheets(manual=false, testMode=false){
     if(json.ok){
       lastSyncTs=Date.now();
       localStorage.setItem(EXPORT_KEY,String(lastSyncTs));
-      const msg=testMode?'✅ Connection works! Sheet is ready.':'✅ Synced '+newReadings.length+' readings';
+      const msg=testMode?'? Connection works! Sheet is ready.':'? Synced '+newReadings.length+' readings';
       showToast(msg,'ok',4000);
       updateSyncStatus(msg,true);
       unlockAch(3);
@@ -158,7 +158,7 @@ async function syncToSheets(manual=false, testMode=false){
   }catch(e){
     const msg='Sync failed: '+e.message;
     showToast(msg,'danger',5000);
-    updateSyncStatus('⚠️ '+msg,false);
+    updateSyncStatus('?? '+msg,false);
   }
 }
 
@@ -198,7 +198,7 @@ function updateExportUI(){
   const pending=readings.filter(r=>new Date(r.ts).getTime()>lastSyncTs).length;
   const ss=document.getElementById('sheetsSyncStatus');
   if(ss&&sheetsCfg.url){
-    if(pending===0) ss.innerHTML='✅ All '+readings.length+' readings synced to Sheets.';
+    if(pending===0) ss.innerHTML='? All '+readings.length+' readings synced to Sheets.';
     else ss.innerHTML=`<strong style="color:var(--warn)">${pending} new readings</strong> pending sync. Tap Sync Now or wait for auto-sync.`;
   }
 }
@@ -413,7 +413,7 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 
 /* TIPS */
 .tip-hero{background:linear-gradient(135deg,rgba(0,70,150,.6),rgba(0,25,75,.85));border:1px solid rgba(45,212,191,.3);border-radius:var(--r);padding:24px;margin-bottom:14px;position:relative;overflow:hidden;min-height:150px;box-shadow:0 8px 24px rgba(0,0,0,0.3)}
-.tip-hero::after{content:'💧';position:absolute;right:16px;top:12px;font-size:48px;opacity:.15;animation:tipDrop 3.5s ease-in-out infinite}
+.tip-hero::after{content:'??';position:absolute;right:16px;top:12px;font-size:48px;opacity:.15;animation:tipDrop 3.5s ease-in-out infinite}
 @keyframes tipDrop{0%,100%{transform:translateY(0)}50%{transform:translateY(10px)}}
 .tip-cat{display:inline-block;padding:4px 10px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:rgba(45,212,191,.15);color:var(--pri);border:1px solid rgba(45,212,191,.3);margin-bottom:12px;font-family:var(--head)}
 .tip-txt{font-size:15px;line-height:1.6;font-weight:500;animation:fadeIn .4s ease;text-shadow:0 1px 3px rgba(0,0,0,0.5)}
@@ -522,7 +522,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="form-grp"><label class="form-lbl">ESP32 IP Address</label><input class="form-in" id="s-ip" type="text" placeholder="e.g. 192.168.1.100" autocomplete="off"></div>
     <p style="font-size:12px;color:var(--muted);margin-top:-10px;margin-bottom:16px;line-height:1.5">Find the IP on the OLED at boot, or in your router's DHCP list.</p>
     <div class="sec-hd">MQTT REMOTE (FROM ANYWHERE)</div>
-    <div class="info-box"><strong>⚠️ Browser MQTT</strong><br>ESP32 publishes on port <strong>8883 (TLS)</strong>. Browsers need WebSocket MQTT. Configure your broker's WS/WSS listener. Topic: <strong>tasni-water/+/state</strong></div>
+    <div class="info-box"><strong>?? Browser MQTT</strong><br>ESP32 publishes on port <strong>8883 (TLS)</strong>. Browsers need WebSocket MQTT. Configure your broker's WS/WSS listener. Topic: <strong>tasni-water/+/state</strong></div>
     <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="s-broker" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com" autocomplete="off"></div>
     <div class="form-row">
       <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port" type="number" value="8884"></div>
@@ -531,8 +531,8 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="s-mqpass" type="password" placeholder="••••••••"></div>
     <div class="form-grp"><label class="form-lbl">MQTT Topic</label><input class="form-in" id="s-topic" type="text" placeholder="tasni-water/E2A4/state"></div>
     <div class="form-grp"><label class="form-lbl">Tank Display Name</label><input class="form-in" id="s-name" type="text" value="Main Tank"></div>
-    <button class="btn btn-p btn-full" onclick="applySetup()">⚡ CONNECT</button>
-    <button class="btn btn-o btn-full" style="margin-top:12px" onclick="useDemoMode()">🎮 TRY DEMO MODE</button>
+    <button class="btn btn-p btn-full" onclick="applySetup()">? CONNECT</button>
+    <button class="btn btn-o btn-full" style="margin-top:12px" onclick="useDemoMode()">?? TRY DEMO MODE</button>
   </div>
 </div>
 
@@ -546,7 +546,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 <main>
   <!-- DASHBOARD -->
   <div class="tab active" id="tab-dashboard">
-    <div class="demo-bar hidden" id="demoBanner">⚠ DEMO MODE - Simulated Data</div>
+    <div class="demo-bar hidden" id="demoBanner">? DEMO MODE - Simulated Data</div>
     <div class="chips">
       <div class="chip" id="chip-local"><div class="cd"></div>LOCAL WIFI</div>
       <div class="chip" id="chip-mqtt"><div class="cd"></div>MQTT</div>
@@ -648,19 +648,19 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 
     <div class="insight-row">
       <div class="insight-card" id="insToday">
-        <div class="insight-icon">💧</div>
+        <div class="insight-icon">??</div>
         <div class="insight-lbl">Today Used</div>
         <div class="insight-val" id="ins-today">-- L</div>
         <div class="insight-sub" id="ins-today-sub">of capacity</div>
       </div>
       <div class="insight-card">
-        <div class="insight-icon">📅</div>
+        <div class="insight-icon">??</div>
         <div class="insight-lbl">Daily Avg</div>
         <div class="insight-val" id="ins-avg">-- L</div>
         <div class="insight-sub" id="ins-avg-sub">7-day basis</div>
       </div>
       <div class="insight-card">
-        <div class="insight-icon">⚡</div>
+        <div class="insight-icon">?</div>
         <div class="insight-lbl">Peak Hour</div>
         <div class="insight-val" id="ins-peak">--:00</div>
         <div class="insight-sub" id="ins-peak-sub">Highest use</div>
@@ -671,34 +671,34 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="card-title">Usage Pattern by Time of Day</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">Shows estimated litres consumed in each time window. Helps identify when your household uses the most water.</div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>🌅 Morning <small style="color:var(--muted)">(6-12)</small></span><span class="ubval" id="u-morn">-- L</span></div>
+        <div class="ubar-lbl"><span>?? Morning <small style="color:var(--muted)">(6-12)</small></span><span class="ubval" id="u-morn">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-morn" style="width:0%"></div></div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tip-morn">Showers, cooking, dishes</div>
       </div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>☀️ Afternoon <small style="color:var(--muted)">(12-18)</small></span><span class="ubval" id="u-aft">-- L</span></div>
+        <div class="ubar-lbl"><span>?? Afternoon <small style="color:var(--muted)">(12-18)</small></span><span class="ubval" id="u-aft">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-aft" style="width:0%"></div></div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tip-aft">Lunch, cleaning, gardening</div>
       </div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>🌆 Evening <small style="color:var(--muted)">(18-24)</small></span><span class="ubval" id="u-eve">-- L</span></div>
+        <div class="ubar-lbl"><span>?? Evening <small style="color:var(--muted)">(18-24)</small></span><span class="ubval" id="u-eve">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-eve" style="width:0%"></div></div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tip-eve">Dinner, bathing, laundry</div>
       </div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>🌙 Night <small style="color:var(--muted)">(0-6)</small></span><span class="ubval" id="u-ngt">-- L</span></div>
+        <div class="ubar-lbl"><span>?? Night <small style="color:var(--muted)">(0-6)</small></span><span class="ubval" id="u-ngt">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-ngt" style="width:0%"></div></div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tip-ngt">Low usage expected - high reading may indicate a leak</div>
       </div>
       <div id="leakBanner" class="hidden" style="margin-top:12px;padding:12px 14px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.4);border-radius:10px;font-size:12px;color:var(--danger);line-height:1.6;box-shadow:0 4px 12px rgba(248,113,113,.15)">
-        ⚠️ <strong>Possible leak detected:</strong> Night-time usage is unusually high. Check all taps and connections.
+        ?? <strong>Possible leak detected:</strong> Night-time usage is unusually high. Check all taps and connections.
       </div>
     </div>
 
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <div class="card-title" style="margin:0">Daily Consumption - 7 Days</div>
-        <button class="btn btn-d btn-sm" onclick="resetConsumption()" style="font-size:10px;padding:6px 12px">↺ Reset</button>
+        <button class="btn btn-d btn-sm" onclick="resetConsumption()" style="font-size:10px;padding:6px 12px">? Reset</button>
       </div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6">Each bar shows total litres consumed that day. <span style="color:var(--pri);font-weight:700">Today</span> is highlighted. Taller = more usage.</div>
       <div class="day-bar-row" id="dayBars"></div>
@@ -708,48 +708,48 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 
     <div class="card" id="exportCard">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div class="card-title" style="margin:0">💾 Save & Export Data</div>
+        <div class="card-title" style="margin:0">?? Save & Export Data</div>
         <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--pri)" id="exportRecCount">0 readings</div>
       </div>
 
       <div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15)">
-        <span style="font-size:24px;flex-shrink:0">✅</span>
+        <span style="font-size:24px;flex-shrink:0">?</span>
         <div>
           <div style="font-size:13px;font-weight:700;color:var(--ok);letter-spacing:.5px">CSV download works right now</div>
           <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.6">Files open in Excel, Google Sheets, or any spreadsheet app. Your data stays private on your device.</div>
         </div>
       </div>
 
-      <div class="sec-hd" style="margin-bottom:12px">📥 DOWNLOAD CSV FILES</div>
+      <div class="sec-hd" style="margin-bottom:12px">?? DOWNLOAD CSV FILES</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <button class="btn btn-o" style="font-size:12px;padding:12px 8px;flex-direction:column;display:flex;align-items:center;gap:4px" onclick="downloadCSV('readings')">
-          <span>📋 Raw Readings</span>
+          <span>?? Raw Readings</span>
           <small style="font-size:10px;color:var(--muted);font-family:var(--sans)">Every data point</small>
         </button>
         <button class="btn btn-o" style="font-size:12px;padding:12px 8px;flex-direction:column;display:flex;align-items:center;gap:4px" onclick="downloadCSV('hourly')">
-          <span>🕐 Hourly Summary</span>
+          <span>?? Hourly Summary</span>
           <small style="font-size:10px;color:var(--muted);font-family:var(--sans)">Litres per hour</small>
         </button>
         <button class="btn btn-o" style="font-size:12px;padding:12px 8px;flex-direction:column;display:flex;align-items:center;gap:4px" onclick="downloadCSV('daily')">
-          <span>📅 Daily Summary</span>
+          <span>?? Daily Summary</span>
           <small style="font-size:10px;color:var(--muted);font-family:var(--sans)">Per-day totals</small>
         </button>
         <button class="btn btn-o" style="font-size:12px;padding:12px 8px;flex-direction:column;display:flex;align-items:center;gap:4px" onclick="downloadCSV('alerts')">
-          <span>🔔 Alert Log</span>
+          <span>?? Alert Log</span>
           <small style="font-size:10px;color:var(--muted);font-family:var(--sans)">All notifications</small>
         </button>
       </div>
-      <button class="btn btn-p btn-full" style="margin-bottom:18px" onclick="downloadCSV('all')">📦 Download Full Report (All 4 files)</button>
+      <button class="btn btn-p btn-full" style="margin-bottom:18px" onclick="downloadCSV('all')">?? Download Full Report (All 4 files)</button>
 
-      <div class="sec-hd" style="margin-bottom:12px">☁️ GOOGLE SHEETS AUTO-SYNC</div>
+      <div class="sec-hd" style="margin-bottom:12px">?? GOOGLE SHEETS AUTO-SYNC</div>
       <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:12px">
         Skip this section if you just want CSV files. Google Sheets sync pushes new readings to a live spreadsheet automatically every 30 minutes - useful for sharing data with others or viewing on a PC.
       </div>
       <div id="sheetsSyncStatus" style="padding:12px;background:rgba(45,212,191,.06);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;box-shadow:inset 0 1px 4px rgba(0,0,0,0.2)">
         Not configured. Set up in Settings -> Google Sheets to enable.
       </div>
-      <button class="btn btn-o btn-full" onclick="syncToSheets(true)" id="syncNowBtn" style="margin-bottom:10px">⬆️ Sync to Google Sheets Now</button>
-      <button class="btn btn-d btn-full" onclick="resetAllAnalytics()">↺ Reset All Analytics Data</button>
+      <button class="btn btn-o btn-full" onclick="syncToSheets(true)" id="syncNowBtn" style="margin-bottom:10px">?? Sync to Google Sheets Now</button>
+      <button class="btn btn-d btn-full" onclick="resetAllAnalytics()">? Reset All Analytics Data</button>
     </div>
 
     <div class="card">
@@ -776,7 +776,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <span class="fc-val" id="fc-3d">--</span>
       </div>
       <div class="fc-row" style="border-top:1px solid var(--border);margin-top:10px;padding-top:14px">
-        <span style="font-weight:700">🏁 Empty in</span>
+        <span style="font-weight:700">?? Empty in</span>
         <span class="fc-val" id="fc-emp" style="font-size:20px;font-weight:700">--</span>
       </div>
       <div id="fc-advice" style="margin-top:14px;font-size:13px;color:var(--muted);line-height:1.7;padding:12px 14px;background:rgba(45,212,191,.08);border-radius:10px;border-left:3px solid var(--pri);box-shadow:inset 0 2px 5px rgba(0,0,0,0.15)"></div>
@@ -786,7 +786,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <!-- ALERTS -->
   <div class="tab" id="tab-alerts">
     <div class="notif-bar hidden" id="notifBar">
-      <div class="nb-i">🔔</div>
+      <div class="nb-i">??</div>
       <div style="flex:1"><div style="font-size:14px;font-weight:700;color:#fff">Enable Push Notifications</div><div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px">Get alerts even when app is in background</div></div>
       <button class="btn btn-p btn-sm" onclick="askNotif()">Allow</button>
     </div>
@@ -799,21 +799,21 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     </div>
     <div class="card">
       <div class="card-title">Alert Settings</div>
-      <div class="tog-row"><div><div class="tog-lbl">🚨 Critical (&lt;10%)</div><div class="tog-sub">Immediate refill needed</div></div><label class="toggle"><input type="checkbox" id="t-crit" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">⚠️ Low Level (&lt;30%)</div><div class="tog-sub">Schedule a refill</div></div><label class="toggle"><input type="checkbox" id="t-low" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">💧 10% Drop Alert</div><div class="tog-sub">Every 10% decrease fires alert + sound</div></div><label class="toggle"><input type="checkbox" id="t-drop10" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">⬆️ 10% Fill Alert</div><div class="tog-sub">Every 10% increase fires sound + notification</div></div><label class="toggle"><input type="checkbox" id="t-fill10" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">📉 Sudden Drop</div><div class="tog-sub">Possible leak detection</div></div><label class="toggle"><input type="checkbox" id="t-drop" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">✅ Refilled (&gt;90%)</div><div class="tog-sub">Notify when refill completes</div></div><label class="toggle"><input type="checkbox" id="t-fill" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">💧 Full Tank (100%)</div><div class="tog-sub">Maximum celebration alert</div></div><label class="toggle"><input type="checkbox" id="t-full" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">🔊 Alert Sounds</div><div class="tog-sub">Play audio on alerts</div></div><label class="toggle"><input type="checkbox" id="t-sound" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">?? Critical (&lt;10%)</div><div class="tog-sub">Immediate refill needed</div></div><label class="toggle"><input type="checkbox" id="t-crit" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">?? Low Level (&lt;30%)</div><div class="tog-sub">Schedule a refill</div></div><label class="toggle"><input type="checkbox" id="t-low" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">?? 10% Drop Alert</div><div class="tog-sub">Every 10% decrease fires alert + sound</div></div><label class="toggle"><input type="checkbox" id="t-drop10" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">?? 10% Fill Alert</div><div class="tog-sub">Every 10% increase fires sound + notification</div></div><label class="toggle"><input type="checkbox" id="t-fill10" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">?? Sudden Drop</div><div class="tog-sub">Possible leak detection</div></div><label class="toggle"><input type="checkbox" id="t-drop" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">? Refilled (&gt;90%)</div><div class="tog-sub">Notify when refill completes</div></div><label class="toggle"><input type="checkbox" id="t-fill" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">?? Full Tank (100%)</div><div class="tog-sub">Maximum celebration alert</div></div><label class="toggle"><input type="checkbox" id="t-full" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">?? Alert Sounds</div><div class="tog-sub">Play audio on alerts</div></div><label class="toggle"><input type="checkbox" id="t-sound" checked><div class="tslider"></div></label></div>
     </div>
   </div>
 
   <!-- SETTINGS -->
   <div class="tab" id="tab-settings">
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>📡 WiFi - Send to Device</span><span class="acc-arr">▾</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>?? WiFi - Send to Device</span><span class="acc-arr">?</span></div>
       <div class="acc-b">
         <div class="form-grp"><label class="form-lbl">ESP32 IP Address</label><input class="form-in" id="c-ip" type="text" placeholder="192.168.1.100"></div>
         <div class="form-grp"><label class="form-lbl">WiFi SSID</label><input class="form-in" id="c-ssid" type="text"></div>
@@ -822,7 +822,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>✈️ Telegram Bot</span><span class="acc-arr">▾</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>?? Telegram Bot</span><span class="acc-arr">?</span></div>
       <div class="acc-b">
         <div class="form-grp"><label class="form-lbl">Bot Token</label><input class="form-in" id="c-tgtoken" type="text" placeholder="1234567890:ABCDEF..."></div>
         <div class="form-grp"><label class="form-lbl">Chat ID</label><input class="form-in" id="c-tgchat" type="text" placeholder="-1001234567890"></div>
@@ -830,7 +830,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>📏 Sensor Calibration</span><span class="acc-arr">▾</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>?? Sensor Calibration</span><span class="acc-arr">?</span></div>
       <div class="acc-b">
         <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Distance sensor reads from TOP down to water surface. Set measured distances when tank is fully empty and fully full.</p>
         <div class="form-row">
@@ -839,12 +839,12 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         </div>
         <div class="form-grp"><label class="form-lbl">Tank Capacity (L)</label><input class="form-in" id="c-vol" type="number" placeholder="1000"></div>
         <div class="form-grp"><label class="form-lbl">Tank Name</label><input class="form-in" id="c-tname" type="text" placeholder="Main Tank"></div>
-        <button class="btn btn-o btn-full" style="margin-bottom:10px" onclick="captureEmpty()">📷 Capture Current as EMPTY</button>
+        <button class="btn btn-o btn-full" style="margin-bottom:10px" onclick="captureEmpty()">?? Capture Current as EMPTY</button>
         <button class="btn btn-p btn-full" onclick="saveCalib()">Save Calibration to Device</button>
       </div>
     </div>
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>📊 Google Sheets - Direct Sync</span><span class="acc-arr">▾</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>?? Google Sheets - Direct Sync</span><span class="acc-arr">?</span></div>
       <div class="acc-b">
         <div class="info-box" style="margin-bottom:16px">
           <strong>Quick Setup (3 steps):</strong><br>
@@ -852,7 +852,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
           2. Paste the code below -> Deploy as Web App (Anyone)<br>
           3. Copy the Web App URL and paste it here.
         </div>
-        <button class="btn btn-o btn-full" style="margin-bottom:16px;font-size:12px" onclick="copyAppsScript()">📋 Copy Apps Script Code</button>
+        <button class="btn btn-o btn-full" style="margin-bottom:16px;font-size:12px" onclick="copyAppsScript()">?? Copy Apps Script Code</button>
         <div class="form-grp"><label class="form-lbl">Apps Script Web App URL</label><input class="form-in" id="c-shurl" type="url" placeholder="https://script.google.com/macros/s/.../exec"></div>
         <div class="form-grp"><label class="form-lbl">Sheet Tab Name</label><input class="form-in" id="c-shname" type="text" placeholder="WaterLogs" value="WaterLogs"></div>
         <div class="tog-row" style="margin-top:8px">
@@ -860,12 +860,12 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
           <label class="toggle"><input type="checkbox" id="c-shenable" checked><div class="tslider"></div></label>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:10px;font-family:var(--mono)">Last sync: <span id="lastSyncLbl">Never</span></div>
-        <button class="btn btn-p btn-full" style="margin-top:14px" onclick="saveSheetsConfig()">💾 Save & Test Connection</button>
-        <button class="btn btn-o btn-full" style="margin-top:10px" onclick="syncToSheets(true)">⬆️ Push Data to Sheets Now</button>
+        <button class="btn btn-p btn-full" style="margin-top:14px" onclick="saveSheetsConfig()">?? Save & Test Connection</button>
+        <button class="btn btn-o btn-full" style="margin-top:10px" onclick="syncToSheets(true)">?? Push Data to Sheets Now</button>
       </div>
     </div>
     <div class="card">
-      <div class="acc-h" onclick="toggleAcc(this)"><span>🌐 MQTT Remote Broker</span><span class="acc-arr">▾</span></div>
+      <div class="acc-h" onclick="toggleAcc(this)"><span>?? MQTT Remote Broker</span><span class="acc-arr">?</span></div>
       <div class="acc-b">
         <div class="info-box"><strong>ESP32 topic:</strong> <code style="color:var(--ok)">tasni-water/{deviceID}/state</code><br>Port on device: <strong>8883 (TLS)</strong>. Browser connects via WebSocket.</div>
         <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="c-mqb" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com"></div>
@@ -880,8 +880,8 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
     <div style="display:flex;gap:12px;padding:10px 0 20px">
-      <button class="btn btn-o btn-sm" style="flex:1" onclick="document.getElementById('connModal').classList.remove('hidden')">🔄 Reconnect</button>
-      <button class="btn btn-d btn-sm" style="flex:1" onclick="resetApp()">🗑 Clear All Data</button>
+      <button class="btn btn-o btn-sm" style="flex:1" onclick="document.getElementById('connModal').classList.remove('hidden')">?? Reconnect</button>
+      <button class="btn btn-d btn-sm" style="flex:1" onclick="resetApp()">?? Clear All Data</button>
     </div>
   </div>
 
@@ -892,7 +892,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="tip-txt" id="tipTxt">Loading...</div>
       <div class="tip-nav">
         <div class="tip-prog"><div class="tip-prog-fill" id="tipProg"></div></div>
-        <button class="btn btn-o btn-sm" onclick="nextTip()">Next →</button>
+        <button class="btn btn-o btn-sm" onclick="nextTip()">Next ?</button>
       </div>
     </div>
     <div class="sec-hd">WATER WISDOM - ALL TIPS</div>
@@ -908,18 +908,18 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="about-tagline">INTELLIGENT WATER MONITORING SYSTEM</div>
       <div class="about-version">Version 2.1</div>
       <div class="feat-grid">
-        <div class="feat-item"><div class="feat-icon">📡</div><div class="feat-txt">Real-time MQTT Cloud Monitoring</div></div>
-        <div class="feat-item"><div class="feat-icon">📶</div><div class="feat-txt">Local WiFi Direct Connection</div></div>
-        <div class="feat-item"><div class="feat-icon">🔔</div><div class="feat-txt">Push Alerts - Silent Mode Override</div></div>
-        <div class="feat-item"><div class="feat-icon">💧</div><div class="feat-txt">Splash & Droplet Animations</div></div>
-        <div class="feat-item"><div class="feat-icon">📊</div><div class="feat-txt">Hourly History & Insights</div></div>
-        <div class="feat-item"><div class="feat-icon">🔮</div><div class="feat-txt">AI Forecast - Days to Empty</div></div>
-        <div class="feat-item"><div class="feat-icon">📱</div><div class="feat-txt">Installable PWA - Works Offline</div></div>
-        <div class="feat-item"><div class="feat-icon">🌡️</div><div class="feat-txt">Ultrasonic Distance Sensor</div></div>
-        <div class="feat-item"><div class="feat-icon">✈️</div><div class="feat-txt">Telegram Bot Integration</div></div>
-        <div class="feat-item"><div class="feat-icon">📋</div><div class="feat-txt">Google Sheets Auto Logging</div></div>
-        <div class="feat-item"><div class="feat-icon">🔊</div><div class="feat-txt">Rich Alert Sound Engine</div></div>
-        <div class="feat-item"><div class="feat-icon">🔒</div><div class="feat-txt">NVS Secure Credential Storage</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Real-time MQTT Cloud Monitoring</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Local WiFi Direct Connection</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Push Alerts - Silent Mode Override</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Splash & Droplet Animations</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Hourly History & Insights</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">AI Forecast - Days to Empty</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Installable PWA - Works Offline</div></div>
+        <div class="feat-item"><div class="feat-icon">???</div><div class="feat-txt">Ultrasonic Distance Sensor</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Telegram Bot Integration</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Google Sheets Auto Logging</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">Rich Alert Sound Engine</div></div>
+        <div class="feat-item"><div class="feat-icon">??</div><div class="feat-txt">NVS Secure Credential Storage</div></div>
       </div>
       <div class="about-dev">
         <div class="dev-name">Mohammed Imran Ahmed Soofi</div>
@@ -1018,33 +1018,33 @@ let _prevLevel = null;
 let _autoSyncTimer = null;
 
 const TIPS=[
-  {cat:'CONSERVATION',icon:'🚿',txt:'A dripping tap wastes up to 15 litres per day. One worn washer can cost you 5,400 litres a year.',saving:'Save 5,400 L/year'},
-  {cat:'HABIT',icon:'⏱️',txt:'Cutting your shower from 10 to 5 minutes saves 50 litres per shower. For a family of 4, that\'s 73,000 L/year.',saving:'Save 73,000 L/year'},
-  {cat:'SAVINGS',icon:'🌧️',txt:'Rainwater harvesting from a 40 sq.m roof can collect 20,000+ litres annually - enough for all your gardening.',saving:'Save 20,000+ L/year'},
-  {cat:'GARDEN',icon:'🌿',txt:'Water plants at 6 AM or after 6 PM - midday watering loses 40% to evaporation before roots absorb it.',saving:'Save 40% garden water'},
-  {cat:'LEAKS',icon:'🚽',txt:'A silent toilet leak can waste 500 litres daily. Add food colouring to the cistern - blue in the bowl = leak.',saving:'Save 180,000 L/year'},
-  {cat:'HABIT',icon:'🚿',txt:'Turning off the tap while brushing teeth saves 6 litres per minute - that\'s 4,380 L/person/year.',saving:'Save 4,380 L/year'},
-  {cat:'APPLIANCES',icon:'🍽️',txt:'A full dishwasher uses 10-15 L. Hand-washing dishes runs 40-60 L. Always run full loads only.',saving:'Save 50 L per wash'},
-  {cat:'APPLIANCES',icon:'👕',txt:'Modern washing machines use 50-80 L per cycle. Running half-loads doubles your water per kg of laundry.',saving:'Save 50% laundry water'},
-  {cat:'LEAKS',icon:'🔍',txt:'Read your water meter at 9 PM, turn off all taps, check at 6 AM. Any increase = hidden leak somewhere.',saving:'Detect leaks early'},
-  {cat:'GARDEN',icon:'🌱',txt:'Mulching garden beds with 5 cm of organic matter reduces watering frequency by 50% and cools roots naturally.',saving:'Save 50% garden water'},
-  {cat:'SAVINGS',icon:'♻️',txt:'Greywater from sinks and washing machines can safely water gardens - saving 30-50% of household usage.',saving:'Save 30-50% total'},
-  {cat:'HABIT',icon:'🍃',txt:'Sweeping a driveway instead of hosing saves 350+ litres per clean. Use a leaf blower for dry debris.',saving:'Save 350 L per clean'},
-  {cat:'CONSERVATION',icon:'💡',txt:'Install flow-restricting aerators on taps (costs Rs. 100-300). They cut water use by 50% with no noticeable difference.',saving:'Save 50% tap flow'},
-  {cat:'GARDEN',icon:'☔',txt:'Soft, chemical-free rainwater is ideal for plants. A 200-L barrel fills from one moderate rain shower.',saving:'Free water source'},
-  {cat:'CONSERVATION',icon:'🌊',txt:'Every litre saved today preserves aquifer levels that take decades to replenish. Your monitor matters.',saving:'Future generations'},
+  {cat:'CONSERVATION',icon:'??',txt:'A dripping tap wastes up to 15 litres per day. One worn washer can cost you 5,400 litres a year.',saving:'Save 5,400 L/year'},
+  {cat:'HABIT',icon:'??',txt:'Cutting your shower from 10 to 5 minutes saves 50 litres per shower. For a family of 4, that\'s 73,000 L/year.',saving:'Save 73,000 L/year'},
+  {cat:'SAVINGS',icon:'???',txt:'Rainwater harvesting from a 40 sq.m roof can collect 20,000+ litres annually - enough for all your gardening.',saving:'Save 20,000+ L/year'},
+  {cat:'GARDEN',icon:'??',txt:'Water plants at 6 AM or after 6 PM - midday watering loses 40% to evaporation before roots absorb it.',saving:'Save 40% garden water'},
+  {cat:'LEAKS',icon:'??',txt:'A silent toilet leak can waste 500 litres daily. Add food colouring to the cistern - blue in the bowl = leak.',saving:'Save 180,000 L/year'},
+  {cat:'HABIT',icon:'??',txt:'Turning off the tap while brushing teeth saves 6 litres per minute - that\'s 4,380 L/person/year.',saving:'Save 4,380 L/year'},
+  {cat:'APPLIANCES',icon:'???',txt:'A full dishwasher uses 10-15 L. Hand-washing dishes runs 40-60 L. Always run full loads only.',saving:'Save 50 L per wash'},
+  {cat:'APPLIANCES',icon:'??',txt:'Modern washing machines use 50-80 L per cycle. Running half-loads doubles your water per kg of laundry.',saving:'Save 50% laundry water'},
+  {cat:'LEAKS',icon:'??',txt:'Read your water meter at 9 PM, turn off all taps, check at 6 AM. Any increase = hidden leak somewhere.',saving:'Detect leaks early'},
+  {cat:'GARDEN',icon:'??',txt:'Mulching garden beds with 5 cm of organic matter reduces watering frequency by 50% and cools roots naturally.',saving:'Save 50% garden water'},
+  {cat:'SAVINGS',icon:'??',txt:'Greywater from sinks and washing machines can safely water gardens - saving 30-50% of household usage.',saving:'Save 30-50% total'},
+  {cat:'HABIT',icon:'??',txt:'Sweeping a driveway instead of hosing saves 350+ litres per clean. Use a leaf blower for dry debris.',saving:'Save 350 L per clean'},
+  {cat:'CONSERVATION',icon:'??',txt:'Install flow-restricting aerators on taps (costs Rs. 100-300). They cut water use by 50% with no noticeable difference.',saving:'Save 50% tap flow'},
+  {cat:'GARDEN',icon:'?',txt:'Soft, chemical-free rainwater is ideal for plants. A 200-L barrel fills from one moderate rain shower.',saving:'Free water source'},
+  {cat:'CONSERVATION',icon:'??',txt:'Every litre saved today preserves aquifer levels that take decades to replenish. Your monitor matters.',saving:'Future generations'},
 ];
 
 const ACHIEVEMENTS=[
-  {icon:'💧',name:'First Drop',desc:'Started monitoring'},
-  {icon:'📊',name:'Analyst',desc:'Viewed analytics'},
-  {icon:'🔔',name:'Alert Ready',desc:'Notifications on'},
-  {icon:'☁️',name:'Cloud Sync',desc:'MQTT connected'},
-  {icon:'⚙️',name:'Configured',desc:'Settings saved'},
-  {icon:'🌱',name:'Eco Warrior',desc:'Read all tips'},
-  {icon:'🏆',name:'24h Champion',desc:'Monitored 24 hrs'},
-  {icon:'🔮',name:'Forecaster',desc:'Viewed forecast'},
-  {icon:'ℹ️',name:'In The Know',desc:'Read About page'},
+  {icon:'??',name:'First Drop',desc:'Started monitoring'},
+  {icon:'??',name:'Analyst',desc:'Viewed analytics'},
+  {icon:'??',name:'Alert Ready',desc:'Notifications on'},
+  {icon:'??',name:'Cloud Sync',desc:'MQTT connected'},
+  {icon:'??',name:'Configured',desc:'Settings saved'},
+  {icon:'??',name:'Eco Warrior',desc:'Read all tips'},
+  {icon:'??',name:'24h Champion',desc:'Monitored 24 hrs'},
+  {icon:'??',name:'Forecaster',desc:'Viewed forecast'},
+  {icon:'??',name:'In The Know',desc:'Read About page'},
 ];
 
 // ===========================================
@@ -1143,8 +1143,8 @@ function _doConnect(mc){
       const t=mc.topic||'tasni-water/+/state';
       mqttClient.subscribe(t,{qos:1});
       setChip('chip-mqtt',true);updatePill();unlockAch(3);
-      if(!_silent){push('ai','☁️ MQTT connected to '+rawHost);showToast('MQTT connected!','ok');}
-      else{showToast('🔄 Reconnected','ok',2000);}
+      if(!_silent){push('ai','?? MQTT connected to '+rawHost);showToast('MQTT connected!','ok');}
+      else{showToast('?? Reconnected','ok',2000);}
       _silent=true; _startHB(mc);
     });
     mqttClient.on('message',(_t,pl)=>{_lastAck=Date.now();try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT JSON:',e);}});
@@ -1168,8 +1168,8 @@ function _startHB(mc){
   },25000);
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&_mqttCfg){if(!mqttClient||!mqttClient.connected)_doConnect(_mqttCfg);else _startHB(_mqttCfg);requestWakeLock();}});
-window.addEventListener('online',()=>{if(_mqttCfg&&(!mqttClient||!mqttClient.connected)){showToast('📶 Network restored','info',2500);_doConnect(_mqttCfg);}});
-window.addEventListener('offline',()=>{showToast('📡 Network lost - waiting for data...','warn',4000);clearTimeout(_staleTimer);_staleTimer=setTimeout(_markStale,5000);});
+window.addEventListener('online',()=>{if(_mqttCfg&&(!mqttClient||!mqttClient.connected)){showToast('?? Network restored','info',2500);_doConnect(_mqttCfg);}});
+window.addEventListener('offline',()=>{showToast('?? Network lost - waiting for data...','warn',4000);clearTimeout(_staleTimer);_staleTimer=setTimeout(_markStale,5000);});
 async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await navigator.wakeLock.request('screen');}catch(_){}}
 
 function ingestMQTT(d){
@@ -1250,7 +1250,7 @@ function ingest(d, fromMQTT=false){
   renderHeatmap(); renderDayBars();
 }
 function _resetStaleTimer(){if(demoMode)return;clearTimeout(_staleTimer);_staleTimer=setTimeout(_markStale,STALE_MS);}
-function _markStale(){if(S.connected){S.connected=false;push('aw','📡 No data received - device may be offline.');}renderDash();}
+function _markStale(){if(S.connected){S.connected=false;push('aw','?? No data received - device may be offline.');}renderDash();}
 
 // ===========================================
 //  ALERT ENGINE
@@ -1259,10 +1259,10 @@ function checkAlerts(prev,cur,isFull){
   if(!prev&&!cur)return;
 
   if(prev>=10&&cur<10&&ck('t-crit')){
-    push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
+    push('ac','?? CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
     playSound('critical_alarm');
   } else if(prev>=30&&cur<30&&ck('t-low')){
-    push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
+    push('aw','?? LOW: Tank at '+cur+'%. Schedule a refill soon.');
   }
 
   if(ck('t-drop10')){
@@ -1270,7 +1270,7 @@ function checkAlerts(prev,cur,isFull){
     const curBand=Math.floor(cur/10);
     if(curBand<prevBand&&cur>=10){
       for(let b=prevBand-1;b>=curBand&&b>=1;b--){
-        push('aw','💧 DROP: Tank crossed '+(b*10)+'% mark - now at '+cur+'%.');
+        push('aw','?? DROP: Tank crossed '+(b*10)+'% mark - now at '+cur+'%.');
         playSound('drop_10');
       }
     }
@@ -1282,26 +1282,26 @@ function checkAlerts(prev,cur,isFull){
     if(curBand>prevBand&&cur>10&&prev>=0){
       for(let b=prevBand+1;b<=curBand&&b<=9;b++){
         const milestone=b*10;
-        push('ai','⬆️ FILLING: Tank reached '+milestone+'%'+(milestone===90?' - almost full!':milestone===50?' - halfway there!':'')+'');
+        push('ai','?? FILLING: Tank reached '+milestone+'%'+(milestone===90?' - almost full!':milestone===50?' - halfway there!':'')+'');
         playSound('fill_10',false,milestone);
       }
     }
   }
 
-  if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% - possible leak!');
+  if(prev-cur>=10&&ck('t-drop'))push('aw','?? SUDDEN DROP: Level fell '+(prev-cur)+'% - possible leak!');
 
   if(prev<90&&cur>=90&&ck('t-fill')){
-    push('ai','✅ REFILLING: Tank above 90% - almost full!');
+    push('ai','? REFILLING: Tank above 90% - almost full!');
     playSound('refill');
   }
 
   if(!S._wasFull&&isFull===1&&ck('t-full')){
-    push('ai','💧 FULL TANK: Water level is at maximum!',true);
+    push('ai','?? FULL TANK: Water level is at maximum!',true);
     playSound('full_tank');
     if(Notification.permission==='granted'){
       try{
         navigator.serviceWorker.ready.then(reg=>{
-          reg.showNotification('🎉 TASNI - Tank Full!',{
+          reg.showNotification('?? TASNI - Tank Full!',{
             body:'Your water tank has reached 100% capacity. You can stop filling now.',
             icon:'icon.svg',badge:'icon.svg',tag:'tasni-full-'+Date.now(),
             vibrate:[200,80,200,80,400,80,600,80,1000],requireInteraction:true,
@@ -1580,16 +1580,16 @@ function renderAnalytics(){
   set('healthDesc',!S.connected?'Device offline.':score>=80?'Tank healthy, usage efficient, data live.':score>=60?'Good water security. Monitor daily.':score>=40?'Attention needed. Plan a refill.':'Low level or high usage. Act now.');
   
   const dL=S.usage>0?Math.floor(S.vol/S.usage/24):null;
-  const facs=[{lbl:'Level',val:pct+'%',good:pct>=40},{lbl:'Usage',val:S.usage>0?S.usage.toFixed(1)+'L/h':'-- L/h',good:S.usage>0&&S.usage<(S.total/24*0.2)},{lbl:'Data',val:age<120?'Live':'Stale',good:age<120},{lbl:'Alerts',val:hasCrit?'⚠ Crit':'✓ Clear',good:!hasCrit},{lbl:'Days Left',val:dL!=null?dL+'d':'\u221E',good:dL==null||dL>2}];
+  const facs=[{lbl:'Level',val:pct+'%',good:pct>=40},{lbl:'Usage',val:S.usage>0?S.usage.toFixed(1)+'L/h':'-- L/h',good:S.usage>0&&S.usage<(S.total/24*0.2)},{lbl:'Data',val:age<120?'Live':'Stale',good:age<120},{lbl:'Alerts',val:hasCrit?'? Crit':'? Clear',good:!hasCrit},{lbl:'Days Left',val:dL!=null?dL+'d':'\u221E',good:dL==null||dL>2}];
   const hf=document.getElementById('healthFactors');
   if(hf)hf.innerHTML=facs.map(f=>`<div style="text-align:center;padding:8px 4px;background:rgba(${f.good?'52,211,153':'248,113,113'},.1);border:1px solid rgba(${f.good?'52,211,153':'248,113,113'},.3);border-radius:10px;box-shadow:inset 0 1px 3px rgba(0,0,0,0.15)"><div style="font-family:var(--mono);font-size:12px;color:${f.good?'var(--ok)':'var(--danger)'};font-weight:700">${f.val}</div><div style="font-size:9px;color:var(--muted);margin-top:4px;font-family:var(--head)">${f.lbl}</div></div>`).join('');
 
   const vp=S.history.filter(v=>v!=null);
   let ci='Chart populates as sensor data arrives.';
-  if(vp.length>=4){const mn=Math.min(...vp),mxH=Math.max(...vp),delta=vp.filter(v=>v!=null).slice(-1)[0]-vp.find(v=>v!=null);if(delta<-15)ci=`📉 Level dropped <strong>${Math.abs(delta.toFixed(0))}%</strong> today (${mn}-${mxH}%). Active usage.`;else if(delta>10)ci=`📈 Level rose <strong>${delta.toFixed(0)}%</strong> - refill event.`;else if(mxH-mn<4)ci=`📊 Stable at <strong>${mn}-${mxH}%</strong>. Consistent usage.`;else ci=`📊 Today range: <strong>${mn}-${mxH}%</strong>.`;}
+  if(vp.length>=4){const mn=Math.min(...vp),mxH=Math.max(...vp),delta=vp.filter(v=>v!=null).slice(-1)[0]-vp.find(v=>v!=null);if(delta<-15)ci=`?? Level dropped <strong>${Math.abs(delta.toFixed(0))}%</strong> today (${mn}-${mxH}%). Active usage.`;else if(delta>10)ci=`?? Level rose <strong>${delta.toFixed(0)}%</strong> - refill event.`;else if(mxH-mn<4)ci=`?? Stable at <strong>${mn}-${mxH}%</strong>. Consistent usage.`;else ci=`?? Today range: <strong>${mn}-${mxH}%</strong>.`;}
   set('chartInsight',ci);
 
-  let ws=rd.length===0?'No data yet - connect sensor to start recording.':rd.length===1?`<strong style="color:var(--pri)">${rd[0].c.toFixed(0)} L</strong> consumed today. More days needed for weekly trend.`:(()=>{const wT=rd.reduce((s,x)=>s+x.c,0),wA=wT/rd.length,tr=rd[rd.length-1].c-rd[0].c;return `<strong style="color:var(--pri)">${wT.toFixed(0)} L</strong> over ${rd.length} days (avg <strong>${wA.toFixed(0)} L/day</strong>). `+(tr>15?`⬆️ Usage <strong style="color:var(--warn)">trending up</strong> - conserve.`:tr<-15?`⬇️ Usage <strong style="color:var(--ok)">trending down</strong> - great!`:`✅ Usage <strong style="color:var(--ok)">consistent</strong>.`);})();
+  let ws=rd.length===0?'No data yet - connect sensor to start recording.':rd.length===1?`<strong style="color:var(--pri)">${rd[0].c.toFixed(0)} L</strong> consumed today. More days needed for weekly trend.`:(()=>{const wT=rd.reduce((s,x)=>s+x.c,0),wA=wT/rd.length,tr=rd[rd.length-1].c-rd[0].c;return `<strong style="color:var(--pri)">${wT.toFixed(0)} L</strong> over ${rd.length} days (avg <strong>${wA.toFixed(0)} L/day</strong>). `+(tr>15?`?? Usage <strong style="color:var(--warn)">trending up</strong> - conserve.`:tr<-15?`?? Usage <strong style="color:var(--ok)">trending down</strong> - great!`:`? Usage <strong style="color:var(--ok)">consistent</strong>.`);})();
   set('weekSummary',ws);
 
   const fc=document.getElementById('fc-cur');
@@ -1599,7 +1599,7 @@ function renderAnalytics(){
       const pph=(S.usage/S.total)*100,f6=Math.max(0,pct-pph*6),f24=Math.max(0,pct-pph*24),f3d=Math.max(0,pct-pph*72),eH=S.vol/S.usage;
       set('fc-6',f6.toFixed(0)+'%');set('fc-24',f24.toFixed(0)+'%');set('fc-3d',f3d.toFixed(0)+'%');set('fc-emp',fmtHrs(eH));
       const sb=(id,v)=>{const el=document.getElementById(id);if(el)el.style.width=v+'%';};sb('fc-bar-now',pct);sb('fc-bar-6',f6);sb('fc-bar-24',f24);sb('fc-bar-3d',f3d);
-      set('fc-advice',eH<12?'⚡ <strong>Urgent:</strong> Empties in under 12 hrs. Refill now.':eH<24?'⚠️ <strong>Caution:</strong> Under 24 hrs remaining.':eH<72?'ℹ️ About <strong>'+Math.floor(eH/24)+' days</strong> left. Refill this week.':pct>80?'✅ Well-stocked - <strong>'+Math.floor(eH/24)+'</strong> days of supply.':'💧 Tank lasts about <strong>'+Math.floor(eH/24)+'</strong> more days.');
+      set('fc-advice',eH<12?'? <strong>Urgent:</strong> Empties in under 12 hrs. Refill now.':eH<24?'?? <strong>Caution:</strong> Under 24 hrs remaining.':eH<72?'?? About <strong>'+Math.floor(eH/24)+' days</strong> left. Refill this week.':pct>80?'? Well-stocked - <strong>'+Math.floor(eH/24)+'</strong> days of supply.':'?? Tank lasts about <strong>'+Math.floor(eH/24)+'</strong> more days.');
       unlockAch(7);
     } else {['fc-6','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));['fc-bar-6','fc-bar-24','fc-bar-3d'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.width='0%';});
       set('fc-advice','<em>Forecast needs a live connection. Connect sensor to enable.</em>');
@@ -1728,7 +1728,7 @@ function renderTips(){
       <div class="tip-fact-body">
         <div class="tip-fact-cat">${t.cat}</div>
         <div class="tip-fact-txt">${t.txt}</div>
-        <div class="tip-saving">💰 ${t.saving}</div>
+        <div class="tip-saving">?? ${t.saving}</div>
       </div>
     </div>`).join('');
 }
@@ -1767,27 +1767,27 @@ function updateAbout(){
 async function saveWifi(){
   const ip=g('c-ip'),ssid=g('c-ssid'),password=g('c-pass');
   saveCfg({ip,ssid});unlockAch(4);
-  if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','✅ WiFi sent to device at '+ip);}catch{push('aw','⚠️ Could not reach device. Saved locally.');}}
+  if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','? WiFi sent to device at '+ip);}catch{push('aw','?? Could not reach device. Saved locally.');}}
   if(ip)startPoll(ip);
 }
 async function saveTelegram(){
   const ip=cfg.ip,token=g('c-tgtoken'),chatid=g('c-tgchat');
   saveCfg({tgToken:token,tgChat:chatid});
-  if(ip&&token){try{await fetch(`http://${ip}/save-telegram`,{method:'POST',body:new URLSearchParams({token,chatid})});push('ai','✅ Telegram saved to device.');}catch{push('aw','⚠️ Settings saved locally.');}}
+  if(ip&&token){try{await fetch(`http://${ip}/save-telegram`,{method:'POST',body:new URLSearchParams({token,chatid})});push('ai','? Telegram saved to device.');}catch{push('aw','?? Settings saved locally.');}}
 }
 async function saveCalib(){
   const ip=cfg.ip,empty=g('c-empty'),full=g('c-full'),volume=g('c-vol'),name=g('c-tname')||'Main Tank';
   saveCfg({emptyDist:empty,fullDist:full,volume,tankName:name});
   S.total=parseFloat(volume)||1000;
   document.getElementById('tankNameLbl').textContent=name.toUpperCase();
-  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});push('ai','✅ Calibration saved. Empty='+empty+'cm Full='+full+'cm Vol='+volume+'L');}catch{push('aw','⚠️ Calibration saved locally.');}}
+  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});push('ai','? Calibration saved. Empty='+empty+'cm Full='+full+'cm Vol='+volume+'L');}catch{push('aw','?? Calibration saved locally.');}}
 }
 async function captureEmpty(){
-  if(!cfg.ip){push('aw','⚠️ Enter device IP first.');return;}
+  if(!cfg.ip){push('aw','?? Enter device IP first.');return;}
   try{const r=await fetch(`http://${cfg.ip}/capture-empty`);const d=await r.json();
-    if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);push('ai','📷 Empty captured: '+d.empty.toFixed(1)+' cm');}
-    else push('aw','⚠️ '+(d.msg||'Sensor error'));
-  }catch{push('aw','⚠️ Could not reach device at '+cfg.ip);}
+    if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);push('ai','?? Empty captured: '+d.empty.toFixed(1)+' cm');}
+    else push('aw','?? '+(d.msg||'Sensor error'));
+  }catch{push('aw','?? Could not reach device at '+cfg.ip);}
 }
 function saveSheetsConfig(){
   const url=g('c-shurl'),name=g('c-shname')||'WaterLogs',enabled=document.getElementById('c-shenable').checked;
@@ -1806,7 +1806,7 @@ function saveMQTT(){
 function disconnMQTT(){
   if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
   _mqttCfg=null;clearInterval(_hbTimer);clearTimeout(_wdTimer);
-  setChip('chip-mqtt',false);updatePill();push('ai','ℹ️ MQTT disconnected.');
+  setChip('chip-mqtt',false);updatePill();push('ai','?? MQTT disconnected.');
 }
 function resetApp(){if(!confirm('Clear all local data?'))return;localStorage.clear();alerts=[];renderAlertLog();location.reload();}
 
@@ -1818,20 +1818,20 @@ function startDemo(){
     lvl=Math.max(0,Math.min(100,lvl));
     const pct=Math.round(lvl),vol=(pct/100*1000).toFixed(1),dist=((1-pct/100)*115+10).toFixed(1);
     ingest({m:pct,vol:parseFloat(vol),total:1000,s:pct<=10?'Critical':pct<=30?'Low':pct<=75?'Good':'Full',
-      dist:parseFloat(dist),t:dir>0?'⬆️':'⬇️',usage:(1+Math.random()*2.5).toFixed(1),
+      dist:parseFloat(dist),t:dir>0?'??':'??',usage:(1+Math.random()*2.5).toFixed(1),
       up:Math.floor(Date.now()/1000%86400),rssi:-58,boot:7,isFull:parseFloat(dist)<=10?1:0,name:'Demo Tank'},false);
   };
   tick();setInterval(tick,2500);setChip('chip-local',true);updatePill();
 }
 
-function askNotif(){Notification.requestPermission().then(p=>{if(p==='granted'){document.getElementById('notifBar').classList.add('hidden');unlockAch(2);push('ai','🔔 Notifications enabled!');showToast('Notifications ON - alerts will fire even when app is closed','ok',5000);}});}
+function askNotif(){Notification.requestPermission().then(p=>{if(p==='granted'){document.getElementById('notifBar').classList.add('hidden');unlockAch(2);push('ai','?? Notifications enabled!');showToast('Notifications ON - alerts will fire even when app is closed','ok',5000);}});}
 function checkNotifPerm(){if(Notification.permission==='granted')document.getElementById('notifBar').classList.add('hidden');}
 
 function showToast(msg,type='info',duration=4000){
-  const icons={info:'💧',warn:'⚠️',danger:'🚨',ok:'✅'};
+  const icons={info:'??',warn:'??',danger:'??',ok:'?'};
   const el=document.createElement('div');
   el.className=`toast ${type}`;
-  el.innerHTML=`<span style="font-size:20px">${icons[type]||'ℹ️'}</span><span style="flex:1">${msg}</span>`;
+  el.innerHTML=`<span style="font-size:20px">${icons[type]||'??'}</span><span style="flex:1">${msg}</span>`;
   el.onclick=()=>el.classList.add('out');
   document.getElementById('toast-wrap').appendChild(el);
   setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),350);},duration);
