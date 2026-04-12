@@ -44,24 +44,27 @@ header{flex-shrink:0;position:relative;z-index:50;display:flex;align-items:cente
 main{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;z-index:1;padding-bottom:70px;scroll-behavior:smooth}
 main::-webkit-scrollbar{width:3px}
 main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
-.tab{display:none;padding:14px 14px 4px;animation:fadeIn .2s ease}
+.tab{display:none;padding:14px 14px 4px;animation:fadeIn .25s ease}
 .tab.active{display:block}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,.2),transparent)}
 .card-title{font-size:10px;font-weight:700;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:14px;font-family:var(--head)}
-/* Tank */
+
+/* ═══ TANK ═══ */
 .tank-section{display:flex;align-items:center;gap:20px;padding:18px 16px 14px}
 .tank-wrap{position:relative;flex-shrink:0}
 .pipe-top{width:22px;height:12px;margin:0 auto 0;position:relative;left:16px;background:var(--surf2);border:1px solid var(--border);border-bottom:none;border-radius:4px 4px 0 0}
 .pipe-bot{width:18px;height:10px;margin:0 auto;position:relative;left:-22px;background:var(--surf2);border:1px solid var(--border);border-top:none;border-radius:0 0 4px 4px}
 .tank-body{width:115px;height:215px;position:relative;border:2px solid rgba(45,212,191,.35);border-radius:5px 5px 8px 8px;overflow:hidden;background:rgba(0,8,25,.92);box-shadow:0 0 0 1px rgba(45,212,191,.06),inset 0 0 24px rgba(0,0,0,.5)}
 .tank-body::after{content:'';position:absolute;top:5%;left:7%;width:7px;height:38%;background:linear-gradient(to bottom,rgba(255,255,255,.1),transparent);border-radius:4px;z-index:5;pointer-events:none}
+/* tank glow ring that changes with level */
+.tank-glow{position:absolute;inset:-2px;border-radius:5px 5px 8px 8px;pointer-events:none;z-index:6;transition:box-shadow 1.2s ease}
 .gline{position:absolute;left:0;right:0;height:1px;background:rgba(45,212,191,.07);z-index:2}
 .tmarks{position:absolute;right:-38px;top:0;height:100%;display:flex;flex-direction:column;justify-content:space-between}
 .tm{font-family:var(--mono);font-size:9px;color:var(--muted);line-height:1;display:flex;align-items:center;gap:4px}
 .tm::before{content:'';width:6px;height:1px;background:var(--border)}
-/* WATER FILL — div based, CSS height transition works reliably on all mobile browsers */
+/* WATER FILL */
 .water-fill{position:absolute;bottom:0;left:0;right:0;height:0%;transition:height 1.6s cubic-bezier(.4,0,.2,1),background .8s ease;z-index:3;background:linear-gradient(to top,rgba(0,100,200,.95),rgba(0,160,240,.8),rgba(45,212,191,.55))}
 .wave{position:absolute;top:-11px;left:-8%;width:116%;height:22px;border-radius:45%;background:inherit}
 .wave-a{animation:wa 2.8s ease-in-out infinite}
@@ -70,9 +73,15 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 @keyframes wb{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(-5%) scaleY(.8)}}
 .bubble{position:absolute;border-radius:50%;background:rgba(255,255,255,.3);animation:bup 3.5s ease-in infinite}
 @keyframes bup{0%{transform:translateY(0) scale(1);opacity:.7}100%{transform:translateY(-230px) scale(.2);opacity:0}}
-/* Falling droplets */
+/* ── FALLING DROPLETS ── */
 .drp{position:absolute;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:rgba(45,212,191,.85);z-index:10;animation:drpfall linear infinite;opacity:0;top:0}
-@keyframes drpfall{0%{opacity:0;transform:translateY(-4px)}15%{opacity:.9}85%{opacity:.7}100%{opacity:0;transform:translateY(230px)}}
+@keyframes drpfall{0%{opacity:0;transform:translateY(-4px) scaleY(1.3)}15%{opacity:.9}85%{opacity:.7}100%{opacity:0;transform:translateY(230px) scaleY(.7)}}
+/* ── SPLASH RINGS — appear at water surface when droplet hits ── */
+.splash-canvas{position:absolute;inset:0;z-index:11;pointer-events:none}
+/* ── RIPPLE RINGS on water surface ── */
+.ripple{position:absolute;border-radius:50%;border:1.5px solid rgba(45,212,191,.7);pointer-events:none;z-index:12;transform:translate(-50%,-50%) scale(0);animation:rippleOut .9s ease-out forwards}
+@keyframes rippleOut{0%{transform:translate(-50%,-50%) scale(0);opacity:.8}100%{transform:translate(-50%,-50%) scale(2.8);opacity:0}}
+
 /* Tank info */
 .tank-info{flex:1;min-width:0}
 .tank-name-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:6px;font-family:var(--head)}
@@ -84,16 +93,17 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .b-ok  {background:rgba(52,211,153,.1);color:var(--ok);border:1px solid rgba(52,211,153,.25)}
 .b-low {background:rgba(251,191,36,.1);color:var(--warn);border:1px solid rgba(251,191,36,.25)}
 .b-crit{background:rgba(248,113,113,.12);color:var(--danger);border:1px solid rgba(248,113,113,.28);animation:sblink 1s step-end infinite}
-.b-full{background:rgba(45,212,191,.1);color:var(--pri);border:1px solid rgba(45,212,191,.28)}
+.b-full{background:rgba(45,212,191,.1);color:var(--pri);border:1px solid rgba(45,212,191,.28);animation:fullglow 2s ease-in-out infinite}
 .b-off {background:rgba(80,80,100,.12);color:var(--muted);border:1px solid rgba(80,80,100,.18)}
 @keyframes sblink{50%{opacity:.4}}
+@keyframes fullglow{0%,100%{box-shadow:0 0 0 0 rgba(45,212,191,0)}50%{box-shadow:0 0 12px 3px rgba(45,212,191,.35)}}
 .vol-row{font-family:var(--mono);font-size:14px;margin-bottom:2px}
 .vol-total{font-size:11px;color:var(--muted)}
 .upd-lbl{font-size:10px;color:var(--muted);margin-top:8px;font-family:var(--mono)}
 .trend-lbl{font-size:13px;margin-top:4px}
 /* Stats */
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.stat{background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.stat{background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;transition:border-color .4s}
 .stat-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;font-family:var(--head)}
 .stat-val{font-family:var(--mono);font-size:20px;color:var(--pri)}
 .stat-unit{font-size:11px;color:var(--muted)}
@@ -106,18 +116,35 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 /* Chart */
 .chart-box{position:relative;height:175px}
 /* Usage bars */
-.ubar-row{margin:8px 0}
-.ubar-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
-.ubar{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
-.ubar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,rgba(45,212,191,.7),var(--ok));transition:width 1s}
+.ubar-row{margin:10px 0}
+.ubar-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px;align-items:center}
+.ubar-lbl .ubval{font-family:var(--mono);font-size:13px;color:var(--pri)}
+.ubar{height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
+.ubar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,rgba(45,212,191,.7),var(--ok));transition:width 1.2s cubic-bezier(.4,0,.2,1);position:relative}
+.ubar-fill::after{content:'';position:absolute;right:0;top:0;bottom:0;width:3px;background:rgba(255,255,255,.5);border-radius:2px}
+/* Hourly heatmap */
+.heatmap-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin:4px 0 8px}
+.hm-cell{height:22px;border-radius:3px;background:rgba(45,212,191,.06);position:relative;cursor:default;transition:transform .15s}
+.hm-cell:hover{transform:scaleY(1.2)}
+.hm-lbl{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-bottom:6px}
+.hm-lbl span{font-family:var(--mono);font-size:8px;color:var(--muted);text-align:center}
+/* Insights cards */
+.insight-row{display:flex;gap:8px;margin-bottom:10px}
+.insight-card{flex:1;background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center}
+.insight-icon{font-size:22px;margin-bottom:4px}
+.insight-lbl{font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;font-family:var(--head);margin-bottom:3px}
+.insight-val{font-family:var(--mono);font-size:16px;color:var(--pri)}
+.insight-sub{font-size:10px;color:var(--muted);margin-top:2px}
 /* Forecast */
 .fc-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
 .fc-row:last-child{border-bottom:none}
 .fc-val{font-family:var(--mono);color:var(--pri)}
+.fc-bar-wrap{flex:1;margin:0 10px;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.fc-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--purple),var(--pri));transition:width 1s}
 /* Alerts */
 .notif-bar{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(0,50,120,.5),rgba(0,30,80,.7));border:1px solid rgba(45,212,191,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px}
 .notif-bar .nb-i{font-size:26px}
-.alert-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.alert-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);animation:fadeIn .2s ease}
 .alert-item:last-child{border-bottom:none}
 .adot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0}
 .ac .adot{background:var(--danger);box-shadow:0 0 6px var(--danger)}
@@ -156,19 +183,51 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .acc-h.open .acc-arr{transform:rotate(180deg)}
 .acc-b{display:none;padding:14px 0 4px}
 .acc-b.open{display:block}
-/* Tips */
-.tip-hero{background:linear-gradient(135deg,rgba(0,60,130,.6),rgba(0,20,60,.85));border:1px solid rgba(45,212,191,.2);border-radius:var(--r);padding:20px;margin-bottom:12px;position:relative;overflow:hidden}
-.tip-hero::after{content:'💧';position:absolute;right:14px;top:10px;font-size:40px;opacity:.18}
+
+/* ═══ TIPS — animated cards ═══ */
+.tip-hero{background:linear-gradient(135deg,rgba(0,60,130,.6),rgba(0,20,60,.85));border:1px solid rgba(45,212,191,.2);border-radius:var(--r);padding:20px;margin-bottom:12px;position:relative;overflow:hidden;min-height:140px}
+.tip-hero::after{content:'💧';position:absolute;right:14px;top:10px;font-size:40px;opacity:.18;animation:tipDrop 3s ease-in-out infinite}
+@keyframes tipDrop{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
 .tip-cat{display:inline-block;padding:2px 9px;border-radius:10px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:rgba(45,212,191,.1);color:var(--pri);border:1px solid rgba(45,212,191,.2);margin-bottom:10px;font-family:var(--head)}
-.tip-txt{font-size:14px;line-height:1.65;font-weight:500}
-.tip-card{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:var(--surf2);position:relative;overflow:hidden}
-.tip-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(to bottom,var(--pri),var(--ok))}
+.tip-txt{font-size:14px;line-height:1.65;font-weight:500;animation:fadeIn .35s ease}
+.tip-nav{display:flex;align-items:center;gap:10px;margin-top:14px}
+.tip-prog{flex:1;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.tip-prog-fill{height:100%;background:var(--pri);border-radius:2px;transition:width .4s ease}
+.tip-fact{background:rgba(45,212,191,.05);border:1px solid rgba(45,212,191,.12);border-radius:10px;padding:12px 14px;margin-bottom:8px;position:relative;overflow:hidden;animation:fadeIn .3s ease}
+.tip-fact::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(to bottom,var(--pri),var(--ok))}
+.tip-fact-icon{font-size:22px;float:left;margin-right:10px;margin-top:2px}
+.tip-fact-body{overflow:hidden}
+.tip-fact-cat{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--pri);text-transform:uppercase;font-family:var(--head);margin-bottom:4px}
+.tip-fact-txt{font-size:13px;line-height:1.6;font-weight:500}
+.tip-saving{font-size:11px;color:var(--ok);margin-top:4px;font-family:var(--mono)}
+/* Achievements */
 .ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
 .ach{text-align:center;padding:12px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surf2);transition:all .3s;opacity:.35}
-.ach.earned{border-color:rgba(45,212,191,.3);background:rgba(45,212,191,.07);opacity:1}
+.ach.earned{border-color:rgba(45,212,191,.3);background:rgba(45,212,191,.07);opacity:1;animation:achPop .4s cubic-bezier(.18,.89,.32,1.28) both}
+@keyframes achPop{from{transform:scale(.8)}to{transform:scale(1)}}
 .ach-icon{font-size:26px;margin-bottom:5px}
 .ach-name{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--pri);font-family:var(--head)}
 .ach-desc{font-size:9px;color:var(--muted);margin-top:2px}
+
+/* ═══ ABOUT SECTION ═══ */
+.about-hero{background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(45,212,191,.08));border:1px solid rgba(124,58,237,.25);border-radius:var(--r);padding:22px 18px;margin-bottom:12px;text-align:center;position:relative;overflow:hidden}
+.about-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(124,58,237,.12),transparent);pointer-events:none}
+.about-logo{font-family:var(--head);font-size:32px;font-weight:900;color:var(--pri);text-shadow:0 0 30px rgba(45,212,191,.5);letter-spacing:.08em;margin-bottom:4px}
+.about-tagline{font-size:12px;color:var(--muted);letter-spacing:2px;margin-bottom:18px}
+.about-version{display:inline-block;padding:3px 12px;border-radius:20px;background:rgba(45,212,191,.1);border:1px solid rgba(45,212,191,.2);font-size:10px;font-family:var(--head);color:var(--pri);margin-bottom:16px}
+.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left;margin-bottom:18px}
+.feat-item{background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:8px;padding:9px 11px;display:flex;align-items:flex-start;gap:8px}
+.feat-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.feat-txt{font-size:11px;line-height:1.4;color:var(--text);font-weight:500}
+.about-dev{border-top:1px solid var(--border);padding-top:16px;margin-top:4px}
+.dev-name{font-family:var(--head);font-size:14px;font-weight:900;color:var(--pri);letter-spacing:.05em;margin-bottom:4px}
+.dev-sub{font-size:11px;color:var(--muted);margin-bottom:6px}
+.made-in{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text);background:rgba(255,153,0,.08);border:1px solid rgba(255,153,0,.2);border-radius:20px;padding:3px 12px;margin-top:6px}
+.india-flag{font-size:14px}
+/* Tech stack pills */
+.tech-pills{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
+.tech-pill{padding:3px 10px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:1px;background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.15);color:var(--muted);font-family:var(--head)}
+
 /* Misc */
 .demo-bar{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--warn);text-align:center;margin-bottom:10px;font-family:var(--head)}
 .sec-hd{font-size:10px;font-weight:700;letter-spacing:3px;color:var(--muted);text-transform:uppercase;padding:6px 0 8px;border-bottom:1px solid var(--border);margin-bottom:12px;font-family:var(--head)}
@@ -179,11 +238,12 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .toast{background:var(--surf2);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:9px;animation:tin .3s ease-out;pointer-events:auto;cursor:pointer;box-shadow:0 6px 28px rgba(0,0,0,.4);font-size:13px;font-weight:500}
 .toast.info  {border:1px solid rgba(45,212,191,.4)}
 .toast.warn  {border:1px solid rgba(251,191,36,.5)}
-.toast.danger{border:1px solid rgba(248,113,113,.5)}
+.toast.danger{border:1px solid rgba(248,113,113,.5);animation:tin .3s ease-out,alertPulse .5s ease-out .3s}
 .toast.ok    {border:1px solid rgba(52,211,153,.4)}
 .toast.out   {animation:tout .3s ease-in forwards}
 @keyframes tin {from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes tout{to{opacity:0;transform:translateY(-8px)}}
+@keyframes alertPulse{0%{box-shadow:0 0 0 0 rgba(248,113,113,.5)}100%{box-shadow:0 0 0 12px rgba(248,113,113,0)}}
 /* Nav */
 nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:rgba(4,13,26,.98);backdrop-filter:blur(24px);border-top:1px solid var(--border);z-index:50}
 .nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 4px 8px;border:none;background:none;color:var(--muted);cursor:pointer;transition:color .2s;gap:3px;position:relative}
@@ -203,6 +263,14 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 .modal-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.55}
 @supports(padding-bottom:env(safe-area-inset-bottom)){nav{padding-bottom:env(safe-area-inset-bottom)}main{padding-bottom:calc(70px + env(safe-area-inset-bottom))}}
 .hidden{display:none!important}
+/* Day bar chart */
+.day-bar-row{display:flex;align-items:flex-end;gap:4px;height:70px;margin:8px 0 4px}
+.day-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.day-bar{width:100%;border-radius:3px 3px 0 0;background:linear-gradient(to top,rgba(45,212,191,.6),rgba(45,212,191,.25));min-height:4px;transition:height .8s cubic-bezier(.4,0,.2,1);position:relative}
+.day-bar-val{font-family:var(--mono);font-size:8px;color:var(--pri);text-align:center;margin-top:2px}
+.day-bar-lbl{font-family:var(--mono);font-size:8px;color:var(--muted);text-align:center}
+/* Reset consumption btn */
+.reset-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0 4px}
 </style>
 </head>
 <body>
@@ -252,6 +320,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <div class="tank-wrap">
           <div class="pipe-top"></div>
           <div class="tank-body" id="tankBody">
+            <div class="tank-glow" id="tankGlow"></div>
             <div class="gline" style="bottom:75%"></div>
             <div class="gline" style="bottom:50%"></div>
             <div class="gline" style="bottom:25%"></div>
@@ -261,10 +330,13 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
               <div class="bubble" style="left:18%;width:4px;height:4px;animation-delay:0s;animation-duration:3.2s"></div>
               <div class="bubble" style="left:50%;width:3px;height:3px;animation-delay:1.3s;animation-duration:4.1s"></div>
               <div class="bubble" style="left:74%;width:5px;height:5px;animation-delay:2.2s;animation-duration:3.7s"></div>
+              <div class="bubble" style="left:35%;width:2px;height:2px;animation-delay:0.8s;animation-duration:5.1s"></div>
             </div>
-            <div class="drp" style="left:30%;width:4px;height:6px;animation-duration:1.8s;animation-delay:0s"></div>
-            <div class="drp" style="left:50%;width:3px;height:5px;animation-duration:2.2s;animation-delay:.7s"></div>
-            <div class="drp" style="left:66%;width:4px;height:6px;animation-duration:1.5s;animation-delay:1.3s"></div>
+            <!-- falling droplets from pipe -->
+            <div class="drp" id="drp1" style="left:30%;width:4px;height:6px;animation-duration:1.8s;animation-delay:0s"></div>
+            <div class="drp" id="drp2" style="left:50%;width:3px;height:5px;animation-duration:2.2s;animation-delay:.7s"></div>
+            <div class="drp" id="drp3" style="left:66%;width:4px;height:6px;animation-duration:1.5s;animation-delay:1.3s"></div>
+            <canvas class="splash-canvas" id="splashCanvas" width="115" height="215"></canvas>
           </div>
           <div class="pipe-bot"></div>
           <div class="tmarks" style="right:-38px">
@@ -295,43 +367,130 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 
   <!-- ANALYTICS -->
   <div class="tab" id="tab-analytics">
-    <div class="card"><div class="card-title">24-Hour Level History</div><div class="chart-box"><canvas id="histChart"></canvas></div></div>
+    <!-- Hourly history chart -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="card-title" style="margin:0">Hourly Level History</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="chartRange">Last 24 hrs</div>
+      </div>
+      <div class="chart-box"><canvas id="histChart"></canvas></div>
+      <!-- Hourly heatmap -->
+      <div style="margin-top:14px">
+        <div class="card-title" style="margin-bottom:6px">Usage Intensity by Hour</div>
+        <div class="hm-lbl" id="hmLabels"></div>
+        <div class="heatmap-grid" id="hmGrid"></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:2px"><span>Low use</span><span>High use</span></div>
+      </div>
+    </div>
+
+    <!-- Insights row -->
+    <div class="insight-row">
+      <div class="insight-card">
+        <div class="insight-icon">💧</div>
+        <div class="insight-lbl">Today Used</div>
+        <div class="insight-val" id="ins-today">-- L</div>
+        <div class="insight-sub" id="ins-today-sub">--</div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-icon">📅</div>
+        <div class="insight-lbl">Daily Avg</div>
+        <div class="insight-val" id="ins-avg">-- L</div>
+        <div class="insight-sub" id="ins-avg-sub">7-day basis</div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-icon">⚡</div>
+        <div class="insight-lbl">Peak Hour</div>
+        <div class="insight-val" id="ins-peak">--:00</div>
+        <div class="insight-sub" id="ins-peak-sub">Highest use</div>
+      </div>
+    </div>
+
+    <!-- Usage by time of day -->
     <div class="card">
       <div class="card-title">Usage by Time of Day</div>
-      <div class="ubar-row"><div class="ubar-lbl"><span>🌅 Morning (6–12)</span><span id="u-morn">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-morn" style="width:0%"></div></div></div>
-      <div class="ubar-row"><div class="ubar-lbl"><span>☀️ Afternoon (12–18)</span><span id="u-aft">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-aft" style="width:0%"></div></div></div>
-      <div class="ubar-row"><div class="ubar-lbl"><span>🌆 Evening (18–24)</span><span id="u-eve">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-eve" style="width:0%"></div></div></div>
-      <div class="ubar-row"><div class="ubar-lbl"><span>🌙 Night (0–6)</span><span id="u-ngt">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-ngt" style="width:0%"></div></div></div>
+      <div class="ubar-row">
+        <div class="ubar-lbl"><span>🌅 Morning (6–12)</span><span class="ubval" id="u-morn">-- L</span></div>
+        <div class="ubar"><div class="ubar-fill" id="b-morn" style="width:0%"></div></div>
+      </div>
+      <div class="ubar-row">
+        <div class="ubar-lbl"><span>☀️ Afternoon (12–18)</span><span class="ubval" id="u-aft">-- L</span></div>
+        <div class="ubar"><div class="ubar-fill" id="b-aft" style="width:0%"></div></div>
+      </div>
+      <div class="ubar-row">
+        <div class="ubar-lbl"><span>🌆 Evening (18–24)</span><span class="ubval" id="u-eve">-- L</span></div>
+        <div class="ubar"><div class="ubar-fill" id="b-eve" style="width:0%"></div></div>
+      </div>
+      <div class="ubar-row">
+        <div class="ubar-lbl"><span>🌙 Night (0–6)</span><span class="ubval" id="u-ngt">-- L</span></div>
+        <div class="ubar"><div class="ubar-fill" id="b-ngt" style="width:0%"></div></div>
+      </div>
     </div>
+
+    <!-- 7-day bar chart -->
     <div class="card">
-      <div class="card-title">Forecast</div>
-      <div class="fc-row"><span>Current Level</span><span class="fc-val" id="fc-cur">--</span></div>
-      <div class="fc-row" style="font-size:11px;color:var(--muted)"><span>At current usage rate…</span></div>
-      <div class="fc-row"><span>In 24 hours</span><span class="fc-val" id="fc-24">--</span></div>
-      <div class="fc-row"><span>In 3 days</span><span class="fc-val" id="fc-3d">--</span></div>
-      <div class="fc-row"><span>Tank empty in</span><span class="fc-val" id="fc-emp">--</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="card-title" style="margin:0">Daily Consumption (L)</div>
+        <button class="btn btn-d btn-sm" onclick="resetConsumption()" style="font-size:9px;padding:4px 10px">↺ Reset</button>
+      </div>
+      <div class="day-bar-row" id="dayBars"></div>
+      <div style="display:flex;gap:4px" id="dayBarLabels"></div>
+    </div>
+
+    <!-- Realistic Forecast -->
+    <div class="card">
+      <div class="card-title">Smart Forecast</div>
+      <div class="fc-row">
+        <span>Now</span>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-now" style="width:100%"></div></div>
+        <span class="fc-val" id="fc-cur">--</span>
+      </div>
+      <div class="fc-row">
+        <span>In 6 hrs</span>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-6" style="width:0%"></div></div>
+        <span class="fc-val" id="fc-6">--</span>
+      </div>
+      <div class="fc-row">
+        <span>In 24 hrs</span>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-24" style="width:0%"></div></div>
+        <span class="fc-val" id="fc-24">--</span>
+      </div>
+      <div class="fc-row">
+        <span>In 3 days</span>
+        <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-3d" style="width:0%"></div></div>
+        <span class="fc-val" id="fc-3d">--</span>
+      </div>
+      <div class="fc-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:12px">
+        <span>🏁 Empty in</span>
+        <span class="fc-val" id="fc-emp">--</span>
+      </div>
+      <div id="fc-advice" style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6;padding:8px 10px;background:rgba(45,212,191,.04);border-radius:8px;border-left:2px solid var(--pri)"></div>
     </div>
   </div>
 
   <!-- ALERTS -->
   <div class="tab" id="tab-alerts">
-    <div class="notif-bar" id="notifBar">
+    <div class="notif-bar hidden" id="notifBar">
       <div class="nb-i">🔔</div>
-      <div style="flex:1"><div style="font-size:14px;font-weight:600;margin-bottom:2px">Enable Push Notifications</div><div style="font-size:11px;color:var(--muted)">Get alerts even when app is in background</div></div>
-      <button class="btn btn-p btn-sm" onclick="askNotif()">ENABLE</button>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600">Enable Push Notifications</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Get alerts even when app is in background</div></div>
+      <button class="btn btn-p btn-sm" onclick="askNotif()">Allow</button>
     </div>
     <div class="card">
-      <div class="card-title">Alert Thresholds</div>
-      <div class="tog-row"><div><div class="tog-lbl">🔴 Critical (&lt;10%)</div><div class="tog-sub">Sound + Push + Telegram</div></div><label class="toggle"><input type="checkbox" id="t-crit" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">🟡 Low (&lt;30%)</div><div class="tog-sub">Push notification + Sound</div></div><label class="toggle"><input type="checkbox" id="t-low" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">📉 Sudden Drop (&gt;10%)</div><div class="tog-sub">Possible leak detection</div></div><label class="toggle"><input type="checkbox" id="t-drop" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">✅ Refilled (&gt;90%)</div><div class="tog-sub">Notify when refill completes</div></div><label class="toggle"><input type="checkbox" id="t-fill" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">💧 Full Tank (isFull)</div><div class="tog-sub">Sensor reads ≤10 cm</div></div><label class="toggle"><input type="checkbox" id="t-full" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">🔊 Sound Alerts</div><div class="tog-sub">Audio tones for critical/full events</div></div><label class="toggle"><input type="checkbox" id="t-sound" checked><div class="tslider"></div></label></div>
-    </div>
-    <div class="card">
-      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">Alert Log<button class="btn btn-d btn-sm" style="padding:4px 10px;font-size:10px" onclick="clearAlerts()">CLEAR</button></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="card-title" style="margin:0">Alert Log</div>
+        <button class="btn btn-d btn-sm" onclick="clearAlerts()">Clear</button>
+      </div>
       <div id="alertLog"><div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div></div>
+    </div>
+    <!-- Alert toggles -->
+    <div class="card">
+      <div class="card-title">Alert Settings</div>
+      <div class="tog-row"><div><div class="tog-lbl">🚨 Critical (&lt;10%)</div><div class="tog-sub">Immediate refill needed</div></div><label class="toggle"><input type="checkbox" id="t-crit" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">⚠️ Low Level (&lt;30%)</div><div class="tog-sub">Schedule a refill</div></div><label class="toggle"><input type="checkbox" id="t-low" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">💧 10% Drop Alert</div><div class="tog-sub">Every 10% decrease fires alert</div></div><label class="toggle"><input type="checkbox" id="t-drop10" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">📉 Sudden Drop</div><div class="tog-sub">Possible leak detection</div></div><label class="toggle"><input type="checkbox" id="t-drop" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">✅ Refilled (&gt;90%)</div><div class="tog-sub">Notify when refill completes</div></div><label class="toggle"><input type="checkbox" id="t-fill" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">💧 Full Tank (100%)</div><div class="tog-sub">Maximum celebration alert</div></div><label class="toggle"><input type="checkbox" id="t-full" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">🔊 Alert Sounds</div><div class="tog-sub">Play audio on alerts</div></div><label class="toggle"><input type="checkbox" id="t-sound" checked><div class="tslider"></div></label></div>
     </div>
   </div>
 
@@ -403,12 +562,68 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="tip-hero">
       <div class="tip-cat" id="tipCat">CONSERVATION</div>
       <div class="tip-txt" id="tipTxt">Loading…</div>
-      <button class="btn btn-o btn-sm" style="margin-top:14px" onclick="nextTip()">Next Tip →</button>
+      <div class="tip-nav">
+        <div class="tip-prog"><div class="tip-prog-fill" id="tipProg"></div></div>
+        <button class="btn btn-o btn-sm" onclick="nextTip()">Next →</button>
+      </div>
     </div>
-    <div class="sec-hd">ALL TIPS</div>
+    <div class="sec-hd">WATER WISDOM — ALL TIPS</div>
     <div id="allTips"></div>
     <div class="sec-hd" style="margin-top:18px">ACHIEVEMENTS</div>
     <div class="ach-grid" id="achGrid"></div>
+  </div>
+
+  <!-- ABOUT -->
+  <div class="tab" id="tab-about">
+    <div class="about-hero">
+      <div class="about-logo">TASNI®</div>
+      <div class="about-tagline">INTELLIGENT WATER MONITORING SYSTEM</div>
+      <div class="about-version">Version 2.1 — PWA Edition</div>
+      <div class="feat-grid">
+        <div class="feat-item"><div class="feat-icon">📡</div><div class="feat-txt">Real-time MQTT Cloud Monitoring</div></div>
+        <div class="feat-item"><div class="feat-icon">📶</div><div class="feat-txt">Local WiFi Direct Connection</div></div>
+        <div class="feat-item"><div class="feat-icon">🔔</div><div class="feat-txt">Push Alerts — Silent Mode Override</div></div>
+        <div class="feat-item"><div class="feat-icon">💧</div><div class="feat-txt">Splash & Droplet Animations</div></div>
+        <div class="feat-item"><div class="feat-icon">📊</div><div class="feat-txt">Hourly History & Insights</div></div>
+        <div class="feat-item"><div class="feat-icon">🔮</div><div class="feat-txt">AI Forecast — Days to Empty</div></div>
+        <div class="feat-item"><div class="feat-icon">📱</div><div class="feat-txt">Installable PWA — Works Offline</div></div>
+        <div class="feat-item"><div class="feat-icon">🌡️</div><div class="feat-txt">Ultrasonic Distance Sensor</div></div>
+        <div class="feat-item"><div class="feat-icon">✈️</div><div class="feat-txt">Telegram Bot Integration</div></div>
+        <div class="feat-item"><div class="feat-icon">📋</div><div class="feat-txt">Google Sheets Auto Logging</div></div>
+        <div class="feat-item"><div class="feat-icon">🔊</div><div class="feat-txt">Rich Alert Sound Engine</div></div>
+        <div class="feat-item"><div class="feat-icon">🔒</div><div class="feat-txt">NVS Secure Credential Storage</div></div>
+      </div>
+      <div class="about-dev">
+        <div class="dev-name">Mohammed Imran Ahmed Soofi</div>
+        <div class="dev-sub">Founder & Engineer — Tasni Trading Private Limited</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-top:8px">
+          Designed and developed end-to-end — from ESP32 embedded firmware (Arduino/C++) to cloud MQTT infrastructure, PWA dashboard, and Telegram bot integrations. Built for real-world commercial IoT deployment.
+        </div>
+        <div class="made-in">
+          <span class="india-flag">🇮🇳</span>
+          <span>Made in India</span>
+        </div>
+        <div class="tech-pills">
+          <span class="tech-pill">ESP32</span>
+          <span class="tech-pill">Arduino C++</span>
+          <span class="tech-pill">MQTT/EMQX</span>
+          <span class="tech-pill">PWA</span>
+          <span class="tech-pill">Chart.js</span>
+          <span class="tech-pill">Web Audio API</span>
+          <span class="tech-pill">NVS Flash</span>
+          <span class="tech-pill">WebSockets</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">App Session Info</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="stat"><div class="stat-lbl">Session Start</div><div class="stat-val" style="font-size:13px" id="ab-session">--</div></div>
+        <div class="stat"><div class="stat-lbl">Data Points</div><div class="stat-val" id="ab-points">0</div></div>
+        <div class="stat"><div class="stat-lbl">Total Alerts</div><div class="stat-val" id="ab-alerts">0</div></div>
+        <div class="stat"><div class="stat-lbl">App Uptime</div><div class="stat-val" style="font-size:13px" id="ab-uptime">--</div></div>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -434,6 +649,10 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
     <span class="nb-lbl">Tips</span>
   </button>
+  <button class="nb" id="nb-about" onclick="goTab('about',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span class="nb-lbl">About</span>
+  </button>
 </nav>
 
 <script>
@@ -442,35 +661,46 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 // ═══════════════════════════════════════════
 const CFG_KEY='tasni_cfg';
 let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'{}');
-const S={m:0,vol:0,total:1000,s:'Offline',dist:0,t:'',usage:0,up:0,rssi:0,boot:0,isFull:0,name:'Main Tank',history:Array(24).fill(0),connected:false,lastUpdate:null};
+const S={m:0,vol:0,total:1000,s:'Offline',dist:0,t:'',usage:0,up:0,rssi:0,boot:0,isFull:0,name:'Main Tank',
+  history:Array(24).fill(null), // null = no data for that hour
+  connected:false,lastUpdate:null,_wasFull:false};
 let alerts=JSON.parse(localStorage.getItem('tasni_alerts')||'[]');
 let unread=0,demoMode=false,pollingTimer=null,mqttClient=null,chart=null,tipIdx=0,audioCtx=null;
-// MQTT keep-alive state
 let _mqttCfg=null,_hbTimer=null,_wdTimer=null,_lastAck=0,_silent=false;
-// Staleness — if no data arrives within STALE_MS, blank the dashboard
 const STALE_MS=30000;
 let _staleTimer=null;
 
+// Session tracking
+const SESSION_START=new Date();
+let dataPointCount=0;
+
+// Persistent hourly data (localStorage)
+const HOURLY_KEY='tasni_hourly';
+const DAILY_KEY='tasni_daily';
+let hourlyData=JSON.parse(localStorage.getItem(HOURLY_KEY)||'{}');  // {YYYY-MM-DD-HH: {start,end,used}}
+let dailyData=JSON.parse(localStorage.getItem(DAILY_KEY)||'{}');    // {YYYY-MM-DD: litres}
+
 // ═══════════════════════════════════════════
-//  TIPS & ACHIEVEMENTS
+//  TIPS — expanded with savings data
 // ═══════════════════════════════════════════
 const TIPS=[
-  {cat:'CONSERVATION',txt:'A dripping tap wastes up to 15 liters per day. Check all taps and fittings regularly.'},
-  {cat:'SAVINGS',txt:'Rainwater harvesting can reduce your water bill by 30%. A collection barrel makes a big difference.'},
-  {cat:'HABIT',txt:'Shorter showers save up to 10 liters per minute. Aim for under 5 minutes.'},
-  {cat:'GARDEN',txt:'Water plants early morning or late evening — evaporation is 30% lower than at midday.'},
-  {cat:'LEAKS',txt:'A leaking toilet wastes 200 liters daily without you noticing. Listen for running water after flushing.'},
-  {cat:'HABIT',txt:'Turning off the tap while brushing teeth saves 6 liters per minute.'},
-  {cat:'SAVINGS',txt:'Small changes add up to 50,000 liters saved per person annually.'},
-  {cat:'GARDEN',txt:'Mulching around plants reduces soil evaporation by up to 70%.'},
-  {cat:'LEAKS',txt:'Hidden leaks account for 12% of water usage. Check meter readings overnight to spot them.'},
-  {cat:'APPLIANCES',txt:'A dishwasher uses 6× less water than hand washing when run full.'},
-  {cat:'HABIT',txt:'Sweeping driveways instead of hosing saves over 300 liters per clean.'},
-  {cat:'SAVINGS',txt:'Greywater recycling systems can reclaim 30–50% of household water.'},
-  {cat:'APPLIANCES',txt:'Washing machines should always run full loads — never run half loads.'},
-  {cat:'GARDEN',txt:'Collected rainwater is free, chemical-free, and naturally soft — perfect for plants.'},
-  {cat:'CONSERVATION',txt:'Every drop you save helps ensure water availability for future generations.'},
+  {cat:'CONSERVATION',icon:'🚿',txt:'A dripping tap wastes up to 15 litres per day. One worn washer can cost you 5,400 litres a year.',saving:'Save 5,400 L/year'},
+  {cat:'HABIT',icon:'⏱️',txt:'Cutting your shower from 10 to 5 minutes saves 50 litres per shower. For a family of 4, that\'s 73,000 L/year.',saving:'Save 73,000 L/year'},
+  {cat:'SAVINGS',icon:'🌧️',txt:'Rainwater harvesting from a 40 m² roof can collect 20,000+ litres annually — enough for all your gardening.',saving:'Save 20,000+ L/year'},
+  {cat:'GARDEN',icon:'🌿',txt:'Water plants at 6 AM or after 6 PM — midday watering loses 40% to evaporation before roots absorb it.',saving:'Save 40% garden water'},
+  {cat:'LEAKS',icon:'🚽',txt:'A silent toilet leak can waste 500 litres daily. Add food colouring to the cistern — blue in the bowl = leak.',saving:'Save 180,000 L/year'},
+  {cat:'HABIT',icon:'🪥',txt:'Turning off the tap while brushing teeth saves 6 litres per minute — that\'s 4,380 L/person/year.',saving:'Save 4,380 L/year'},
+  {cat:'APPLIANCES',icon:'🍽️',txt:'A full dishwasher uses 10–15 L. Hand-washing dishes runs 40–60 L. Always run full loads only.',saving:'Save 50 L per wash'},
+  {cat:'APPLIANCES',icon:'👕',txt:'Modern washing machines use 50–80 L per cycle. Running half-loads doubles your water per kg of laundry.',saving:'Save 50% laundry water'},
+  {cat:'LEAKS',icon:'🔍',txt:'Read your water meter at 9 PM, turn off all taps, check at 6 AM. Any increase = hidden leak somewhere.',saving:'Detect leaks early'},
+  {cat:'GARDEN',icon:'🪣',txt:'Mulching garden beds with 5 cm of organic matter reduces watering frequency by 50% and cools roots naturally.',saving:'Save 50% garden water'},
+  {cat:'SAVINGS',icon:'♻️',txt:'Greywater from sinks and washing machines can safely water gardens — saving 30–50% of household usage.',saving:'Save 30–50% total'},
+  {cat:'HABIT',icon:'🧹',txt:'Sweeping a driveway instead of hosing saves 350+ litres per clean. Use a leaf blower for dry debris.',saving:'Save 350 L per clean'},
+  {cat:'CONSERVATION',icon:'💡',txt:'Install flow-restricting aerators on taps (costs ₹100–300). They cut water use by 50% with no noticeable difference.',saving:'Save 50% tap flow'},
+  {cat:'GARDEN',icon:'☔',txt:'Soft, chemical-free rainwater is ideal for plants. A 200-L barrel fills from one moderate rain shower.',saving:'Free water source'},
+  {cat:'CONSERVATION',icon:'🌊',txt:'Every litre saved today preserves aquifer levels that take decades to replenish. Your monitor matters.',saving:'Future generations'},
 ];
+
 const ACHIEVEMENTS=[
   {icon:'💧',name:'First Drop',desc:'Started monitoring'},
   {icon:'📊',name:'Analyst',desc:'Viewed analytics'},
@@ -478,6 +708,9 @@ const ACHIEVEMENTS=[
   {icon:'☁️',name:'Cloud Sync',desc:'MQTT connected'},
   {icon:'⚙️',name:'Configured',desc:'Settings saved'},
   {icon:'🌱',name:'Eco Warrior',desc:'Read all tips'},
+  {icon:'🏆',name:'24h Champion',desc:'Monitored 24 hrs'},
+  {icon:'🔮',name:'Forecaster',desc:'Viewed forecast'},
+  {icon:'ℹ️',name:'In The Know',desc:'Read About page'},
 ];
 
 // ═══════════════════════════════════════════
@@ -485,7 +718,9 @@ const ACHIEVEMENTS=[
 // ═══════════════════════════════════════════
 window.addEventListener('load',()=>{
   loadFormValues(); initChart(); renderTips(); renderAchievements(); renderAlertLog(); checkNotifPerm();
-  renderDash(); // show NIL state until first real data arrives
+  renderDash();
+  renderDayBars(); renderHeatmap();
+  updateAbout();
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
   unlockAch(0);
   if(!cfg.ip&&!cfg.broker){
@@ -497,6 +732,12 @@ window.addEventListener('load',()=>{
   document.addEventListener('touchstart',()=>{if(!audioCtx)getAudioCtx();},{once:true});
   document.addEventListener('click',()=>{if(!audioCtx)getAudioCtx();},{once:true});
   requestWakeLock();
+  // Update about section every minute
+  setInterval(updateAbout,60000);
+  // Auto-advance tips every 12 seconds
+  setInterval(()=>{if(document.getElementById('tab-tips').classList.contains('active')){nextTip();}},12000);
+  // Splash animation loop
+  initSplash();
 });
 
 // ═══════════════════════════════════════════
@@ -537,7 +778,6 @@ function startConnections(){
   document.getElementById('demoBanner').classList.add('hidden');
   if(cfg.ip) startPoll(cfg.ip);
   if(cfg.broker) _connectMQTT({host:cfg.broker,port:cfg.port||8884,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
-  // Begin staleness countdown — dashboard shows NIL until first real data arrives
   _resetStaleTimer();
 }
 
@@ -563,7 +803,6 @@ async function fetchSensor(ip){
 //  MQTT — ALWAYS-ALIVE ENGINE
 // ═══════════════════════════════════════════
 function _connectMQTT(mc){_mqttCfg=mc;_silent=false;_doConnect(mc);}
-
 function _doConnect(mc){
   if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
   clearInterval(_hbTimer);clearTimeout(_wdTimer);
@@ -609,7 +848,6 @@ function _startHB(mc){
     },40000);
   },25000);
 }
-// Reconnect on page visible
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&_mqttCfg){
     if(!mqttClient||!mqttClient.connected)_doConnect(_mqttCfg);
@@ -622,17 +860,13 @@ window.addEventListener('online',()=>{
 });
 window.addEventListener('offline',()=>{
   showToast('📡 Network lost — waiting for data…','warn',4000);
-  // Accelerate stale detection: mark offline immediately after 5s with no data
   clearTimeout(_staleTimer);
   _staleTimer=setTimeout(_markStale,5000);
 });
 async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await navigator.wakeLock.request('screen');}catch(_){}}
 
 // ═══════════════════════════════════════════
-//  MQTT FIELD MAP — firmware publishToCloud()
-//  Fields: device,name,level,volume,status,dist,trend,
-//          usage,empty,full,total,rssi,heap,uptime,
-//          cal,boot,ts,fw,isFull
+//  MQTT FIELD MAP
 // ═══════════════════════════════════════════
 function ingestMQTT(d){
   ingest({
@@ -674,11 +908,41 @@ function ingest(d,fromMQTT=false){
   if(d.boot  !=null)S.boot  =parseInt(d.boot);
   if(d.isFull!=null)S.isFull=parseInt(d.isFull);
   if(d.name  !=null)S.name  =d.name;
+
+  // Hourly history slot
+  const now=new Date();
+  const hKey=`${now.toISOString().slice(0,10)}-${String(now.getHours()).padStart(2,'0')}`;
+  if(!hourlyData[hKey])hourlyData[hKey]={start:S.m,end:S.m,min:S.m,max:S.m,ts:Date.now()};
+  hourlyData[hKey].end=S.m;
+  hourlyData[hKey].min=Math.min(hourlyData[hKey].min,S.m);
+  hourlyData[hKey].max=Math.max(hourlyData[hKey].max,S.m);
+  // Compute used litres in this hour (drops only)
+  const drop=Math.max(0,hourlyData[hKey].start-S.m);
+  hourlyData[hKey].usedL=(drop/100)*S.total;
+  localStorage.setItem(HOURLY_KEY,JSON.stringify(hourlyData));
+
+  // Update 24h rolling history (for chart)
   if(!fromMQTT){S.history.shift();S.history.push(S.m);}
-  S.connected=true;S.lastUpdate=new Date();
+
+  S.connected=true;S.lastUpdate=now;
+  dataPointCount++;
   _resetStaleTimer();
   checkAlerts(prev,S.m,S.isFull);
   renderDash();renderChart();renderAnalytics();
+  renderHeatmap();renderDayBars();
+}
+
+// ═══════════════════════════════════════════
+//  STALENESS WATCHDOG
+// ═══════════════════════════════════════════
+function _resetStaleTimer(){
+  if(demoMode)return;
+  clearTimeout(_staleTimer);
+  _staleTimer=setTimeout(_markStale,STALE_MS);
+}
+function _markStale(){
+  if(S.connected){S.connected=false;push('aw','📡 No data received — device may be offline.');}
+  renderDash();
 }
 
 // ═══════════════════════════════════════════
@@ -687,7 +951,6 @@ function ingest(d,fromMQTT=false){
 function checkAlerts(prev,cur,isFull){
   if(!prev&&!cur)return;
 
-  // ── Critical threshold crossings ──
   if(prev>=10&&cur<10&&ck('t-crit')){
     push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
     playSound('critical_alarm');
@@ -695,85 +958,79 @@ function checkAlerts(prev,cur,isFull){
     push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
   }
 
-  // ── Every 10% drop notification ──
-  const prevBand=Math.floor(prev/10);
-  const curBand =Math.floor(cur/10);
-  if(curBand<prevBand&&cur>=10){
-    // Each 10% band crossed fires a drop alert
-    for(let b=prevBand-1;b>=curBand&&b>=1;b--){
-      const dropPct=b*10;
-      push('aw','💧 DROP: Tank crossed '+dropPct+'% mark — now at '+cur+'%.');
-      playSound('drop_10');
+  // Every 10% drop
+  if(ck('t-drop10')){
+    const prevBand=Math.floor(prev/10);
+    const curBand=Math.floor(cur/10);
+    if(curBand<prevBand&&cur>=10){
+      for(let b=prevBand-1;b>=curBand&&b>=1;b--){
+        push('aw','💧 DROP: Tank crossed '+(b*10)+'% mark — now at '+cur+'%.');
+        playSound('drop_10');
+      }
     }
   }
 
-  // ── Sudden large drop ──
   if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
 
-  // ── Refill / above 90 ──
   if(prev<90&&cur>=90&&ck('t-fill')){
     push('ai','✅ REFILLED: Tank is now above 90%.');
     playSound('refill');
   }
 
-  // ── 100% FULL TANK — maximum intensity ──
   if(!S._wasFull&&isFull===1&&ck('t-full')){
     push('ai','💧 FULL TANK: Water level is at maximum!',true);
     playSound('full_tank');
   }
   S._wasFull=isFull===1;
 }
+
 function push(type,msg,critical=false){
   const a={type,msg,time:new Date().toISOString()};
   alerts.unshift(a);if(alerts.length>60)alerts=alerts.slice(0,60);
   localStorage.setItem('tasni_alerts',JSON.stringify(alerts));
   unread++;const b=document.getElementById('alertBadge');
   b.textContent=unread;b.classList.remove('hidden');
-  // ── Vibration patterns ──
+  // Vibration patterns
   if('vibrate' in navigator){
     if(critical||type==='ac')
-      navigator.vibrate([200,80,200,80,400,80,200,80,600]); // urgent: SOS-style
+      navigator.vibrate([200,80,200,80,400,80,200,80,600,80,200]);
     else if(type==='aw')
-      navigator.vibrate([150,60,150,60,300]);                // warning: triple pulse
+      navigator.vibrate([150,60,150,60,300,60,150]);
     else
-      navigator.vibrate([80,40,80]);                          // info: double tap
+      navigator.vibrate([80,40,80]);
   }
+  // Push notification — works even when app is in background
   if(Notification.permission==='granted'){
-    const icons={ac:'🚨',aw:'⚠️',ai:'💧'};
-    new Notification('TASNI Water Monitor',{body:msg,icon:'icon.svg',badge:'icon.svg',tag:'tasni-'+type,
-      vibrate:critical?[200,80,200,80,400]:[100,50,100],
-      requireInteraction:critical||type==='ac'});
+    try{
+      // Use service worker notification for background delivery
+      if(navigator.serviceWorker&&navigator.serviceWorker.controller){
+        navigator.serviceWorker.ready.then(reg=>{
+          reg.showNotification('TASNI Water Monitor',{
+            body:msg,icon:'icon.svg',badge:'icon.svg',
+            tag:'tasni-'+type+'-'+Date.now(),
+            vibrate:critical?[200,80,200,80,400,80,200]:[150,60,150,60,300],
+            requireInteraction:critical||type==='ac',
+            data:{url:'./'},
+            actions:[{action:'view',title:'View Dashboard'}]
+          });
+        });
+      } else {
+        new Notification('TASNI Water Monitor',{body:msg,icon:'icon.svg',
+          vibrate:critical?[200,80,200,80,400]:[100,50,100],
+          requireInteraction:critical||type==='ac'});
+      }
+    }catch(e){console.warn('Notif:',e);}
   }
   showToast(msg,type==='ac'?'danger':type==='aw'?'warn':'info');
   if(ck('t-sound'))playSound(type,critical);
 }
+
 function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
 
 // ═══════════════════════════════════════════
-//  STALENESS WATCHDOG
-//  If no data arrives within STALE_MS, blank the dashboard to NIL.
-//  Never modifies existing MQTT/reconnect/calibration logic.
-// ═══════════════════════════════════════════
-function _resetStaleTimer(){
-  if(demoMode)return; // demo mode never goes stale
-  clearTimeout(_staleTimer);
-  _staleTimer=setTimeout(_markStale, STALE_MS);
-}
-function _markStale(){
-  if(S.connected){
-    S.connected=false;
-    push('aw','📡 No data received — device may be offline.');
-  }
-  renderDash();
-}
-
-// ═══════════════════════════════════════════
-//  SOUND ENGINE — Web Audio API, no files needed
-//  Modes: 'ac'|'aw'|'ai' (legacy pass-through)
-//         'critical_alarm' | 'drop_10' | 'refill' | 'full_tank'
+//  SOUND ENGINE — Web Audio API
 // ═══════════════════════════════════════════
 function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
-
 function _osc(ctx,freq,startT,dur,wave,vol,freqEnd){
   const o=ctx.createOscillator(),g=ctx.createGain();
   o.connect(g);g.connect(ctx.destination);
@@ -783,12 +1040,9 @@ function _osc(ctx,freq,startT,dur,wave,vol,freqEnd){
   g.gain.setValueAtTime(0,ctx.currentTime+startT);
   g.gain.linearRampToValueAtTime(vol,ctx.currentTime+startT+0.015);
   g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+startT+dur);
-  o.start(ctx.currentTime+startT);
-  o.stop(ctx.currentTime+startT+dur+0.05);
+  o.start(ctx.currentTime+startT);o.stop(ctx.currentTime+startT+dur+0.05);
 }
-
 function _noise(ctx,startT,dur,vol){
-  // White noise burst — adds punch to alerts
   const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
   const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1);
   const src=ctx.createBufferSource();src.buffer=buf;
@@ -798,126 +1052,164 @@ function _noise(ctx,startT,dur,vol){
   g.gain.setValueAtTime(0,ctx.currentTime+startT);
   g.gain.linearRampToValueAtTime(vol,ctx.currentTime+startT+0.01);
   g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+startT+dur);
-  src.start(ctx.currentTime+startT);
-  src.stop(ctx.currentTime+startT+dur+0.05);
+  src.start(ctx.currentTime+startT);src.stop(ctx.currentTime+startT+dur+0.05);
 }
-
 function playSound(type,critical){
   try{
     const ctx=getAudioCtx();
-    // ── FULL TANK — maximum intensity celebration ──
     if(type==='full_tank'){
-      // Rising fanfare: chord + high sweep + noise punch + repeating bell
-      [523,659,784,1047,1319].forEach((f,i)=>{
-        _osc(ctx,f,i*0.07,0.5,'sine',0.22);
-        _osc(ctx,f*2,i*0.07+0.04,0.3,'sine',0.10);
-      });
-      // Triumphant arpeggio up
+      [523,659,784,1047,1319].forEach((f,i)=>{_osc(ctx,f,i*0.07,0.5,'sine',0.22);_osc(ctx,f*2,i*0.07+0.04,0.3,'sine',0.10);});
       [784,988,1175,1319,1568,1976,2093].forEach((f,i)=>_osc(ctx,f,0.5+i*0.09,0.25,'sine',0.18));
-      // Shimmer layer
       [2093,2349,2637,3136].forEach((f,i)=>_osc(ctx,f,0.9+i*0.07,0.3,'sine',0.10));
-      // Noise punch at start
       _noise(ctx,0,0.12,0.30);_noise(ctx,0.5,0.10,0.25);
-      // Three final high bells
       [2093,2637,3136].forEach((f,i)=>_osc(ctx,f,1.55+i*0.18,0.4,'sine',0.22));
       return;
     }
-    // ── CRITICAL ALARM — urgent, insistent, layered ──
     if(type==='critical_alarm'||critical||type==='ac'){
-      // Layer 1: fast descending sawtooth sweeps ×3
-      for(let rep=0;rep<3;rep++){
-        [880,660,440,330].forEach((f,i)=>_osc(ctx,f,rep*0.72+i*0.17,0.15,'sawtooth',0.25));
-      }
-      // Layer 2: low pulsing drone
+      for(let rep=0;rep<3;rep++){[880,660,440,330].forEach((f,i)=>_osc(ctx,f,rep*0.72+i*0.17,0.15,'sawtooth',0.25));}
       [110,110,110].forEach((_,i)=>_osc(ctx,110,i*0.72,0.65,'square',0.15));
-      // Layer 3: noise bursts for punch
       [0,0.72,1.44].forEach(t=>_noise(ctx,t,0.08,0.35));
-      // Layer 4: high warble
       for(let i=0;i<6;i++)_osc(ctx,1200+(i%2)*400,i*0.36,0.32,'sawtooth',0.12);
       return;
     }
-    // ── 10% DROP — dripping droplet sound ──
     if(type==='drop_10'){
-      // Two water-drop tones: high→low sweep + resonant plop
-      _osc(ctx,1800,0,0.18,'sine',0.20,600);   // falling sweep
-      _osc(ctx,600,0.05,0.22,'sine',0.18,300);  // resonant tail
-      _osc(ctx,1800,0.35,0.18,'sine',0.16,600); // second drop, softer
-      _osc(ctx,600,0.40,0.20,'sine',0.14,300);
+      _osc(ctx,1800,0,0.18,'sine',0.20,600);_osc(ctx,600,0.05,0.22,'sine',0.18,300);
+      _osc(ctx,1800,0.35,0.18,'sine',0.16,600);_osc(ctx,600,0.40,0.20,'sine',0.14,300);
       _noise(ctx,0,0.04,0.12);_noise(ctx,0.35,0.04,0.10);
       return;
     }
-    // ── REFILL — ascending celebratory chime ──
     if(type==='refill'){
-      [523,659,784,1047,1319,1568].forEach((f,i)=>{
-        _osc(ctx,f,i*0.11,0.35,'sine',0.20);
-        if(i%2===0)_osc(ctx,f*1.5,i*0.11+0.05,0.20,'sine',0.08); // harmonic shimmer
-      });
-      _noise(ctx,0,0.06,0.15);
-      return;
+      [523,659,784,1047,1319,1568].forEach((f,i)=>{_osc(ctx,f,i*0.11,0.35,'sine',0.20);if(i%2===0)_osc(ctx,f*1.5,i*0.11+0.05,0.20,'sine',0.08);});
+      _noise(ctx,0,0.06,0.15);return;
     }
-    // ── WARN (aw) — triple pulse with noise ──
     if(type==='aw'){
-      [700,700,900].forEach((f,i)=>{
-        _osc(ctx,f,i*0.28,0.20,'sine',0.22);
-        _osc(ctx,f*0.5,i*0.28,0.20,'square',0.08); // sub layer
-        _noise(ctx,i*0.28,0.05,0.18);
-      });
+      [700,700,900].forEach((f,i)=>{_osc(ctx,f,i*0.28,0.20,'sine',0.22);_osc(ctx,f*0.5,i*0.28,0.20,'square',0.08);_noise(ctx,i*0.28,0.05,0.18);});
       return;
     }
-    // ── INFO (ai) — ascending chime (kept from original, enhanced) ──
-    [523,659,784,1047].forEach((f,i)=>{
-      _osc(ctx,f,i*0.13,0.28,'sine',0.18);
-      _osc(ctx,f*2,i*0.13+0.04,0.15,'sine',0.07);
-    });
+    [523,659,784,1047].forEach((f,i)=>{_osc(ctx,f,i*0.13,0.28,'sine',0.18);_osc(ctx,f*2,i*0.13+0.04,0.15,'sine',0.07);});
   }catch(e){console.warn('Audio:',e);}
 }
 
 // ═══════════════════════════════════════════
-//  RENDER DASH — tank level via CSS height
+//  SPLASH ANIMATION — Canvas-based realistic droplet splash
+// ═══════════════════════════════════════════
+let splashCtx=null;
+const splashParticles=[];
+function initSplash(){
+  const canvas=document.getElementById('splashCanvas');
+  if(!canvas)return;
+  splashCtx=canvas.getContext('2d');
+  // Trigger splashes timed to droplet fall animations
+  // Drp1: 1.8s cycle, Drp2: 2.2s, Drp3: 1.5s
+  const drpTimings=[
+    {x:0.30,duration:1800,delay:0},
+    {x:0.50,duration:2200,delay:700},
+    {x:0.66,duration:1500,delay:1300},
+  ];
+  drpTimings.forEach(({x,duration,delay})=>{
+    const fire=()=>{
+      const pct=Math.max(0,Math.min(100,S.m));
+      if(pct>5){
+        const canvasH=215;
+        const waterY=canvasH*(1-pct/100);
+        spawnSplash(x*115, waterY);
+      }
+    };
+    setTimeout(()=>{fire();setInterval(fire,duration);},delay+duration*0.87);
+  });
+  requestAnimationFrame(animateSplash);
+}
+function spawnSplash(x,y){
+  const count=8+Math.floor(Math.random()*6);
+  for(let i=0;i<count;i++){
+    const angle=-Math.PI/2+(Math.random()-.5)*Math.PI*0.9;
+    const speed=0.8+Math.random()*1.8;
+    splashParticles.push({
+      x,y,
+      vx:Math.cos(angle)*speed,
+      vy:Math.sin(angle)*speed,
+      r:0.8+Math.random()*1.4,
+      life:1,decay:0.035+Math.random()*0.025,
+      color:`rgba(45,212,191,`
+    });
+  }
+  // Ripple ring at surface
+  const tank=document.getElementById('tankBody');
+  if(tank){
+    const rip=document.createElement('div');
+    rip.className='ripple';
+    rip.style.left=x+'px';rip.style.top=y+'px';
+    rip.style.width='16px';rip.style.height='8px';
+    tank.appendChild(rip);
+    setTimeout(()=>rip.remove(),900);
+  }
+}
+function animateSplash(){
+  if(!splashCtx){requestAnimationFrame(animateSplash);return;}
+  splashCtx.clearRect(0,0,115,215);
+  for(let i=splashParticles.length-1;i>=0;i--){
+    const p=splashParticles[i];
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.08;// gravity
+    p.life-=p.decay;
+    if(p.life<=0){splashParticles.splice(i,1);continue;}
+    splashCtx.beginPath();
+    splashCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    splashCtx.fillStyle=p.color+p.life+')';
+    splashCtx.fill();
+  }
+  requestAnimationFrame(animateSplash);
+}
+
+// ═══════════════════════════════════════════
+//  RENDER DASH
 // ═══════════════════════════════════════════
 function renderDash(){
   const pct=Math.max(0,Math.min(100,S.m));
   const fill=document.getElementById('waterFill');
+  const glow=document.getElementById('tankGlow');
 
-  // ── OFFLINE / STALE STATE — show NIL, clear tank ──
   if(!S.connected&&!demoMode){
     fill.style.height='0%';
     fill.style.background='linear-gradient(to top,rgba(80,80,110,.4),rgba(80,80,110,.2))';
+    if(glow)glow.style.boxShadow='none';
     set('levelNum','<span class="pct" style="font-size:28px;color:var(--muted)">NIL</span>');
     const bar=document.getElementById('lvlBar');bar.style.width='0%';
     set('volL','--');set('distCm','--');set('usageRate','--');
     set('uptimeVal','--');set('rssiVal','--');set('bootVal','--');set('trendLbl','--');
     const b=document.getElementById('statusBadge');b.className='badge b-off';b.textContent='NO DATA';
     set('estEmpty','--');
-    const pc=document.getElementById('fc-cur');
-    if(pc){pc.textContent='--';['fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));}
     if(S.lastUpdate)set('updLbl','Last seen '+S.lastUpdate.toLocaleTimeString());
     else set('updLbl','Waiting for device…');
     return;
   }
 
-  // ── TANK LEVEL UPDATE ──
-  // Uses CSS `height` on a <div> — this is the fix.
-  // SVG attribute animation (y/height attrs) does NOT work via CSS transition.
-  // div.style.height transitions reliably on all mobile browsers including WebView.
   fill.style.height=pct+'%';
 
-  // Water colour by level
-  if(S.isFull===1||pct>=100)
-    fill.style.background='linear-gradient(to top,rgba(0,180,120,.95),rgba(0,220,140,.75),rgba(52,211,153,.5))';
-  else if(pct<10)
-    fill.style.background='linear-gradient(to top,rgba(180,30,50,.95),rgba(248,113,113,.6))';
-  else if(pct<30)
-    fill.style.background='linear-gradient(to top,rgba(160,100,0,.95),rgba(251,191,36,.6))';
-  else
-    fill.style.background='linear-gradient(to top,rgba(0,100,200,.95),rgba(0,160,240,.8),rgba(45,212,191,.55))';
+  // Water colour + tank glow ring changes by level
+  let waterBg,glowColor;
+  if(S.isFull===1||pct>=100){
+    waterBg='linear-gradient(to top,rgba(0,180,120,.95),rgba(0,220,140,.75),rgba(52,211,153,.5))';
+    glowColor='0 0 20px 4px rgba(52,211,153,.5),inset 0 0 0 2px rgba(52,211,153,.2)';
+  } else if(pct<10){
+    waterBg='linear-gradient(to top,rgba(180,30,50,.95),rgba(248,113,113,.6))';
+    glowColor='0 0 20px 4px rgba(248,113,113,.55),inset 0 0 0 2px rgba(248,113,113,.2)';
+  } else if(pct<30){
+    waterBg='linear-gradient(to top,rgba(160,100,0,.95),rgba(251,191,36,.6))';
+    glowColor='0 0 16px 3px rgba(251,191,36,.45),inset 0 0 0 2px rgba(251,191,36,.15)';
+  } else {
+    waterBg='linear-gradient(to top,rgba(0,100,200,.95),rgba(0,160,240,.8),rgba(45,212,191,.55))';
+    glowColor='0 0 14px 2px rgba(45,212,191,.3),inset 0 0 0 2px rgba(45,212,191,.08)';
+  }
+  fill.style.background=waterBg;
+  if(glow)glow.style.boxShadow=glowColor;
 
   // Level number
   if(S.isFull===1){
     set('levelNum','FULL<span class="pct" style="font-size:16px"> TANK</span>');
-  }else{
+  } else {
     set('levelNum',pct+'<span class="pct">%</span>');
   }
+
   // Progress bar
   const bar=document.getElementById('lvlBar');
   bar.style.width=pct+'%';
@@ -938,23 +1230,15 @@ function renderDash(){
 
   document.getElementById('estEmpty').textContent=S.usage>0?fmtHrs(S.vol/S.usage):'∞';
   if(S.lastUpdate)set('updLbl','Updated '+S.lastUpdate.toLocaleTimeString());
-  const pc=document.getElementById('fc-cur');
-  if(pc){
-    pc.textContent=pct+'%';
-    if(S.usage>0){
-      const pph=(S.usage/S.total)*100;
-      document.getElementById('fc-24').textContent=Math.max(0,pct-pph*24).toFixed(0)+'%';
-      document.getElementById('fc-3d').textContent=Math.max(0,pct-pph*72).toFixed(0)+'%';
-      document.getElementById('fc-emp').textContent=fmtHrs(S.vol/S.usage);
-    }
-  }
 }
 
 // ═══════════════════════════════════════════
 //  ANALYTICS
 // ═══════════════════════════════════════════
 function renderAnalytics(){
-  const h=S.history;if(!h||h.length<4)return;
+  // Usage by time of day from live history
+  const h=S.history.filter(v=>v!=null);
+  if(h.length<4)return;
   const q=Math.floor(h.length/4);
   const segs=[h.slice(0,q),h.slice(q,q*2),h.slice(q*2,q*3),h.slice(q*3)];
   const vals=segs.map(seg=>seg.reduce((s,v,i)=>i>0&&seg[i-1]>v?s+(seg[i-1]-v):s,0));
@@ -964,8 +1248,179 @@ function renderAnalytics(){
     set('u-'+id,l+' L');
     document.getElementById('b-'+id).style.width=(vals[i]/mx*100)+'%';
   });
+
+  // Insights
+  const todayKey=new Date().toISOString().slice(0,10);
+  let todayUsed=0;
+  Object.entries(hourlyData).forEach(([k,v])=>{if(k.startsWith(todayKey))todayUsed+=v.usedL||0;});
+  set('ins-today',todayUsed.toFixed(0)+' L');
+  const todayPct=S.total>0?(todayUsed/S.total*100).toFixed(0):0;
+  set('ins-today-sub',todayPct+'% of capacity');
+
+  // 7-day average
+  const days=Object.keys(dailyData).slice(-7);
+  const avg7=days.length?days.reduce((s,k)=>s+(dailyData[k]||0),0)/days.length:S.usage*24;
+  set('ins-avg',avg7.toFixed(0)+' L');
+
+  // Peak hour from hourly data
+  let peakHour=null,peakUsed=0;
+  Object.entries(hourlyData).forEach(([k,v])=>{if((v.usedL||0)>peakUsed){peakUsed=v.usedL;peakHour=k.slice(-2);}});
+  set('ins-peak',peakHour!=null?peakHour+':00':'--:00');
+  set('ins-peak-sub',peakUsed>0?peakUsed.toFixed(0)+' L/hr':'Highest use');
+
+  // Forecast
+  const pct=Math.max(0,Math.min(100,S.m));
+  const fc=document.getElementById('fc-cur');
+  if(fc){
+    fc.textContent=pct+'%';
+    if(S.usage>0){
+      const pph=(S.usage/S.total)*100;
+      const f6=Math.max(0,pct-pph*6);
+      const f24=Math.max(0,pct-pph*24);
+      const f3d=Math.max(0,pct-pph*72);
+      const empH=S.vol/S.usage;
+      set('fc-6',f6.toFixed(0)+'%');
+      set('fc-24',f24.toFixed(0)+'%');
+      set('fc-3d',f3d.toFixed(0)+'%');
+      set('fc-emp',fmtHrs(empH));
+      // Animated bars
+      const setBar=(id,val)=>{const el=document.getElementById(id);if(el)el.style.width=val+'%';};
+      setBar('fc-bar-now',pct);setBar('fc-bar-6',f6);setBar('fc-bar-24',f24);setBar('fc-bar-3d',f3d);
+      // Smart advice
+      let advice='';
+      if(empH<12)advice='⚡ <strong>Urgent:</strong> Tank will empty in under 12 hours at current usage. Refill now or reduce consumption immediately.';
+      else if(empH<24)advice='⚠️ <strong>Caution:</strong> Less than 24 hours of water remaining. Plan a refill today.';
+      else if(empH<72)advice='ℹ️ <strong>Tip:</strong> You have about '+Math.floor(empH/24)+' days of water left. Schedule a refill this week.';
+      else if(pct>80)advice='✅ <strong>Good:</strong> Tank is well stocked. At current usage you\'re set for '+Math.floor(empH/24)+' days.';
+      else advice='💧 <strong>Normal:</strong> Usage is steady. Check back tomorrow to track consumption trends.';
+      set('fc-advice',advice);
+      unlockAch(7);
+    } else {
+      ['fc-6','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));
+      ['fc-bar-6','fc-bar-24','fc-bar-3d'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.width='0%';});
+      set('fc-advice','<em>Usage rate not yet available. Data accumulates over time.</em>');
+    }
+  }
 }
-function renderChart(){if(!chart)return;chart.data.datasets[0].data=[...S.history];chart.update('none');}
+
+function renderChart(){
+  if(!chart)return;
+  const now=new Date();
+  const labels=Array.from({length:24},(_,i)=>{const h=new Date(now);h.setHours(h.getHours()-(23-i));return h.getHours()+':00';});
+  chart.data.labels=labels;
+  chart.data.datasets[0].data=S.history.map(v=>v===null?NaN:v);
+  chart.update('none');
+}
+
+function renderHeatmap(){
+  const grid=document.getElementById('hmGrid');
+  const lbls=document.getElementById('hmLabels');
+  if(!grid||!lbls)return;
+  const now=new Date();
+  const cells=[];const labels=[];
+  const usages=[];
+  for(let i=0;i<24;i++){
+    const h=new Date(now);h.setHours(h.getHours()-(23-i));
+    const hh=String(h.getHours()).padStart(2,'0');
+    const key=`${h.toISOString().slice(0,10)}-${hh}`;
+    const used=(hourlyData[key]||{}).usedL||0;
+    usages.push(used);
+    labels.push(i%4===0?hh:'');
+  }
+  const mx=Math.max(...usages,1);
+  lbls.innerHTML=labels.map(l=>`<span>${l}</span>`).join('');
+  grid.innerHTML=usages.map((u,i)=>{
+    const alpha=0.08+0.72*(u/mx);
+    const now2=new Date();now2.setHours(now2.getHours()-(23-i));
+    const tooltip=now2.getHours()+':00 — '+u.toFixed(1)+' L';
+    return`<div class="hm-cell" title="${tooltip}" style="background:rgba(45,212,191,${alpha.toFixed(2)})"></div>`;
+  }).join('');
+}
+
+function renderDayBars(){
+  const barsEl=document.getElementById('dayBars');
+  const lblsEl=document.getElementById('dayBarLabels');
+  if(!barsEl||!lblsEl)return;
+  // Build 7 days of data
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const key=d.toISOString().slice(0,10);
+    const dayUsed=dailyData[key]||(()=>{
+      // Compute from hourly
+      let tot=0;Object.entries(hourlyData).forEach(([k,v])=>{if(k.startsWith(key))tot+=v.usedL||0;});
+      if(tot>0){dailyData[key]=tot;localStorage.setItem(DAILY_KEY,JSON.stringify(dailyData));}
+      return tot;
+    })();
+    const lbl=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+    days.push({key,val:dayUsed,lbl,isToday:i===0});
+  }
+  const mx=Math.max(...days.map(d=>d.val),1);
+  barsEl.innerHTML=days.map(d=>{
+    const h=Math.max(4,(d.val/mx)*60);
+    const color=d.isToday?'linear-gradient(to top,var(--pri),rgba(45,212,191,.4))':'linear-gradient(to top,rgba(45,212,191,.5),rgba(45,212,191,.15))';
+    return`<div class="day-bar-wrap"><div class="day-bar" style="height:${h}px;background:${color}"></div><div class="day-bar-val">${d.val>0?d.val.toFixed(0):''}</div></div>`;
+  }).join('');
+  lblsEl.innerHTML=days.map(d=>`<div class="day-bar-wrap"><div class="day-bar-lbl" style="color:${d.isToday?'var(--pri)':'var(--muted)'}">${d.lbl}</div></div>`).join('');
+}
+
+function resetConsumption(){
+  if(!confirm('Reset all daily consumption data?'))return;
+  dailyData={};hourlyData={};
+  localStorage.removeItem(DAILY_KEY);localStorage.removeItem(HOURLY_KEY);
+  renderDayBars();renderHeatmap();renderAnalytics();
+  showToast('Consumption data reset','ok',2500);
+}
+
+// ═══════════════════════════════════════════
+//  CHART.JS
+// ═══════════════════════════════════════════
+function initChart(){
+  const ctx=document.getElementById('histChart').getContext('2d');
+  const now=new Date();
+  const labels=Array.from({length:24},(_,i)=>{const h=new Date(now);h.setHours(h.getHours()-(23-i));return h.getHours()+':00';});
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{label:'Level %',data:Array(24).fill(NaN),
+      borderColor:'#2DD4BF',
+      backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,'rgba(45,212,191,.3)');g.addColorStop(1,'rgba(45,212,191,0)');return g;},
+      borderWidth:2,fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#2DD4BF',pointHoverRadius:6,
+      spanGaps:false,
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,titleColor:'#2DD4BF',bodyColor:'#cce7ff',callbacks:{label:c=>isNaN(c.parsed.y)?'No data':` ${c.parsed.y.toFixed(0)}% level`}}},
+      scales:{x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},maxTicksLimit:6}},
+              y:{min:0,max:100,grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},callback:v=>v+'%'}}}}
+  });
+}
+
+// ═══════════════════════════════════════════
+//  TIPS
+// ═══════════════════════════════════════════
+function renderTips(){
+  const t=TIPS[tipIdx];
+  document.getElementById('tipCat').textContent=t.cat;
+  document.getElementById('tipTxt').textContent=t.txt;
+  const prog=document.getElementById('tipProg');
+  if(prog)prog.style.width=((tipIdx+1)/TIPS.length*100)+'%';
+  document.getElementById('allTips').innerHTML=TIPS.map((t,i)=>`
+    <div class="tip-fact" style="opacity:${i===tipIdx?1:.8};border-left-color:${i===tipIdx?'var(--pri)':'var(--border)'}">
+      <div class="tip-fact-icon">${t.icon}</div>
+      <div class="tip-fact-body">
+        <div class="tip-fact-cat">${t.cat}</div>
+        <div class="tip-fact-txt">${t.txt}</div>
+        <div class="tip-saving">💰 ${t.saving}</div>
+      </div>
+    </div>`).join('');
+}
+function nextTip(){tipIdx=(tipIdx+1)%TIPS.length;renderTips();}
+
+function renderAchievements(){
+  const earned=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');
+  document.getElementById('achGrid').innerHTML=ACHIEVEMENTS.map((a,i)=>`<div class="ach ${earned.includes(i)?'earned':''}"><div class="ach-icon">${a.icon}</div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`).join('');
+}
+function unlockAch(i){const e=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');if(!e.includes(i)){e.push(i);localStorage.setItem('tasni_ach',JSON.stringify(e));renderAchievements();}}
+
 function renderAlertLog(){
   const el=document.getElementById('alertLog');
   if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div>';return;}
@@ -977,22 +1432,17 @@ function renderAlertLog(){
 }
 
 // ═══════════════════════════════════════════
-//  CHART.JS
+//  ABOUT — session info
 // ═══════════════════════════════════════════
-function initChart(){
-  const ctx=document.getElementById('histChart').getContext('2d');
-  const labels=Array.from({length:24},(_,i)=>{const h=new Date();h.setHours(h.getHours()-(23-i));return h.getHours()+':00';});
-  chart=new Chart(ctx,{
-    type:'line',
-    data:{labels,datasets:[{label:'Level %',data:Array(24).fill(0),
-      borderColor:'#2DD4BF',
-      backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,'rgba(45,212,191,.3)');g.addColorStop(1,'rgba(45,212,191,0)');return g;},
-      borderWidth:2,fill:true,tension:.4,pointRadius:2,pointBackgroundColor:'#2DD4BF',pointHoverRadius:5,
-    }]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,titleColor:'#2DD4BF',bodyColor:'#cce7ff',callbacks:{label:c=>` ${c.parsed.y.toFixed(0)}% level`}}},
-      scales:{x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},maxTicksLimit:6}},y:{min:0,max:100,grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},callback:v=>v+'%'}}}}
-  });
+function updateAbout(){
+  const el=document.getElementById('ab-session');
+  if(el)el.textContent=SESSION_START.toLocaleTimeString();
+  const pts=document.getElementById('ab-points');
+  if(pts)pts.textContent=dataPointCount;
+  const al=document.getElementById('ab-alerts');
+  if(al)al.textContent=alerts.length;
+  const up=document.getElementById('ab-uptime');
+  if(up){const s=Math.floor((Date.now()-SESSION_START)/1000);up.textContent=fmtUp(s);}
 }
 
 // ═══════════════════════════════════════════
@@ -1061,7 +1511,7 @@ function startDemo(){
 // ═══════════════════════════════════════════
 //  NOTIFICATIONS
 // ═══════════════════════════════════════════
-function askNotif(){Notification.requestPermission().then(p=>{if(p==='granted'){document.getElementById('notifBar').classList.add('hidden');unlockAch(2);push('ai','🔔 Notifications enabled!');}});}
+function askNotif(){Notification.requestPermission().then(p=>{if(p==='granted'){document.getElementById('notifBar').classList.add('hidden');unlockAch(2);push('ai','🔔 Notifications enabled!');showToast('Notifications ON — alerts will fire even when app is closed','ok',5000);}});}
 function checkNotifPerm(){if(Notification.permission==='granted')document.getElementById('notifBar').classList.add('hidden');}
 
 // ═══════════════════════════════════════════
@@ -1078,21 +1528,6 @@ function showToast(msg,type='info',duration=4000){
 }
 
 // ═══════════════════════════════════════════
-//  TIPS & ACHIEVEMENTS
-// ═══════════════════════════════════════════
-function renderTips(){
-  document.getElementById('tipCat').textContent=TIPS[tipIdx].cat;
-  document.getElementById('tipTxt').textContent=TIPS[tipIdx].txt;
-  document.getElementById('allTips').innerHTML=TIPS.map(t=>`<div class="tip-card"><div class="tip-cat" style="margin-bottom:8px">${t.cat}</div><div style="font-size:13px;line-height:1.6;font-weight:500">${t.txt}</div></div>`).join('');
-}
-function nextTip(){tipIdx=(tipIdx+1)%TIPS.length;renderTips();}
-function renderAchievements(){
-  const earned=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');
-  document.getElementById('achGrid').innerHTML=ACHIEVEMENTS.map((a,i)=>`<div class="ach ${earned.includes(i)?'earned':''}"><div class="ach-icon">${a.icon}</div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`).join('');
-}
-function unlockAch(i){const e=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');if(!e.includes(i)){e.push(i);localStorage.setItem('tasni_ach',JSON.stringify(e));renderAchievements();}}
-
-// ═══════════════════════════════════════════
 //  HELPERS
 // ═══════════════════════════════════════════
 function g(id){const e=document.getElementById(id);return e?e.value.trim():'';}
@@ -1105,9 +1540,10 @@ function goTab(name,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
-  if(name==='analytics')unlockAch(1);
+  if(name==='analytics'){unlockAch(1);renderAnalytics();renderDayBars();renderHeatmap();}
   if(name==='tips'){unlockAch(5);renderTips();}
   if(name==='settings')unlockAch(4);
+  if(name==='about'){unlockAch(8);updateAbout();}
 }
 function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
 </script>
