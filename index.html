@@ -224,7 +224,14 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .dev-sub{font-size:11px;color:var(--muted);margin-bottom:6px}
 .made-in{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text);background:rgba(255,153,0,.08);border:1px solid rgba(255,153,0,.2);border-radius:20px;padding:3px 12px;margin-top:6px}
 .india-flag{font-size:14px}
-/* Tech stack pills */
+/* India waves */
+.india-waves{flex-shrink:0;overflow:hidden;border-radius:4px}
+.iw{transform-origin:center}
+.iw1{animation:waveFlow 2.2s ease-in-out infinite}
+.iw2{animation:waveFlow 2.6s ease-in-out infinite .3s}
+.iw3{animation:waveFlow 2.0s ease-in-out infinite .6s}
+@keyframes waveFlow{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(-5px) scaleY(.88)}}
+/* Tech pills */
 .tech-pills{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}
 .tech-pill{padding:3px 10px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:1px;background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.15);color:var(--muted);font-family:var(--head)}
 
@@ -367,29 +374,60 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 
   <!-- ANALYTICS -->
   <div class="tab" id="tab-analytics">
+
+    <!-- Water Health Score -->
+    <div class="card" id="healthCard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="card-title" style="margin:0">Water Health Score</div>
+        <div class="badge b-ok" id="healthBadge" style="margin:0">GOOD</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <!-- Animated score ring -->
+        <div style="position:relative;flex-shrink:0;width:72px;height:72px">
+          <svg width="72" height="72" viewBox="0 0 72 72">
+            <circle cx="36" cy="36" r="28" fill="none" stroke="rgba(45,212,191,.1)" stroke-width="7"/>
+            <circle id="scoreRing" cx="36" cy="36" r="28" fill="none" stroke="var(--pri)" stroke-width="7"
+              stroke-linecap="round" stroke-dasharray="175.9" stroke-dashoffset="175.9"
+              transform="rotate(-90 36 36)" style="transition:stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1),stroke .8s"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:18px;font-weight:700;color:var(--pri)" id="scoreNum">--</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--muted);line-height:1.7" id="healthDesc">Score reflects tank level, usage rate, and refill efficiency. Higher = healthier water security.</div>
+        </div>
+      </div>
+      <!-- 5 mini metric badges -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:12px" id="healthFactors"></div>
+    </div>
+
     <!-- Hourly history chart -->
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div class="card-title" style="margin:0">Hourly Level History</div>
+        <div class="card-title" style="margin:0">24-Hour Level History</div>
         <div style="font-family:var(--mono);font-size:10px;color:var(--muted)" id="chartRange">Last 24 hrs</div>
       </div>
       <div class="chart-box"><canvas id="histChart"></canvas></div>
+      <!-- Chart interpretation line -->
+      <div id="chartInsight" style="margin-top:8px;font-size:11px;color:var(--muted);padding:7px 10px;background:rgba(45,212,191,.04);border-radius:7px;border-left:2px solid var(--pri);line-height:1.6;min-height:32px"></div>
       <!-- Hourly heatmap -->
       <div style="margin-top:14px">
-        <div class="card-title" style="margin-bottom:6px">Usage Intensity by Hour</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="card-title" style="margin:0">Usage Intensity by Hour</div>
+          <div style="font-size:9px;color:var(--muted)">Darker = more water used</div>
+        </div>
         <div class="hm-lbl" id="hmLabels"></div>
         <div class="heatmap-grid" id="hmGrid"></div>
-        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:2px"><span>Low use</span><span>High use</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:4px"><span>⬜ Low use</span><span id="hmPeakLbl">Peak hour: --</span><span>🟦 High use</span></div>
       </div>
     </div>
 
-    <!-- Insights row -->
+    <!-- Insight cards row -->
     <div class="insight-row">
-      <div class="insight-card">
+      <div class="insight-card" id="insToday">
         <div class="insight-icon">💧</div>
         <div class="insight-lbl">Today Used</div>
         <div class="insight-val" id="ins-today">-- L</div>
-        <div class="insight-sub" id="ins-today-sub">--</div>
+        <div class="insight-sub" id="ins-today-sub">of capacity</div>
       </div>
       <div class="insight-card">
         <div class="insight-icon">📅</div>
@@ -405,66 +443,81 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
 
-    <!-- Usage by time of day -->
+    <!-- Usage by time of day — with explanations -->
     <div class="card">
-      <div class="card-title">Usage by Time of Day</div>
+      <div class="card-title">Usage Pattern by Time of Day</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.55">Shows estimated litres consumed in each time window. Helps identify when your household uses the most water.</div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>🌅 Morning (6–12)</span><span class="ubval" id="u-morn">-- L</span></div>
+        <div class="ubar-lbl"><span>🌅 Morning <small style="color:var(--muted)">(6–12)</small></span><span class="ubval" id="u-morn">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-morn" style="width:0%"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px" id="tip-morn">Showers, cooking, dishes</div>
       </div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>☀️ Afternoon (12–18)</span><span class="ubval" id="u-aft">-- L</span></div>
+        <div class="ubar-lbl"><span>☀️ Afternoon <small style="color:var(--muted)">(12–18)</small></span><span class="ubval" id="u-aft">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-aft" style="width:0%"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px" id="tip-aft">Lunch, cleaning, gardening</div>
       </div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>🌆 Evening (18–24)</span><span class="ubval" id="u-eve">-- L</span></div>
+        <div class="ubar-lbl"><span>🌆 Evening <small style="color:var(--muted)">(18–24)</small></span><span class="ubval" id="u-eve">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-eve" style="width:0%"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px" id="tip-eve">Dinner, bathing, laundry</div>
       </div>
       <div class="ubar-row">
-        <div class="ubar-lbl"><span>🌙 Night (0–6)</span><span class="ubval" id="u-ngt">-- L</span></div>
+        <div class="ubar-lbl"><span>🌙 Night <small style="color:var(--muted)">(0–6)</small></span><span class="ubval" id="u-ngt">-- L</span></div>
         <div class="ubar"><div class="ubar-fill" id="b-ngt" style="width:0%"></div></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px" id="tip-ngt">Low usage expected — high reading may indicate a leak</div>
+      </div>
+      <!-- Leak suspicion banner -->
+      <div id="leakBanner" class="hidden" style="margin-top:10px;padding:9px 12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:8px;font-size:11px;color:var(--danger);line-height:1.6">
+        ⚠️ <strong>Possible leak detected:</strong> Night-time usage is unusually high. Check all taps and connections.
       </div>
     </div>
 
-    <!-- 7-day bar chart -->
+    <!-- 7-day bar chart — with explanation -->
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div class="card-title" style="margin:0">Daily Consumption (L)</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="card-title" style="margin:0">Daily Consumption — 7 Days</div>
         <button class="btn btn-d btn-sm" onclick="resetConsumption()" style="font-size:9px;padding:4px 10px">↺ Reset</button>
       </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Each bar shows total litres consumed that day. <span style="color:var(--pri)">Today</span> is highlighted. Taller = more usage.</div>
       <div class="day-bar-row" id="dayBars"></div>
       <div style="display:flex;gap:4px" id="dayBarLabels"></div>
+      <!-- Weekly summary -->
+      <div id="weekSummary" style="margin-top:10px;font-size:11px;color:var(--muted);line-height:1.65;padding:8px 10px;background:rgba(45,212,191,.04);border-radius:8px;border-left:2px solid var(--ok)"></div>
     </div>
 
-    <!-- Realistic Forecast -->
+    <!-- Smart Forecast — with explanations -->
     <div class="card">
-      <div class="card-title">Smart Forecast</div>
+      <div class="card-title">Smart Water Forecast</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.55">Projected tank level based on your current average usage rate. Helps you plan refills before running out.</div>
       <div class="fc-row">
-        <span>Now</span>
+        <span style="min-width:60px">Now</span>
         <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-now" style="width:100%"></div></div>
         <span class="fc-val" id="fc-cur">--</span>
       </div>
       <div class="fc-row">
-        <span>In 6 hrs</span>
+        <span style="min-width:60px">+6 hrs</span>
         <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-6" style="width:0%"></div></div>
         <span class="fc-val" id="fc-6">--</span>
       </div>
       <div class="fc-row">
-        <span>In 24 hrs</span>
+        <span style="min-width:60px">+24 hrs</span>
         <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-24" style="width:0%"></div></div>
         <span class="fc-val" id="fc-24">--</span>
       </div>
       <div class="fc-row">
-        <span>In 3 days</span>
+        <span style="min-width:60px">+3 days</span>
         <div class="fc-bar-wrap"><div class="fc-bar" id="fc-bar-3d" style="width:0%"></div></div>
         <span class="fc-val" id="fc-3d">--</span>
       </div>
-      <div class="fc-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:12px">
+      <div class="fc-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:12px">
         <span>🏁 Empty in</span>
-        <span class="fc-val" id="fc-emp">--</span>
+        <span class="fc-val" id="fc-emp" style="font-size:16px">--</span>
       </div>
-      <div id="fc-advice" style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6;padding:8px 10px;background:rgba(45,212,191,.04);border-radius:8px;border-left:2px solid var(--pri)"></div>
+      <!-- Smart advice box -->
+      <div id="fc-advice" style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.65;padding:10px 12px;background:rgba(45,212,191,.04);border-radius:8px;border-left:2px solid var(--pri)"></div>
     </div>
+
   </div>
 
   <!-- ALERTS -->
@@ -486,7 +539,8 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="card-title">Alert Settings</div>
       <div class="tog-row"><div><div class="tog-lbl">🚨 Critical (&lt;10%)</div><div class="tog-sub">Immediate refill needed</div></div><label class="toggle"><input type="checkbox" id="t-crit" checked><div class="tslider"></div></label></div>
       <div class="tog-row"><div><div class="tog-lbl">⚠️ Low Level (&lt;30%)</div><div class="tog-sub">Schedule a refill</div></div><label class="toggle"><input type="checkbox" id="t-low" checked><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">💧 10% Drop Alert</div><div class="tog-sub">Every 10% decrease fires alert</div></div><label class="toggle"><input type="checkbox" id="t-drop10" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">💧 10% Drop Alert</div><div class="tog-sub">Every 10% decrease fires alert + sound</div></div><label class="toggle"><input type="checkbox" id="t-drop10" checked><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">⬆️ 10% Fill Alert</div><div class="tog-sub">Every 10% increase fires sound + notification</div></div><label class="toggle"><input type="checkbox" id="t-fill10" checked><div class="tslider"></div></label></div>
       <div class="tog-row"><div><div class="tog-lbl">📉 Sudden Drop</div><div class="tog-sub">Possible leak detection</div></div><label class="toggle"><input type="checkbox" id="t-drop" checked><div class="tslider"></div></label></div>
       <div class="tog-row"><div><div class="tog-lbl">✅ Refilled (&gt;90%)</div><div class="tog-sub">Notify when refill completes</div></div><label class="toggle"><input type="checkbox" id="t-fill" checked><div class="tslider"></div></label></div>
       <div class="tog-row"><div><div class="tog-lbl">💧 Full Tank (100%)</div><div class="tog-sub">Maximum celebration alert</div></div><label class="toggle"><input type="checkbox" id="t-full" checked><div class="tslider"></div></label></div>
@@ -596,22 +650,24 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="about-dev">
         <div class="dev-name">Mohammed Imran Ahmed Soofi</div>
         <div class="dev-sub">Founder & Engineer — Tasni Trading Private Limited</div>
-        <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-top:8px">
-          Designed and developed end-to-end — from ESP32 embedded firmware (Arduino/C++) to cloud MQTT infrastructure, PWA dashboard, and Telegram bot integrations. Built for real-world commercial IoT deployment.
+        <div style="font-size:12px;color:var(--muted);line-height:1.75;margin-top:10px;padding:10px 12px;background:rgba(45,212,191,.04);border-radius:10px;border-left:2px solid var(--pri)">
+          Designed and developed <strong style="color:var(--pri)">end-to-end</strong> — from embedded hardware to cloud infrastructure, intelligent PWA dashboard, alert systems, and analytics engine. Built for real-world commercial IoT deployment.
         </div>
-        <div class="made-in">
-          <span class="india-flag">🇮🇳</span>
-          <span>Made in India</span>
-        </div>
-        <div class="tech-pills">
-          <span class="tech-pill">ESP32</span>
-          <span class="tech-pill">Arduino C++</span>
-          <span class="tech-pill">MQTT/EMQX</span>
-          <span class="tech-pill">PWA</span>
-          <span class="tech-pill">Chart.js</span>
-          <span class="tech-pill">Web Audio API</span>
-          <span class="tech-pill">NVS Flash</span>
-          <span class="tech-pill">WebSockets</span>
+        <!-- Made in India — 3 animated waves: Saffron · White · Green -->
+        <div class="made-in" style="margin-top:14px;padding:8px 18px;gap:10px">
+          <div class="india-waves">
+            <svg width="38" height="22" viewBox="0 0 38 22" xmlns="http://www.w3.org/2000/svg">
+              <!-- Saffron wave -->
+              <path class="iw iw1" d="M0,3 Q5,0 9,3 Q14,6 19,3 Q24,0 28,3 Q33,6 38,3 L38,8 Q33,11 28,8 Q24,5 19,8 Q14,11 9,8 Q5,5 0,8 Z" fill="#FF9933"/>
+              <!-- White wave -->
+              <path class="iw iw2" d="M0,9 Q5,6 9,9 Q14,12 19,9 Q24,6 28,9 Q33,12 38,9 L38,14 Q33,17 28,14 Q24,11 19,14 Q14,17 9,14 Q5,11 0,14 Z" fill="#FFFFFF" fill-opacity="0.92"/>
+              <!-- Chakra dot (Navy blue) -->
+              <circle cx="19" cy="11" r="1.5" fill="#000080" opacity="0.7"/>
+              <!-- India green wave -->
+              <path class="iw iw3" d="M0,15 Q5,12 9,15 Q14,18 19,15 Q24,12 28,15 Q33,18 38,15 L38,20 Q33,23 28,20 Q24,17 19,20 Q14,23 9,20 Q5,17 0,20 Z" fill="#138808"/>
+            </svg>
+          </div>
+          <span style="font-weight:700;font-size:12px;letter-spacing:.05em">Made in India</span>
         </div>
       </div>
     </div>
@@ -958,7 +1014,7 @@ function checkAlerts(prev,cur,isFull){
     push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
   }
 
-  // Every 10% drop
+  // Every 10% DROP while draining
   if(ck('t-drop10')){
     const prevBand=Math.floor(prev/10);
     const curBand=Math.floor(cur/10);
@@ -970,16 +1026,45 @@ function checkAlerts(prev,cur,isFull){
     }
   }
 
+  // Every 10% RISE while filling — distinct ascending tones
+  if(ck('t-fill10')){
+    const prevBand=Math.floor(prev/10);
+    const curBand=Math.floor(cur/10);
+    if(curBand>prevBand&&cur>10&&prev>=0){
+      for(let b=prevBand+1;b<=curBand&&b<=9;b++){
+        const milestone=b*10;
+        push('ai','⬆️ FILLING: Tank reached '+milestone+'%'+(milestone===90?' — almost full!':milestone===50?' — halfway there!':'')+'');
+        playSound('fill_10',false,milestone);
+      }
+    }
+  }
+
   if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
 
   if(prev<90&&cur>=90&&ck('t-fill')){
-    push('ai','✅ REFILLED: Tank is now above 90%.');
+    push('ai','✅ REFILLING: Tank above 90% — almost full!');
     playSound('refill');
   }
 
   if(!S._wasFull&&isFull===1&&ck('t-full')){
     push('ai','💧 FULL TANK: Water level is at maximum!',true);
     playSound('full_tank');
+    // Extra push notification for full tank
+    if(Notification.permission==='granted'){
+      try{
+        navigator.serviceWorker.ready.then(reg=>{
+          reg.showNotification('🎉 TASNI — Tank Full!',{
+            body:'Your water tank has reached 100% capacity. You can stop filling now.',
+            icon:'icon.svg',badge:'icon.svg',
+            tag:'tasni-full-'+Date.now(),
+            vibrate:[200,80,200,80,400,80,600,80,1000],
+            requireInteraction:true,
+            data:{url:'./'},
+            actions:[{action:'view',title:'View Dashboard'}]
+          });
+        });
+      }catch(e){}
+    }
   }
   S._wasFull=isFull===1;
 }
@@ -1054,7 +1139,7 @@ function _noise(ctx,startT,dur,vol){
   g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+startT+dur);
   src.start(ctx.currentTime+startT);src.stop(ctx.currentTime+startT+dur+0.05);
 }
-function playSound(type,critical){
+function playSound(type,critical,milestone){
   try{
     const ctx=getAudioCtx();
     if(type==='full_tank'){
@@ -1081,6 +1166,22 @@ function playSound(type,critical){
     if(type==='refill'){
       [523,659,784,1047,1319,1568].forEach((f,i)=>{_osc(ctx,f,i*0.11,0.35,'sine',0.20);if(i%2===0)_osc(ctx,f*1.5,i*0.11+0.05,0.20,'sine',0.08);});
       _noise(ctx,0,0.06,0.15);return;
+    }
+    if(type==='fill_10'){
+      // Ascending water-drop tones — pitch rises with milestone (10%→low, 90%→high)
+      const pct=milestone||50;
+      const baseFreq=300+(pct/100)*900; // 300Hz at 10%, 1200Hz at 100%
+      _osc(ctx,baseFreq*0.5, 0,    0.06,'sine',0.12,baseFreq*0.8);
+      _osc(ctx,baseFreq,     0.05, 0.22,'sine',0.22,baseFreq*1.05);
+      _osc(ctx,baseFreq*1.2, 0.15, 0.18,'sine',0.18,baseFreq*1.35);
+      _osc(ctx,baseFreq*1.5, 0.28, 0.25,'sine',0.14,baseFreq*1.7);
+      _noise(ctx,0.02,0.04,0.12);
+      // Extra sparkle at high milestones (70%+)
+      if(pct>=70){
+        _osc(ctx,baseFreq*2,0.32,0.20,'sine',0.12);
+        _osc(ctx,baseFreq*2.5,0.42,0.18,'sine',0.09);
+      }
+      return;
     }
     if(type==='aw'){
       [700,700,900].forEach((f,i)=>{_osc(ctx,f,i*0.28,0.20,'sine',0.22);_osc(ctx,f*0.5,i*0.28,0.20,'square',0.08);_noise(ctx,i*0.28,0.05,0.18);});
@@ -1233,23 +1334,30 @@ function renderDash(){
 }
 
 // ═══════════════════════════════════════════
-//  ANALYTICS
+//  ANALYTICS — rich render
 // ═══════════════════════════════════════════
 function renderAnalytics(){
-  // Usage by time of day from live history
   const h=S.history.filter(v=>v!=null);
-  if(h.length<4)return;
-  const q=Math.floor(h.length/4);
-  const segs=[h.slice(0,q),h.slice(q,q*2),h.slice(q*2,q*3),h.slice(q*3)];
-  const vals=segs.map(seg=>seg.reduce((s,v,i)=>i>0&&seg[i-1]>v?s+(seg[i-1]-v):s,0));
-  const mx=Math.max(...vals,1);
-  ['morn','aft','eve','ngt'].forEach((id,i)=>{
-    const l=((vals[i]/100)*S.total).toFixed(0);
-    set('u-'+id,l+' L');
-    document.getElementById('b-'+id).style.width=(vals[i]/mx*100)+'%';
-  });
+  const pct=Math.max(0,Math.min(100,S.m));
 
-  // Insights
+  // ── 1. Usage bars by time of day ──
+  if(h.length>=4){
+    const q=Math.floor(h.length/4);
+    const segs=[h.slice(0,q),h.slice(q,q*2),h.slice(q*2,q*3),h.slice(q*3)];
+    const vals=segs.map(seg=>seg.reduce((s,v,i)=>i>0&&seg[i-1]>v?s+(seg[i-1]-v):s,0));
+    const mx=Math.max(...vals,1);
+    ['morn','aft','eve','ngt'].forEach((id,i)=>{
+      const l=((vals[i]/100)*S.total).toFixed(0);
+      set('u-'+id,l+' L');
+      document.getElementById('b-'+id).style.width=(vals[i]/mx*100)+'%';
+    });
+    // Night-time leak heuristic
+    const nightPct=vals[3]/mx*100;
+    const lb=document.getElementById('leakBanner');
+    if(lb){if(nightPct>35&&vals[3]>0)lb.classList.remove('hidden');else lb.classList.add('hidden');}
+  }
+
+  // ── 2. Insights ──
   const todayKey=new Date().toISOString().slice(0,10);
   let todayUsed=0;
   Object.entries(hourlyData).forEach(([k,v])=>{if(k.startsWith(todayKey))todayUsed+=v.usedL||0;});
@@ -1257,19 +1365,101 @@ function renderAnalytics(){
   const todayPct=S.total>0?(todayUsed/S.total*100).toFixed(0):0;
   set('ins-today-sub',todayPct+'% of capacity');
 
-  // 7-day average
-  const days=Object.keys(dailyData).slice(-7);
-  const avg7=days.length?days.reduce((s,k)=>s+(dailyData[k]||0),0)/days.length:S.usage*24;
+  const days7=Object.keys(dailyData).slice(-7);
+  const avg7=days7.length?days7.reduce((s,k)=>s+(dailyData[k]||0),0)/days7.length:S.usage*24;
   set('ins-avg',avg7.toFixed(0)+' L');
+  set('ins-avg-sub',days7.length?'Past '+days7.length+' days':'Est. from usage rate');
 
-  // Peak hour from hourly data
   let peakHour=null,peakUsed=0;
   Object.entries(hourlyData).forEach(([k,v])=>{if((v.usedL||0)>peakUsed){peakUsed=v.usedL;peakHour=k.slice(-2);}});
   set('ins-peak',peakHour!=null?peakHour+':00':'--:00');
-  set('ins-peak-sub',peakUsed>0?peakUsed.toFixed(0)+' L/hr':'Highest use');
+  set('ins-peak-sub',peakUsed>0?peakUsed.toFixed(0)+' L/hr':'No data yet');
 
-  // Forecast
-  const pct=Math.max(0,Math.min(100,S.m));
+  // ── 3. Water Health Score ──
+  let score=0;
+  // Factor A: level (40 pts max)
+  score+=Math.round(pct*0.40);
+  // Factor B: usage efficiency (30 pts) — lower rate vs capacity is better
+  const usageRatio=S.usage>0?(S.usage/(S.total/24)):0;
+  const usageScore=Math.max(0,30-Math.round(usageRatio*60));
+  score+=usageScore;
+  // Factor C: data freshness (20 pts)
+  const ageSec=S.lastUpdate?(Date.now()-S.lastUpdate.getTime())/1000:9999;
+  score+=ageSec<30?20:ageSec<120?15:ageSec<300?8:0;
+  // Factor D: no critical alert recently (10 pts)
+  const hasCrit=alerts.slice(0,5).some(a=>a.type==='ac');
+  score+=hasCrit?0:10;
+  score=Math.min(100,Math.max(0,score));
+
+  // Animate ring
+  const ring=document.getElementById('scoreRing');
+  if(ring){
+    const dash=175.9;
+    const offset=dash*(1-score/100);
+    ring.style.strokeDashoffset=offset;
+    ring.style.stroke=score>=70?'var(--ok)':score>=40?'var(--warn)':'var(--danger)';
+  }
+  set('scoreNum',score);
+  const badge=document.getElementById('healthBadge');
+  if(badge){
+    badge.className='badge';
+    if(score>=80){badge.textContent='EXCELLENT';badge.classList.add('b-full');}
+    else if(score>=60){badge.textContent='GOOD';badge.classList.add('b-ok');}
+    else if(score>=40){badge.textContent='FAIR';badge.classList.add('b-low');}
+    else{badge.textContent='POOR';badge.classList.add('b-crit');}
+  }
+  let healthDesc='';
+  if(score>=80)healthDesc='Your tank is well-stocked and usage is efficient. No issues detected.';
+  else if(score>=60)healthDesc='Tank level is healthy. Monitor usage to maintain efficiency.';
+  else if(score>=40)healthDesc='Tank level or usage rate needs attention. Plan a refill soon.';
+  else healthDesc='Low tank or high usage detected. Take action to avoid running out.';
+  set('healthDesc',healthDesc);
+
+  // Health factor mini-badges
+  const factors=[
+    {lbl:'Level',val:pct+'%',good:pct>=40},
+    {lbl:'Usage',val:S.usage>0?S.usage.toFixed(1)+'L/h':'--',good:usageScore>=20},
+    {lbl:'Data',val:ageSec<120?'Live':'Stale',good:ageSec<120},
+    {lbl:'Alerts',val:hasCrit?'Recent':'Clear',good:!hasCrit},
+    {lbl:'Days Left',val:S.usage>0?Math.floor(S.vol/S.usage/24)+'d':'∞',good:S.usage>0?S.vol/S.usage/24>2:true},
+  ];
+  const hf=document.getElementById('healthFactors');
+  if(hf)hf.innerHTML=factors.map(f=>`
+    <div style="text-align:center;padding:5px 4px;background:rgba(${f.good?'52,211,153':'248,113,113'},.07);border:1px solid rgba(${f.good?'52,211,153':'248,113,113'},.2);border-radius:7px">
+      <div style="font-family:var(--mono);font-size:11px;color:${f.good?'var(--ok)':'var(--danger)'};font-weight:700">${f.val}</div>
+      <div style="font-size:8px;color:var(--muted);margin-top:2px;font-family:var(--head)">${f.lbl}</div>
+    </div>`).join('');
+
+  // ── 4. Chart insight text ──
+  const validPts=S.history.filter(v=>v!=null);
+  let chartInsight='';
+  if(validPts.length>=4){
+    const first=validPts[0],last=validPts[validPts.length-1];
+    const delta=last-first;
+    const mn=Math.min(...validPts),mx=Math.max(...validPts);
+    const range=mx-mn;
+    if(delta<-20)chartInsight=`📉 Level dropped <strong>${Math.abs(delta.toFixed(0))}%</strong> in the past 24 hrs. Range: ${mn.toFixed(0)}–${mx.toFixed(0)}%. At this rate, monitor consumption carefully.`;
+    else if(delta>15)chartInsight=`📈 Level rose <strong>${delta.toFixed(0)}%</strong> over 24 hrs — refilling in progress. Current trend is positive.`;
+    else if(range<5)chartInsight=`📊 Level has been stable between <strong>${mn.toFixed(0)}–${mx.toFixed(0)}%</strong> — consistent usage pattern detected.`;
+    else chartInsight=`📊 24-hr swing: <strong>${mn.toFixed(0)}–${mx.toFixed(0)}%</strong> (${range.toFixed(0)}% range). Normal household usage pattern.`;
+  }else{chartInsight='Accumulating history — chart will populate as data arrives.';}
+  set('chartInsight',chartInsight);
+
+  // ── 5. Week summary ──
+  const weekVals=Object.values(dailyData).slice(-7).filter(v=>v>0);
+  let weekSummary='';
+  if(weekVals.length>=2){
+    const weekTotal=weekVals.reduce((a,b)=>a+b,0);
+    const weekAvg=weekTotal/weekVals.length;
+    const trend=weekVals[weekVals.length-1]-weekVals[0];
+    weekSummary=`This week you've used <strong style="color:var(--pri)">${weekTotal.toFixed(0)} L</strong> total (avg ${weekAvg.toFixed(0)} L/day). `;
+    if(trend>20)weekSummary+=`Usage is trending <strong style="color:var(--warn)">upward</strong> — consider reducing consumption.`;
+    else if(trend<-20)weekSummary+=`Usage is trending <strong style="color:var(--ok)">downward</strong> — good conservation habit!`;
+    else weekSummary+=`Usage is <strong style="color:var(--ok)">consistent</strong> this week.`;
+  }else{weekSummary='Consumption data builds over time. Check back after a few days for your weekly report.';}
+  set('weekSummary',weekSummary);
+
+  // ── 6. Forecast ──
   const fc=document.getElementById('fc-cur');
   if(fc){
     fc.textContent=pct+'%';
@@ -1279,26 +1469,21 @@ function renderAnalytics(){
       const f24=Math.max(0,pct-pph*24);
       const f3d=Math.max(0,pct-pph*72);
       const empH=S.vol/S.usage;
-      set('fc-6',f6.toFixed(0)+'%');
-      set('fc-24',f24.toFixed(0)+'%');
-      set('fc-3d',f3d.toFixed(0)+'%');
-      set('fc-emp',fmtHrs(empH));
-      // Animated bars
+      set('fc-6',f6.toFixed(0)+'%');set('fc-24',f24.toFixed(0)+'%');set('fc-3d',f3d.toFixed(0)+'%');set('fc-emp',fmtHrs(empH));
       const setBar=(id,val)=>{const el=document.getElementById(id);if(el)el.style.width=val+'%';};
       setBar('fc-bar-now',pct);setBar('fc-bar-6',f6);setBar('fc-bar-24',f24);setBar('fc-bar-3d',f3d);
-      // Smart advice
       let advice='';
       if(empH<12)advice='⚡ <strong>Urgent:</strong> Tank will empty in under 12 hours at current usage. Refill now or reduce consumption immediately.';
-      else if(empH<24)advice='⚠️ <strong>Caution:</strong> Less than 24 hours of water remaining. Plan a refill today.';
-      else if(empH<72)advice='ℹ️ <strong>Tip:</strong> You have about '+Math.floor(empH/24)+' days of water left. Schedule a refill this week.';
-      else if(pct>80)advice='✅ <strong>Good:</strong> Tank is well stocked. At current usage you\'re set for '+Math.floor(empH/24)+' days.';
-      else advice='💧 <strong>Normal:</strong> Usage is steady. Check back tomorrow to track consumption trends.';
+      else if(empH<24)advice='⚠️ <strong>Caution:</strong> Less than 24 hours of water remaining at current rate. Plan a refill today.';
+      else if(empH<72)advice='ℹ️ <strong>Tip:</strong> Approximately '+Math.floor(empH/24)+' days of water remaining. Schedule a refill this week.';
+      else if(pct>80)advice='✅ <strong>Well stocked:</strong> Tank has plenty of water. At current usage you\'re set for '+Math.floor(empH/24)+' days.';
+      else advice='💧 <strong>Normal:</strong> Usage is steady. Your tank can last about '+Math.floor(empH/24)+' more days.';
       set('fc-advice',advice);
       unlockAch(7);
     } else {
       ['fc-6','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));
       ['fc-bar-6','fc-bar-24','fc-bar-3d'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.width='0%';});
-      set('fc-advice','<em>Usage rate not yet available. Data accumulates over time.</em>');
+      set('fc-advice','<em>Usage rate not yet available. The forecast updates automatically as data accumulates.</em>');
     }
   }
 }
@@ -1332,9 +1517,16 @@ function renderHeatmap(){
   grid.innerHTML=usages.map((u,i)=>{
     const alpha=0.08+0.72*(u/mx);
     const now2=new Date();now2.setHours(now2.getHours()-(23-i));
-    const tooltip=now2.getHours()+':00 — '+u.toFixed(1)+' L';
+    const tooltip=now2.getHours()+':00 — '+u.toFixed(1)+' L used';
     return`<div class="hm-cell" title="${tooltip}" style="background:rgba(45,212,191,${alpha.toFixed(2)})"></div>`;
   }).join('');
+  // Peak label
+  const peakIdx=usages.indexOf(mx);
+  if(peakIdx>=0){
+    const ph=new Date();ph.setHours(ph.getHours()-(23-peakIdx));
+    const pl=document.getElementById('hmPeakLbl');
+    if(pl)pl.textContent='Peak: '+ph.getHours()+':00 ('+mx.toFixed(0)+' L)';
+  }
 }
 
 function renderDayBars(){
