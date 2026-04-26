@@ -837,7 +837,7 @@ function loadFormValues(){
   sv('c-ip',cfg.ip);sv('c-ssid',cfg.ssid);sv('c-tgtoken',cfg.tgToken);sv('c-tgchat',cfg.tgChat);
   sv('c-empty',cfg.emptyDist||125);sv('c-full',cfg.fullDist||10);sv('c-vol',cfg.volume||1000);sv('c-tname',cfg.tankName||'Main Tank');
   sv('c-shid',cfg.sheetsId);sv('c-shname',cfg.sheetsName);sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8884);
-  sv('c-mquser',cfg.mquser);sv('c-mqtopic',cfg.topic||'');
+  sv('c-mquser',cfg.mquser);sv('c-mqpass',cfg.mqpass);sv('c-mqtopic',cfg.topic||'');
   if(cfg.tankName)document.getElementById('tankNameLbl').textContent=cfg.tankName.toUpperCase();
 }
 
@@ -985,6 +985,7 @@ function updatePill(){
 // Animation state
 let _animTimer=null;
 let _lastMotionDir=0; // 1=filling, -1=emptying, 0=still
+let _lastDripMode=null; // guard: only restart drip sound when direction changes
 
 function _setTankAnim(dir){
   // dir: 1=filling, -1=emptying, 0=still/offline
@@ -1033,21 +1034,22 @@ function ingest(d,fromMQTT=false){
     if(S.m>prev){
       // Filling
       _setTankAnim(1);
-      // Play drip-into-tank sound (water entering)
-      if(ck('t-sound'))_scheduleDripSound('filling');
+      // Only restart drip sound if direction changed — prevents flooding the scheduler on every 2.5s tick
+      if(ck('t-sound')&&_lastDripMode!=='filling'){_lastDripMode='filling';_scheduleDripSound('filling');}
     } else if(S.m<prev){
       // Emptying / draining
       _setTankAnim(-1);
-      // Play low-flow outflow sound
-      if(ck('t-sound'))_scheduleDripSound('emptying');
+      // Only restart drip sound if direction changed
+      if(ck('t-sound')&&_lastDripMode!=='emptying'){_lastDripMode='emptying';_scheduleDripSound('emptying');}
     } else {
       // Level unchanged — still water (gentle waves only)
+      _lastDripMode=null;
       _setTankAnim(0);
     }
     // Auto-stop animation after 8s of no change
     clearTimeout(_animTimer);
     if(S.m!==prev){
-      _animTimer=setTimeout(()=>_setTankAnim(0),8000);
+      _animTimer=setTimeout(()=>{_setTankAnim(0);_lastDripMode=null;},8000);
     }
   }
 
@@ -1349,8 +1351,10 @@ function _chime(ctx,freq,startT,vol,dest){
 
 // Continuous drip scheduler — plays periodic natural drips while water moves
 let _dripInterval=null;
+let _dripStopTimer=null;
 function _scheduleDripSound(mode){
   clearInterval(_dripInterval);
+  clearTimeout(_dripStopTimer);
   if(mode==='filling'){
     // Drips from inlet pipe into rising water
     const tick=()=>{
@@ -1378,8 +1382,8 @@ function _scheduleDripSound(mode){
     tick();
     _dripInterval=setInterval(tick,2200+Math.random()*1200);
   }
-  // Auto-stop after 9 seconds
-  setTimeout(()=>clearInterval(_dripInterval),9000);
+  // Auto-stop after 9 seconds — tracked so mode change doesn't leave orphan timers
+  _dripStopTimer=setTimeout(()=>{clearInterval(_dripInterval);_dripInterval=null;_lastDripMode=null;},9000);
 }
 
 function playSound(type,critical=false){
