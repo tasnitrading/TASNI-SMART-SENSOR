@@ -898,7 +898,9 @@ function _doConnect(mc){
   const url=`${proto}://${rawHost}:${mc.port}/mqtt`;
   const cid=`tasni_web_${Date.now().toString(36)}`;
   try{
-    mqttClient=mqtt.connect(url,{clientId:cid,username:mc.user||undefined,password:mc.pass||undefined,keepalive:25,reconnectPeriod:3000,connectTimeout:12000,clean:true});
+    const _mqUser=mc.user&&mc.user.trim()?mc.user.trim():undefined;
+    const _mqPass=mc.pass&&mc.pass.trim()?mc.pass.trim():undefined;
+    mqttClient=mqtt.connect(url,{clientId:cid,username:_mqUser,password:_mqPass,keepalive:25,reconnectPeriod:3000,connectTimeout:12000,clean:true,rejectUnauthorized:false});
     mqttClient.on('connect',()=>{
       _lastAck=Date.now();
       const t=mc.topic||'tasni-water/+/state';
@@ -916,7 +918,7 @@ function _doConnect(mc){
     mqttClient.on('reconnect',()=>{setChip('chip-mqtt',false);updatePill();});
     mqttClient.on('close',()=>{setChip('chip-mqtt',false);updatePill();});
     mqttClient.on('offline',()=>{setChip('chip-mqtt',false);updatePill();});
-    mqttClient.on('error',(e)=>{console.warn('MQTT error:',e.message);});
+    mqttClient.on('error',(e)=>{console.warn('MQTT error:',e.message);showToast('MQTT: '+e.message,'danger',5000);});
   }catch(e){
     setChip('chip-mqtt',false);updatePill();
     showToast('MQTT init failed: '+e.message,'danger');
@@ -1148,13 +1150,18 @@ function checkAlerts(prev,cur,isFull){
     _speakAlert(cur,'low');
   }
 
-  // Every 10% drop notification (silent — just log)
+  // Every 10% drop — log to alert list only, no sound/vibrate/toast
   const prevBand=Math.floor(prev/10);
   const curBand =Math.floor(cur/10);
   if(curBand<prevBand&&cur>=10&&cur<90){
     for(let b=prevBand-1;b>=curBand&&b>=1;b--){
       const dropPct=b*10;
-      push('aw','💧 DROP: Tank crossed '+dropPct+'% — now at '+cur+'%.');
+      // Direct log — bypass push() to avoid vibrate/toast spam on every sensor tick
+      const a={type:'aw',msg:'💧 DROP: Tank crossed '+dropPct+'% — now at '+cur+'%.',time:new Date().toISOString()};
+      alerts.unshift(a);if(alerts.length>60)alerts=alerts.slice(0,60);
+      localStorage.setItem('tasni_alerts',JSON.stringify(alerts));
+      unread++;const b2=document.getElementById('alertBadge');
+      b2.textContent=unread;b2.classList.remove('hidden');
     }
   }
 
@@ -1194,7 +1201,7 @@ function push(type,msg,critical=false){
       requireInteraction:critical&&type==='ac'});
   }
   showToast(msg,type==='ac'?'danger':type==='aw'?'warn':'info',3000);
-  if(ck('t-sound')&&type==='ac')playSound(type,critical);
+  // sound is played directly in checkAlerts() before push() — no duplicate here
 }
 function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
 
@@ -1480,9 +1487,7 @@ function playSound(type,critical=false){
       return;
     }
 
-    // ── Default info ──
-    _drip(ctx,0,440,0.25);
-    _ripple(ctx,0.06,220,0.08);
+    // No fallthrough sound — unknown type = silence
 
   }catch(e){console.warn('Audio:',e);}
 }
