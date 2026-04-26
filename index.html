@@ -527,7 +527,16 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="tog-row"><div><div class="tog-lbl">📉 Sudden Drop (&gt;10%)</div><div class="tog-sub">Possible leak detection</div></div><label class="toggle"><input type="checkbox" id="t-drop"><div class="tslider"></div></label></div>
       <div class="tog-row"><div><div class="tog-lbl">✅ Refilled (&gt;90%)</div><div class="tog-sub">Notify when refill completes</div></div><label class="toggle"><input type="checkbox" id="t-fill"><div class="tslider"></div></label></div>
       <div class="tog-row"><div><div class="tog-lbl">💧 Full Tank (isFull)</div><div class="tog-sub">Sensor reads ≤10 cm</div></div><label class="toggle"><input type="checkbox" id="t-full"><div class="tslider"></div></label></div>
-      <div class="tog-row"><div><div class="tog-lbl">🔊 Sound Alerts</div><div class="tog-sub">Audio tones for events</div></div><label class="toggle"><input type="checkbox" id="t-sound"><div class="tslider"></div></label></div>
+      <div class="tog-row"><div><div class="tog-lbl">🔊 Sound Alerts</div><div class="tog-sub">Natural water sounds for events</div></div><label class="toggle"><input type="checkbox" id="t-sound"><div class="tslider"></div></label></div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;font-family:var(--head)">SOUND PREVIEW</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-o btn-sm" onclick="playSound('drop_10')">💧 Drop</button>
+          <button class="btn btn-o btn-sm" onclick="playSound('refill')">🚿 Refill</button>
+          <button class="btn btn-o btn-sm" onclick="playSound('full_tank')">🎉 Full Tank</button>
+          <button class="btn btn-d btn-sm" onclick="playSound('critical_alarm')">🚨 Critical</button>
+        </div>
+      </div>
     </div>
     <div class="card">
       <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">Alert Log<button class="btn btn-d btn-sm" style="padding:4px 10px;font-size:10px" onclick="clearAlerts()">CLEAR</button></div>
@@ -750,7 +759,35 @@ window.addEventListener('load',()=>{
   checkNotifPerm();
   // FIX: start in NIL state always — don't show stale localStorage data
   renderDash();
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(async reg=>{
+      // ── Send config to SW so it can poll when app is closed ──
+      function sendCfgToSW(){
+        if(reg.active){
+          reg.active.postMessage({type:'STORE_CONFIG',config:{
+            ip:cfg.ip,broker:cfg.broker,
+            alertCrit:document.getElementById('t-crit')?.checked,
+            alertLow:document.getElementById('t-low')?.checked,
+          }});
+        }
+      }
+      sendCfgToSW();
+      // ── Register Periodic Background Sync (Android Chrome PWA) ──
+      if('periodicSync' in reg){
+        try{
+          const status=await navigator.permissions.query({name:'periodic-background-sync'});
+          if(status.state==='granted'){
+            await reg.periodicSync.register('tasni-monitor',{minInterval:15*60*1000});
+            console.log('[TASNI] Periodic background sync registered (15 min)');
+          }
+        }catch(e){console.log('[TASNI] Periodic sync not available:',e.message);}
+      }
+      // ── Register one-shot Background Sync ──
+      if('sync' in reg){
+        try{await reg.sync.register('tasni-check');}catch(_){}
+      }
+    }).catch(()=>{});
+  }
   unlockAch(0);
   if(!cfg.ip&&!cfg.broker){
     // Show connect modal only after splash is done (2s)
@@ -935,8 +972,15 @@ function ingest(d,fromMQTT=false){
   if(!fromMQTT&&S.m!=null){S.history.shift();S.history.push(S.m);}
   S.connected=true;
   S.lastUpdate=new Date();
-  // Clear boot guard on first real data
-  if(_bootGuardActive){clearTimeout(_bootGuardTimer);_bootGuardActive=false;}
+  // Clear boot guard on first real data + play connect sound
+  if(_bootGuardActive){
+    clearTimeout(_bootGuardTimer);_bootGuardActive=false;
+    setTimeout(playConnectSound,300); // small delay so audio ctx is ready
+  }
+  // ── Tell SW the latest level (for background polling comparison) ──
+  if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({type:'STORE_LEVEL',level:S.m});
+  }
   _resetStaleTimer();
   // Analytics: record usage drop events
   if(prev!=null&&S.m!=null&&prev>S.m){
@@ -964,7 +1008,7 @@ function checkAlerts(prev,cur,isFull){
     playSound('critical_alarm');
   } else if(prev>=30&&cur<30&&ck('t-low')){
     push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
-    playSound('drop_10');
+    if(ck('t-sound'))playSound('drop_10');
   }
   // Every 10% drop (but NOT above 90% — no annoyance alerts when tank is filling up)
   const prevBand=Math.floor(prev/10);
@@ -980,12 +1024,12 @@ function checkAlerts(prev,cur,isFull){
   // Refill / above 90 — NO sound when at 100%, just a quiet info push
   if(prev<90&&cur>=90&&ck('t-fill')){
     push('ai','✅ REFILLED: Tank is now above 90%.');
-    if(cur<100)playSound('refill'); // FIX: no sound at 100%
+    if(ck('t-sound')&&cur<100)playSound('refill');
   }
-  // FIX: 100% FULL TANK — info only, NO alarm sound
+  // FIX: 100% FULL TANK — beautiful soothing sound, NOT an alarm
   if(!S._wasFull&&isFull===1&&ck('t-full')){
     push('ai','💧 FULL TANK: Water level is at maximum!');
-    // No playSound here — user is happy, tank is full, no noise needed
+    if(ck('t-sound'))playSound('full_tank'); // soothing, not alarming
   }
   S._wasFull=isFull===1;
 }
@@ -1031,44 +1075,254 @@ function _markStale(){
 // ═══════════════════════════════════════════
 //  SOUND ENGINE
 // ═══════════════════════════════════════════
-function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
-function _osc(ctx,freq,startT,dur,wave,vol,freqEnd){
-  const o=ctx.createOscillator(),g=ctx.createGain();
-  o.connect(g);g.connect(ctx.destination);
-  const now=ctx.currentTime;
-  o.type=wave||'sine';o.frequency.setValueAtTime(freq,now+startT);
-  if(freqEnd)o.frequency.linearRampToValueAtTime(freqEnd,now+startT+dur);
-  g.gain.setValueAtTime(0,now+startT);g.gain.linearRampToValueAtTime(vol||0.2,now+startT+0.01);
-  g.gain.exponentialRampToValueAtTime(0.001,now+startT+dur);
-  o.start(now+startT);o.stop(now+startT+dur+0.05);
+// ═══════════════════════════════════════════════════════════
+//  NATURAL WATER SOUND ENGINE v3.0
+//  All sounds synthesized via Web Audio API — no files needed
+//  Designed to sound real, soothing, and engaging
+// ═══════════════════════════════════════════════════════════
+
+function getAudioCtx(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  return audioCtx;
 }
-function _noise(ctx,startT,dur,vol){
-  const bufSize=ctx.sampleRate*dur;const buf=ctx.createBuffer(1,bufSize,ctx.sampleRate);
-  const d=buf.getChannelData(0);for(let i=0;i<bufSize;i++)d[i]=Math.random()*2-1;
+
+// ── Master gain (prevents clipping across layered sounds) ──
+let _masterGain=null;
+function getMaster(ctx){
+  if(!_masterGain||_masterGain.context!==ctx){
+    _masterGain=ctx.createGain();
+    _masterGain.gain.value=0.85;
+    // Soft limiter via dynamics compressor
+    const comp=ctx.createDynamicsCompressor();
+    comp.threshold.value=-12;comp.knee.value=6;
+    comp.ratio.value=4;comp.attack.value=0.003;comp.release.value=0.25;
+    _masterGain.connect(comp);comp.connect(ctx.destination);
+  }
+  return _masterGain;
+}
+
+// ── Bandpass-filtered noise burst — the core of water sound ──
+function _waterNoise(ctx,startT,dur,vol,loFreq,hiFreq,dest){
+  const sr=ctx.sampleRate;
+  const buf=ctx.createBuffer(1,Math.ceil(sr*dur),sr);
+  const d=buf.getChannelData(0);
+  // Pink-ish noise (softer than white)
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+  for(let i=0;i<d.length;i++){
+    const wh=Math.random()*2-1;
+    b0=0.99886*b0+wh*0.0555179;b1=0.99332*b1+wh*0.0750759;
+    b2=0.96900*b2+wh*0.1538520;b3=0.86650*b3+wh*0.3104856;
+    b4=0.55000*b4+wh*0.5329522;b5=-0.7616*b5-wh*0.0168980;
+    d[i]=(b0+b1+b2+b3+b4+b5+b6+wh*0.5362)*0.11;b6=wh*0.115926;
+  }
   const src=ctx.createBufferSource();src.buffer=buf;
-  const g=ctx.createGain();g.gain.setValueAtTime(vol||0.1,ctx.currentTime+startT);
-  g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+startT+dur);
-  src.connect(g);g.connect(ctx.destination);src.start(ctx.currentTime+startT);
+  const bp=ctx.createBiquadFilter();bp.type='bandpass';
+  bp.frequency.value=(loFreq+hiFreq)/2;bp.Q.value=0.8;
+  const g=ctx.createGain();
+  const now=ctx.currentTime;
+  // Natural attack + exponential decay
+  g.gain.setValueAtTime(0,now+startT);
+  g.gain.linearRampToValueAtTime(vol,now+startT+Math.min(0.015,dur*0.1));
+  g.gain.exponentialRampToValueAtTime(0.0001,now+startT+dur);
+  src.connect(bp);bp.connect(g);g.connect(dest||getMaster(ctx));
+  src.start(now+startT);src.stop(now+startT+dur+0.02);
 }
+
+// ── Resonant drip — the iconic water drop plop ──
+// Models the physics: air pocket forms → resonates → decays
+function _drip(ctx,startT,baseFreq,vol,dest){
+  const now=ctx.currentTime;
+  const out=dest||getMaster(ctx);
+  // Layer 1: initial impact click (noise transient)
+  _waterNoise(ctx,startT,0.012,vol*0.6,800,4000,out);
+  // Layer 2: resonant body — frequency sweeps down as cavity fills
+  const o=ctx.createOscillator();
+  const g=ctx.createGain();
+  const filt=ctx.createBiquadFilter();
+  filt.type='lowpass';filt.frequency.value=2200;filt.Q.value=2.5;
+  o.connect(filt);filt.connect(g);g.connect(out);
+  o.type='sine';
+  // Pitch falls as the drop "settles" — very realistic
+  o.frequency.setValueAtTime(baseFreq*1.8,now+startT);
+  o.frequency.exponentialRampToValueAtTime(baseFreq*0.6,now+startT+0.18);
+  o.frequency.exponentialRampToValueAtTime(baseFreq*0.4,now+startT+0.35);
+  // Amplitude: sharp attack, long tail (like a real drip in a tank)
+  g.gain.setValueAtTime(0,now+startT);
+  g.gain.linearRampToValueAtTime(vol,now+startT+0.008);
+  g.gain.exponentialRampToValueAtTime(vol*0.3,now+startT+0.08);
+  g.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.55);
+  o.start(now+startT);o.stop(now+startT+0.6);
+  // Layer 3: high harmonic shimmer (overtone of the drop)
+  const o2=ctx.createOscillator();const g2=ctx.createGain();
+  o2.connect(g2);g2.connect(out);o2.type='sine';
+  o2.frequency.setValueAtTime(baseFreq*3.2,now+startT+0.005);
+  o2.frequency.exponentialRampToValueAtTime(baseFreq*1.1,now+startT+0.12);
+  g2.gain.setValueAtTime(0,now+startT+0.005);
+  g2.gain.linearRampToValueAtTime(vol*0.25,now+startT+0.015);
+  g2.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.18);
+  o2.start(now+startT+0.005);o2.stop(now+startT+0.2);
+}
+
+// ── Ripple tail — subsurface rumble after a drop ──
+function _ripple(ctx,startT,freq,vol,dest){
+  const out=dest||getMaster(ctx);
+  const now=ctx.currentTime;
+  const o=ctx.createOscillator();const g=ctx.createGain();
+  const filt=ctx.createBiquadFilter();filt.type='lowpass';filt.frequency.value=600;filt.Q.value=4;
+  o.connect(filt);filt.connect(g);g.connect(out);
+  o.type='sine';o.frequency.setValueAtTime(freq,now+startT);
+  o.frequency.linearRampToValueAtTime(freq*0.55,now+startT+0.4);
+  g.gain.setValueAtTime(0,now+startT);
+  g.gain.linearRampToValueAtTime(vol,now+startT+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.5);
+  o.start(now+startT);o.stop(now+startT+0.55);
+}
+
+// ── Flowing stream — continuous rush of water ──
+function _stream(ctx,startT,dur,vol,brightness,dest){
+  _waterNoise(ctx,startT,dur,vol,brightness*0.5,brightness*3,dest||getMaster(ctx));
+  _waterNoise(ctx,startT,dur,vol*0.5,brightness*0.2,brightness,dest||getMaster(ctx));
+}
+
+// ── Bell-like chime (for positive events) ──
+function _chime(ctx,freq,startT,vol,dest){
+  const out=dest||getMaster(ctx);const now=ctx.currentTime;
+  // Metallic partial overtones (real bell = inharmonic series)
+  const partials=[1,2.756,5.404,8.933,13.35];
+  const vols   =[1,0.35, 0.18, 0.09, 0.04];
+  partials.forEach((p,i)=>{
+    const o=ctx.createOscillator();const g=ctx.createGain();
+    o.connect(g);g.connect(out);
+    o.type='sine';o.frequency.value=freq*p;
+    g.gain.setValueAtTime(0,now+startT);
+    g.gain.linearRampToValueAtTime(vol*vols[i],now+startT+0.006);
+    // Each partial decays at different rate — that's what makes it bell-like
+    g.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.8+i*0.4);
+    o.start(now+startT);o.stop(now+startT+1.2+i*0.4);
+  });
+}
+
+// ══════════════════════════════════════════════
+//  MAIN PLAY FUNCTION
+// ══════════════════════════════════════════════
 function playSound(type,critical=false){
   try{
     const ctx=getAudioCtx();
-    if(type==='critical_alarm'||type==='ac'){
-      [0,0.36,0.72,1.08,1.44,2.16].forEach((t,i)=>{_osc(ctx,880+(i%2)*220,t,0.28,'square',0.3);_osc(ctx,440,t,0.28,'sawtooth',0.18);});
-      [110,110,110].forEach((_,i)=>_osc(ctx,110,i*0.72,0.65,'square',0.15));
-      [0,0.72,1.44].forEach(t=>_noise(ctx,t,0.08,0.35));
-      return;
-    }
+
+    // ────────────────────────────────────────────
+    //  💧 SINGLE DROP — when level crosses 10% band
+    //  Natural "drip into a half-full tank" sound
+    //  Two drops in quick succession — very satisfying
+    // ────────────────────────────────────────────
     if(type==='drop_10'){
-      _osc(ctx,1800,0,0.18,'sine',0.20,600);_osc(ctx,600,0.05,0.22,'sine',0.18,300);
-      _noise(ctx,0,0.04,0.12);return;
-    }
-    if(type==='refill'){
-      [523,659,784,1047,1319].forEach((f,i)=>{_osc(ctx,f,i*0.11,0.30,'sine',0.18);});
+      // First drop — higher pitch (emptier tank = higher resonance)
+      const f1=380+Math.random()*80; // 380–460 Hz varies each time
+      _drip(ctx,0,f1,0.38);
+      _ripple(ctx,0.06,f1*0.5,0.12);
+      // Tiny stream noise — water running briefly
+      _stream(ctx,0.05,0.12,0.06,400);
+      // Second drop — slightly different pitch
+      const f2=320+Math.random()*60;
+      _drip(ctx,0.55,f2,0.28);
+      _ripple(ctx,0.62,f2*0.5,0.08);
       return;
     }
-    [523,659,784,1047].forEach((f,i)=>{_osc(ctx,f,i*0.13,0.28,'sine',0.18);});
+
+    // ────────────────────────────────────────────
+    //  💧 REFILL SOUND — tank is filling up (90%+)
+    //  Rushing water into tank + rising pitch as tank fills
+    //  Ends with 3 satisfying chime notes
+    // ────────────────────────────────────────────
+    if(type==='refill'){
+      // Rushing water stream (bright, energetic)
+      _stream(ctx,0,1.2,0.18,900);
+      _stream(ctx,0,1.2,0.10,300);
+      // Rapid drops splashing into the rising water
+      [0,0.15,0.3,0.45,0.6,0.75].forEach((t,i)=>{
+        const f=500-i*25; // pitch drops as water rises (less air space)
+        _drip(ctx,t,f,0.22-i*0.02);
+      });
+      // Stream fades
+      _stream(ctx,1.0,0.4,0.06,600);
+      // Celebratory chime sequence
+      [523,659,784].forEach((f,i)=>{_chime(ctx,f,1.2+i*0.18,0.25);});
+      return;
+    }
+
+    // ────────────────────────────────────────────
+    //  💧 FULL TANK — calm, satisfying, complete
+    //  Gentle final drops settling + peaceful chime
+    //  Feels like a reward — soothing and beautiful
+    // ────────────────────────────────────────────
+    if(type==='full_tank'){
+      // Soft stream trailing off
+      _stream(ctx,0,0.6,0.10,500);
+      // Three gentle final drops — tank is almost full (low pitch)
+      _drip(ctx,0.1,220,0.30);
+      _drip(ctx,0.45,196,0.20);
+      _drip(ctx,0.82,185,0.14); // very low, tank completely full
+      // Ripples settling
+      _ripple(ctx,0.12,110,0.10);
+      _ripple(ctx,0.48,98,0.07);
+      // Beautiful ascending chime chord — reward sound
+      [392,494,587,740,988].forEach((f,i)=>{
+        _chime(ctx,f,1.0+i*0.14,0.22-i*0.025);
+      });
+      // Soft noise wash (like a gentle waterfall settling)
+      _stream(ctx,1.0,0.8,0.04,200);
+      return;
+    }
+
+    // ────────────────────────────────────────────
+    //  🚨 CRITICAL ALARM — urgent but still water-themed
+    //  Distressed fast dripping + harsh alarm tones
+    //  Impossible to ignore
+    // ────────────────────────────────────────────
+    if(type==='critical_alarm'||type==='ac'){
+      // Rapid desperate dripping — tank nearly empty
+      [0,0.18,0.34,0.48,0.60,0.70,0.78,0.84].forEach((t,i)=>{
+        const f=900+Math.random()*200; // high pitch = barely any water left
+        _drip(ctx,t,f,0.32-i*0.02);
+      });
+      // Alarm tones layered over — two-tone emergency siren
+      const now=ctx.currentTime;
+      const out=getMaster(ctx);
+      [0,0.4,0.8,1.2,1.6,2.0].forEach((t,i)=>{
+        const o=ctx.createOscillator();const g=ctx.createGain();
+        o.connect(g);g.connect(out);
+        o.type='sawtooth';
+        o.frequency.setValueAtTime(880,now+t);
+        o.frequency.setValueAtTime(1100,now+t+0.18);
+        o.frequency.setValueAtTime(880,now+t+0.36);
+        g.gain.setValueAtTime(0,now+t);
+        g.gain.linearRampToValueAtTime(0.28,now+t+0.01);
+        g.gain.setValueAtTime(0.28,now+t+0.34);
+        g.gain.exponentialRampToValueAtTime(0.0001,now+t+0.39);
+        o.start(now+t);o.stop(now+t+0.4);
+      });
+      // Low rumble underneath
+      _waterNoise(ctx,0,2.5,0.08,60,200,out);
+      return;
+    }
+
+    // ────────────────────────────────────────────
+    //  ℹ️ INFO / DEFAULT — single gentle drop
+    // ────────────────────────────────────────────
+    _drip(ctx,0,440,0.25);
+    _ripple(ctx,0.06,220,0.08);
+
   }catch(e){console.warn('Audio:',e);}
+}
+
+// ── Ambient water drop sound on dashboard (plays once on connect) ──
+// Makes the app feel "alive" when data first arrives
+function playConnectSound(){
+  try{
+    const ctx=getAudioCtx();
+    _drip(ctx,0,340,0.18);
+    _chime(ctx,523,0.3,0.12);
+  }catch(_){}
 }
 
 // ═══════════════════════════════════════════
