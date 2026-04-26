@@ -118,33 +118,55 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .water-surface{
   position:absolute;top:0;left:0;right:0;height:4px;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),rgba(255,255,255,.25),rgba(255,255,255,.1),transparent);
-  z-index:7;animation:shimmer 2.5s ease-in-out infinite}
+  z-index:7;animation:shimmer 2.5s ease-in-out infinite;animation-play-state:paused}
 @keyframes shimmer{0%,100%{opacity:.6;transform:translateX(-10%)}50%{opacity:1;transform:translateX(10%)}}
 
-/* waves */
-.wave{position:absolute;top:-11px;left:-8%;width:116%;height:22px;border-radius:45%;background:inherit}
-.wave-a{animation:wa 2.8s ease-in-out infinite}
-.wave-b{animation:wb 3.8s ease-in-out infinite;opacity:.5;top:-8px;height:16px}
-.wave-c{animation:wc 4.5s ease-in-out infinite;opacity:.3;top:-5px;height:12px}
+/* waves — paused by default, active only when water is moving */
+.wave{position:absolute;top:-11px;left:-8%;width:116%;height:22px;border-radius:45%;background:inherit;animation-play-state:paused}
+.wave-a{animation:wa 2.8s ease-in-out infinite;animation-play-state:paused}
+.wave-b{animation:wb 3.8s ease-in-out infinite;opacity:.5;top:-8px;height:16px;animation-play-state:paused}
+.wave-c{animation:wc 4.5s ease-in-out infinite;opacity:.3;top:-5px;height:12px;animation-play-state:paused}
 @keyframes wa{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(4%) scaleY(.75)}}
 @keyframes wb{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(-5%) scaleY(.8)}}
 @keyframes wc{0%,100%{transform:translateX(2%) scaleY(.9)}50%{transform:translateX(-3%) scaleY(1.1)}}
 
-/* bubbles */
+/* ACTIVE state — animations run only when .anim-active on water-fill */
+.water-fill.anim-active .water-surface{animation-play-state:running}
+.water-fill.anim-active .wave-a{animation-play-state:running}
+.water-fill.anim-active .wave-b{animation-play-state:running}
+.water-fill.anim-active .wave-c{animation-play-state:running}
+.water-fill.anim-active .refract{animation-play-state:running}
+.water-fill.anim-active .bubble{animation-play-state:running}
+
+/* bubbles — paused by default */
 .bubble{position:absolute;border-radius:50%;background:rgba(255,255,255,.25);
-  border:1px solid rgba(255,255,255,.15);animation:bup ease-in infinite}
+  border:1px solid rgba(255,255,255,.15);animation:bup ease-in infinite;animation-play-state:paused}
 @keyframes bup{0%{transform:translateY(0) scale(1);opacity:.6}100%{transform:translateY(-240px) scale(.15);opacity:0}}
 
-/* light refraction inside water */
+/* light refraction inside water — paused by default */
 .refract{
   position:absolute;bottom:10%;left:50%;transform:translateX(-50%);
   width:40%;height:1px;background:rgba(255,255,255,.12);
-  z-index:6;animation:refractMove 3s ease-in-out infinite alternate}
+  z-index:6;animation:refractMove 3s ease-in-out infinite alternate;animation-play-state:paused}
 @keyframes refractMove{0%{transform:translateX(-80%) skewX(-10deg);width:20%}100%{transform:translateX(30%) skewX(10deg);width:50%}}
 
-/* falling droplets into tank */
-.drp{position:absolute;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:rgba(45,212,191,.85);z-index:10;animation:drpfall linear infinite;opacity:0;top:0}
+/* falling droplets — only visible when filling (.filling-active on tank-wrap) */
+.drp{position:absolute;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;
+  background:rgba(45,212,191,.85);z-index:10;
+  animation:drpfall linear infinite;animation-play-state:paused;opacity:0;top:0}
+.tank-wrap.filling-active .drp{animation-play-state:running}
 @keyframes drpfall{0%{opacity:0;transform:translateY(-4px)}15%{opacity:.9}85%{opacity:.7}100%{opacity:0;transform:translateY(230px)}}
+
+/* outlet drip — bottom pipe drips when emptying */
+.outlet-drip{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);
+  width:3px;height:5px;border-radius:50% 50% 60% 60%;
+  background:rgba(45,212,191,.8);
+  animation:outletDrip 1.2s ease-in infinite;animation-play-state:paused;opacity:0}
+.tank-wrap.emptying-active .outlet-drip{animation-play-state:running}
+@keyframes outletDrip{0%{opacity:0;transform:translateX(-50%) translateY(0) scaleY(1)}
+  20%{opacity:.9;transform:translateX(-50%) translateY(2px) scaleY(1.3)}
+  60%{opacity:.7;transform:translateX(-50%) translateY(8px) scaleY(.8)}
+  100%{opacity:0;transform:translateX(-50%) translateY(18px) scaleY(.3)}}
 
 /* ── FULL TANK special state ── */
 .tank-body.full-state .water-fill{
@@ -421,7 +443,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     </div>
     <div class="card" style="padding:0;overflow:hidden">
       <div class="tank-section">
-        <div class="tank-wrap">
+        <div class="tank-wrap" id="tankWrap">
           <div class="pipe-top"></div>
           <div class="tank-cap"></div>
           <div class="tank-body" id="tankBody">
@@ -447,7 +469,9 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
             <div class="drp" style="left:44%;width:2px;height:3px;animation-duration:2.8s;animation-delay:2.1s"></div>
           </div>
           <div class="tank-base"></div>
-          <div class="pipe-bot"></div>
+          <div class="pipe-bot" style="position:relative">
+            <div class="outlet-drip"></div>
+          </div>
           <div class="tmarks" style="right:-38px">
             <span class="tm">100%</span><span class="tm">75%</span>
             <span class="tm">50%</span><span class="tm">25%</span><span class="tm">0%</span>
@@ -535,6 +559,8 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
           <button class="btn btn-o btn-sm" onclick="playSound('refill')">🚿 Refill</button>
           <button class="btn btn-o btn-sm" onclick="playSound('full_tank')">🎉 Full Tank</button>
           <button class="btn btn-d btn-sm" onclick="playSound('critical_alarm')">🚨 Critical</button>
+          <button class="btn btn-o btn-sm" onclick="playSound('low_alert')">🔔 Low Bowl</button>
+          <button class="btn btn-g btn-sm" onclick="_speakAlert(28,'low')" style="font-size:9px">🗣 Voice Alert</button>
         </div>
       </div>
     </div>
@@ -953,8 +979,37 @@ function updatePill(){
 
 // ═══════════════════════════════════════════
 //  DATA INGEST
-//  FIX: S.m starts null — stay NIL until first real reading
+//  S.m starts null — NIL until first real reading
+//  Animation driven by actual water movement only
 // ═══════════════════════════════════════════
+// Animation state
+let _animTimer=null;
+let _lastMotionDir=0; // 1=filling, -1=emptying, 0=still
+
+function _setTankAnim(dir){
+  // dir: 1=filling, -1=emptying, 0=still/offline
+  const fill=document.getElementById('waterFill');
+  const wrap=document.getElementById('tankWrap');
+  _lastMotionDir=dir;
+  if(!fill||!wrap)return;
+  if(dir===1){
+    // Filling: inlet drops run, waves run, outlet stopped
+    fill.classList.add('anim-active');
+    wrap.classList.add('filling-active');
+    wrap.classList.remove('emptying-active');
+  } else if(dir===-1){
+    // Emptying: outlet drip runs, waves run, inlet drops stopped
+    fill.classList.add('anim-active');
+    wrap.classList.remove('filling-active');
+    wrap.classList.add('emptying-active');
+  } else {
+    // Still / offline / NIL — everything paused
+    fill.classList.remove('anim-active');
+    wrap.classList.remove('filling-active');
+    wrap.classList.remove('emptying-active');
+  }
+}
+
 function ingest(d,fromMQTT=false){
   const prev=S.m;
   if(d.m     !=null)S.m     =parseInt(d.m);
@@ -972,12 +1027,36 @@ function ingest(d,fromMQTT=false){
   if(!fromMQTT&&S.m!=null){S.history.shift();S.history.push(S.m);}
   S.connected=true;
   S.lastUpdate=new Date();
+
+  // ── Animation: determine motion direction ──
+  if(prev!=null&&S.m!=null){
+    if(S.m>prev){
+      // Filling
+      _setTankAnim(1);
+      // Play drip-into-tank sound (water entering)
+      if(ck('t-sound'))_scheduleDripSound('filling');
+    } else if(S.m<prev){
+      // Emptying / draining
+      _setTankAnim(-1);
+      // Play low-flow outflow sound
+      if(ck('t-sound'))_scheduleDripSound('emptying');
+    } else {
+      // Level unchanged — still water (gentle waves only)
+      _setTankAnim(0);
+    }
+    // Auto-stop animation after 8s of no change
+    clearTimeout(_animTimer);
+    if(S.m!==prev){
+      _animTimer=setTimeout(()=>_setTankAnim(0),8000);
+    }
+  }
+
   // Clear boot guard on first real data + play connect sound
   if(_bootGuardActive){
     clearTimeout(_bootGuardTimer);_bootGuardActive=false;
-    setTimeout(playConnectSound,300); // small delay so audio ctx is ready
+    setTimeout(playConnectSound,300);
   }
-  // ── Tell SW the latest level (for background polling comparison) ──
+  // Tell SW the latest level
   if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
     navigator.serviceWorker.controller.postMessage({type:'STORE_LEVEL',level:S.m});
   }
@@ -987,7 +1066,6 @@ function ingest(d,fromMQTT=false){
     const dropL=((prev-S.m)/100)*S.total;
     recordUsageEvent(dropL,prev,S.m);
   }
-  // Analytics: update readings array
   if(S.m!=null)analyticsSession.readings.push({t:Date.now(),m:S.m,usage:S.usage||0});
   if(analyticsSession.readings.length>500)analyticsSession.readings.shift();
 
@@ -997,39 +1075,101 @@ function ingest(d,fromMQTT=false){
 
 // ═══════════════════════════════════════════
 //  ALERT ENGINE
-//  FIX: no alert sound at 100% / full tank
+//  Multilingual speech: English, Telugu, Urdu
+//  No ambulance sirens — natural water sounds + calm voice
 // ═══════════════════════════════════════════
+
+// ── Speech alert — speaks in 3 languages with pauses ──
+let _speechBusy=false;
+function _speakAlert(level,type){
+  if(!('speechSynthesis' in window))return;
+  if(_speechBusy)return;
+  _speechBusy=true;
+
+  // Build utterance list: English → Telugu → Urdu
+  const phrases=[];
+
+  if(type==='low'){
+    phrases.push({text:`Water tank is running low. Level at ${level} percent. Please refill soon.`,lang:'en-IN'});
+    phrases.push({text:`నీటి ట్యాంకు తక్కువగా ఉంది. స్థాయి ${level} శాతం. దయచేసి నింపండి.`,lang:'te-IN'});
+    phrases.push({text:`پانی کی ٹینکی کم ہو رہی ہے۔ سطح ${level} فیصد ہے۔ براہ کرم بھریں۔`,lang:'ur-PK'});
+  } else if(type==='critical'){
+    phrases.push({text:`Warning! Tank is critically low at ${level} percent. Refill immediately!`,lang:'en-IN'});
+    phrases.push({text:`హెచ్చరిక! ట్యాంకు చాలా తక్కువగా ఉంది. ${level} శాతం మాత్రమే ఉంది. వెంటనే నింపండి!`,lang:'te-IN'});
+    phrases.push({text:`خبردار! ٹینکی بہت کم ہے۔ صرف ${level} فیصد باقی ہے۔ فوری طور پر بھریں!`,lang:'ur-PK'});
+  } else if(type==='full'){
+    phrases.push({text:`Tank is full. Water level is at maximum.`,lang:'en-IN'});
+    phrases.push({text:`ట్యాంకు నిండింది. నీటి స్థాయి గరిష్ఠంగా ఉంది.`,lang:'te-IN'});
+    phrases.push({text:`ٹینکی بھر گئی ہے۔ پانی کی سطح زیادہ سے زیادہ ہے۔`,lang:'ur-PK'});
+  }
+
+  // Speak sequentially with 600ms gap between languages
+  let idx=0;
+  function speakNext(){
+    if(idx>=phrases.length){_speechBusy=false;return;}
+    const p=phrases[idx++];
+    const utt=new SpeechSynthesisUtterance(p.text);
+    utt.lang=p.lang;
+    utt.rate=0.88;
+    utt.pitch=1.0;
+    utt.volume=1.0;
+    // Try to pick a matching voice
+    const voices=speechSynthesis.getVoices();
+    const match=voices.find(v=>v.lang===p.lang)||voices.find(v=>v.lang.startsWith(p.lang.split('-')[0]))||null;
+    if(match)utt.voice=match;
+    utt.onend=()=>setTimeout(speakNext,600);
+    utt.onerror=()=>setTimeout(speakNext,400);
+    speechSynthesis.speak(utt);
+  }
+  speechSynthesis.cancel(); // stop any current speech
+  // Voices may not be loaded yet on first call
+  if(speechSynthesis.getVoices().length===0){
+    speechSynthesis.addEventListener('voiceschanged',()=>{speakNext();},{once:true});
+  } else {
+    speakNext();
+  }
+}
+
 function checkAlerts(prev,cur,isFull){
   if(prev==null||cur==null)return;
   if(prev===cur)return;
-  // Critical threshold crossings
+
+  // Critical threshold crossing
   if(prev>=10&&cur<10&&ck('t-crit')){
     push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
-    playSound('critical_alarm');
+    if(ck('t-sound'))playSound('critical_alarm');
+    _speakAlert(cur,'critical');
   } else if(prev>=30&&cur<30&&ck('t-low')){
+    // LOW alert — decent calm water sound + multilingual voice
     push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
-    if(ck('t-sound'))playSound('drop_10');
+    if(ck('t-sound'))playSound('low_alert');
+    _speakAlert(cur,'low');
   }
-  // Every 10% drop (but NOT above 90% — no annoyance alerts when tank is filling up)
+
+  // Every 10% drop notification (silent — just log)
   const prevBand=Math.floor(prev/10);
   const curBand =Math.floor(cur/10);
   if(curBand<prevBand&&cur>=10&&cur<90){
     for(let b=prevBand-1;b>=curBand&&b>=1;b--){
       const dropPct=b*10;
-      push('aw','💧 DROP: Tank crossed '+dropPct+'% mark — now at '+cur+'%.');
+      push('aw','💧 DROP: Tank crossed '+dropPct+'% — now at '+cur+'%.');
     }
   }
+
   // Sudden large drop
   if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
-  // Refill / above 90 — NO sound when at 100%, just a quiet info push
+
+  // Refill above 90
   if(prev<90&&cur>=90&&ck('t-fill')){
     push('ai','✅ REFILLED: Tank is now above 90%.');
     if(ck('t-sound')&&cur<100)playSound('refill');
   }
-  // FIX: 100% FULL TANK — beautiful soothing sound, NOT an alarm
+
+  // Full tank — soothing sound + gentle voice
   if(!S._wasFull&&isFull===1&&ck('t-full')){
     push('ai','💧 FULL TANK: Water level is at maximum!');
-    if(ck('t-sound'))playSound('full_tank'); // soothing, not alarming
+    if(ck('t-sound'))playSound('full_tank');
+    setTimeout(()=>_speakAlert(100,'full'),2200); // speak after the full_tank sound finishes
   }
   S._wasFull=isFull===1;
 }
@@ -1204,94 +1344,125 @@ function _chime(ctx,freq,startT,vol,dest){
 }
 
 // ══════════════════════════════════════════════
-//  MAIN PLAY FUNCTION
+//  MAIN PLAY FUNCTION + DRIP SCHEDULER
 // ══════════════════════════════════════════════
+
+// Continuous drip scheduler — plays periodic natural drips while water moves
+let _dripInterval=null;
+function _scheduleDripSound(mode){
+  clearInterval(_dripInterval);
+  if(mode==='filling'){
+    // Drips from inlet pipe into rising water
+    const tick=()=>{
+      if(!ck('t-sound'))return;
+      try{
+        const ctx=getAudioCtx();
+        const f=360+Math.random()*140; // varied pitch
+        _drip(ctx,0,f,0.18+Math.random()*0.08);
+        _ripple(ctx,0.06+Math.random()*0.04,f*0.5,0.06);
+      }catch(_){}
+    };
+    tick();
+    _dripInterval=setInterval(tick,1600+Math.random()*900);
+  } else if(mode==='emptying'){
+    // Trickle from outlet — slower, deeper, quieter
+    const tick=()=>{
+      if(!ck('t-sound'))return;
+      try{
+        const ctx=getAudioCtx();
+        const f=180+Math.random()*70;
+        _drip(ctx,0,f,0.10+Math.random()*0.05);
+        _waterNoise(ctx,0.05,0.18,0.03,80,350,getMaster(ctx));
+      }catch(_){}
+    };
+    tick();
+    _dripInterval=setInterval(tick,2200+Math.random()*1200);
+  }
+  // Auto-stop after 9 seconds
+  setTimeout(()=>clearInterval(_dripInterval),9000);
+}
+
 function playSound(type,critical=false){
   try{
     const ctx=getAudioCtx();
 
-    // ────────────────────────────────────────────
-    //  💧 SINGLE DROP — when level crosses 10% band
-    //  Natural "drip into a half-full tank" sound
-    //  Two drops in quick succession — very satisfying
-    // ────────────────────────────────────────────
+    // ─────────────────────────────────────────
+    //  💧 SINGLE DROP — 10% band crossing
+    // ─────────────────────────────────────────
     if(type==='drop_10'){
-      // First drop — higher pitch (emptier tank = higher resonance)
-      const f1=380+Math.random()*80; // 380–460 Hz varies each time
+      const f1=380+Math.random()*80;
       _drip(ctx,0,f1,0.38);
       _ripple(ctx,0.06,f1*0.5,0.12);
-      // Tiny stream noise — water running briefly
       _stream(ctx,0.05,0.12,0.06,400);
-      // Second drop — slightly different pitch
       const f2=320+Math.random()*60;
       _drip(ctx,0.55,f2,0.28);
       _ripple(ctx,0.62,f2*0.5,0.08);
       return;
     }
 
-    // ────────────────────────────────────────────
-    //  💧 REFILL SOUND — tank is filling up (90%+)
-    //  Rushing water into tank + rising pitch as tank fills
-    //  Ends with 3 satisfying chime notes
-    // ────────────────────────────────────────────
+    // ─────────────────────────────────────────
+    //  🔔 LOW ALERT — warm water-bowl gong tone
+    //  Like a temple bell or singing bowl
+    //  Calm, dignified, impossible to mistake
+    // ─────────────────────────────────────────
+    if(type==='low_alert'){
+      // Deep resonant bowl strike — warm bass note
+      _chime(ctx,196,0,0.38);      // G2 — grounding bass
+      _chime(ctx,246,0.65,0.30);   // B2 — harmonious second
+      _chime(ctx,294,1.3,0.22);    // D3 — gentle resolution
+      // A single slow sad drip underneath
+      _drip(ctx,0.3,260,0.18);
+      _ripple(ctx,0.38,130,0.07);
+      // Soft noise wash — like water lapping at low level
+      _waterNoise(ctx,0,3.0,0.035,60,280,getMaster(ctx));
+      return;
+    }
+
+    // ─────────────────────────────────────────
+    //  🚿 REFILL — rushing water + chimes
+    // ─────────────────────────────────────────
     if(type==='refill'){
-      // Rushing water stream (bright, energetic)
       _stream(ctx,0,1.2,0.18,900);
       _stream(ctx,0,1.2,0.10,300);
-      // Rapid drops splashing into the rising water
       [0,0.15,0.3,0.45,0.6,0.75].forEach((t,i)=>{
-        const f=500-i*25; // pitch drops as water rises (less air space)
+        const f=500-i*25;
         _drip(ctx,t,f,0.22-i*0.02);
       });
-      // Stream fades
       _stream(ctx,1.0,0.4,0.06,600);
-      // Celebratory chime sequence
       [523,659,784].forEach((f,i)=>{_chime(ctx,f,1.2+i*0.18,0.25);});
       return;
     }
 
-    // ────────────────────────────────────────────
-    //  💧 FULL TANK — calm, satisfying, complete
-    //  Gentle final drops settling + peaceful chime
-    //  Feels like a reward — soothing and beautiful
-    // ────────────────────────────────────────────
+    // ─────────────────────────────────────────
+    //  💧 FULL TANK — soothing completion
+    // ─────────────────────────────────────────
     if(type==='full_tank'){
-      // Soft stream trailing off
       _stream(ctx,0,0.6,0.10,500);
-      // Three gentle final drops — tank is almost full (low pitch)
       _drip(ctx,0.1,220,0.30);
       _drip(ctx,0.45,196,0.20);
-      _drip(ctx,0.82,185,0.14); // very low, tank completely full
-      // Ripples settling
+      _drip(ctx,0.82,185,0.14);
       _ripple(ctx,0.12,110,0.10);
       _ripple(ctx,0.48,98,0.07);
-      // Beautiful ascending chime chord — reward sound
       [392,494,587,740,988].forEach((f,i)=>{
         _chime(ctx,f,1.0+i*0.14,0.22-i*0.025);
       });
-      // Soft noise wash (like a gentle waterfall settling)
       _stream(ctx,1.0,0.8,0.04,200);
       return;
     }
 
-    // ────────────────────────────────────────────
-    //  🚨 CRITICAL ALARM — urgent but still water-themed
-    //  Distressed fast dripping + harsh alarm tones
-    //  Impossible to ignore
-    // ────────────────────────────────────────────
+    // ─────────────────────────────────────────
+    //  🚨 CRITICAL — urgent fast drips + alarm
+    // ─────────────────────────────────────────
     if(type==='critical_alarm'||type==='ac'){
-      // Rapid desperate dripping — tank nearly empty
       [0,0.18,0.34,0.48,0.60,0.70,0.78,0.84].forEach((t,i)=>{
-        const f=900+Math.random()*200; // high pitch = barely any water left
+        const f=900+Math.random()*200;
         _drip(ctx,t,f,0.32-i*0.02);
       });
-      // Alarm tones layered over — two-tone emergency siren
       const now=ctx.currentTime;
       const out=getMaster(ctx);
-      [0,0.4,0.8,1.2,1.6,2.0].forEach((t,i)=>{
+      [0,0.4,0.8,1.2,1.6,2.0].forEach(t=>{
         const o=ctx.createOscillator();const g=ctx.createGain();
-        o.connect(g);g.connect(out);
-        o.type='sawtooth';
+        o.connect(g);g.connect(out);o.type='sawtooth';
         o.frequency.setValueAtTime(880,now+t);
         o.frequency.setValueAtTime(1100,now+t+0.18);
         o.frequency.setValueAtTime(880,now+t+0.36);
@@ -1301,14 +1472,11 @@ function playSound(type,critical=false){
         g.gain.exponentialRampToValueAtTime(0.0001,now+t+0.39);
         o.start(now+t);o.stop(now+t+0.4);
       });
-      // Low rumble underneath
-      _waterNoise(ctx,0,2.5,0.08,60,200,out);
+      _waterNoise(ctx,0,2.5,0.08,60,200,getMaster(ctx));
       return;
     }
 
-    // ────────────────────────────────────────────
-    //  ℹ️ INFO / DEFAULT — single gentle drop
-    // ────────────────────────────────────────────
+    // ── Default info ──
     _drip(ctx,0,440,0.25);
     _ripple(ctx,0.06,220,0.08);
 
@@ -1335,6 +1503,7 @@ function renderDash(){
 
   // ── NIL STATE: first boot (before any data) or stale/offline ──
   if(S.m===null||(!S.connected&&!demoMode)){
+    _setTankAnim(0); // stop all animations
     fill.style.height='0%';
     fill.style.background='linear-gradient(to top,rgba(80,80,110,.3),rgba(80,80,110,.15))';
     body.className='tank-body';
