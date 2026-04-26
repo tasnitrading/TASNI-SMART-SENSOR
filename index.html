@@ -837,7 +837,7 @@ function loadFormValues(){
   sv('c-ip',cfg.ip);sv('c-ssid',cfg.ssid);sv('c-tgtoken',cfg.tgToken);sv('c-tgchat',cfg.tgChat);
   sv('c-empty',cfg.emptyDist||125);sv('c-full',cfg.fullDist||10);sv('c-vol',cfg.volume||1000);sv('c-tname',cfg.tankName||'Main Tank');
   sv('c-shid',cfg.sheetsId);sv('c-shname',cfg.sheetsName);sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8884);
-  sv('c-mquser',cfg.mquser);sv('c-mqtopic',cfg.topic||'');
+  sv('c-mquser',cfg.mquser);sv('c-mqpass',cfg.mqpass);sv('c-mqtopic',cfg.topic||'');
   if(cfg.tankName)document.getElementById('tankNameLbl').textContent=cfg.tankName.toUpperCase();
 }
 
@@ -893,19 +893,34 @@ function _doConnect(mc){
   if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
   clearInterval(_hbTimer);clearTimeout(_wdTimer);
   setChip('chip-mqtt',false);updatePill();
-  const rawHost=(mc.host||'').replace(/^wss?:\/\//,'');
-  const proto=(mc.port===8884||mc.port===8084||mc.port===443||mc.port===8083)?'wss':'ws';
-  const url=`${proto}://${rawHost}:${mc.port}/mqtt`;
-  const cid=`tasni_web_${Date.now().toString(36)}`;
+  const rawHost=(mc.host||'').replace(/^wss?:\/\//,'').trim();
+  if(!rawHost){showToast('MQTT: enter broker host first','warn');return;}
+  const port=parseInt(mc.port)||8884;
+  const proto=(port===8884||port===8084||port===443||port===8083)?'wss':'ws';
+  const url=`${proto}://${rawHost}:${port}/mqtt`;
+  const cid='tasni_'+Math.random().toString(36).slice(2,8);
+  const mqUser=(mc.user&&String(mc.user).trim())||undefined;
+  const mqPass=(mc.pass&&String(mc.pass).trim())||undefined;
+  console.log('[TASNI MQTT] →',url,'user:',mqUser||'(none)');
   try{
-    mqttClient=mqtt.connect(url,{clientId:cid,username:mc.user||undefined,password:mc.pass||undefined,keepalive:25,reconnectPeriod:3000,connectTimeout:12000,clean:true});
+    mqttClient=mqtt.connect(url,{
+      clientId:cid,
+      username:mqUser,
+      password:mqPass,
+      keepalive:30,
+      reconnectPeriod:0,
+      connectTimeout:15000,
+      clean:true,
+      rejectUnauthorized:false,
+      protocolVersion:4
+    });
     mqttClient.on('connect',()=>{
       _lastAck=Date.now();
-      const t=mc.topic||'tasni-water/+/state';
+      const t=(mc.topic&&mc.topic.trim())||'tasni-water/+/state';
       mqttClient.subscribe(t,{qos:1});
       setChip('chip-mqtt',true);updatePill();unlockAch(3);
       if(!_silent){push('ai','☁️ MQTT connected to '+rawHost);showToast('MQTT connected!','ok');}
-      else{showToast('🔄 Reconnected','ok',2000);}
+      else showToast('🔄 MQTT reconnected','ok',2000);
       _silent=true;
       _startHB(mc);
     });
@@ -914,13 +929,18 @@ function _doConnect(mc){
       try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT JSON:',e);}
     });
     mqttClient.on('reconnect',()=>{setChip('chip-mqtt',false);updatePill();});
-    mqttClient.on('close',()=>{setChip('chip-mqtt',false);updatePill();});
+    mqttClient.on('close',()=>{
+      setChip('chip-mqtt',false);updatePill();
+      if(_mqttCfg)setTimeout(()=>{if(_mqttCfg&&(!mqttClient||!mqttClient.connected))_doConnect(_mqttCfg);},5000);
+    });
     mqttClient.on('offline',()=>{setChip('chip-mqtt',false);updatePill();});
-    mqttClient.on('error',(e)=>{console.warn('MQTT error:',e.message);});
+    mqttClient.on('error',(e)=>{
+      console.warn('[TASNI MQTT] error:',e.message||e);
+      showToast('MQTT: '+(e.message||'connection error'),'danger',6000);
+    });
   }catch(e){
     setChip('chip-mqtt',false);updatePill();
-    showToast('MQTT init failed: '+e.message,'danger');
-    setTimeout(()=>_mqttCfg&&_doConnect(_mqttCfg),5000);
+    showToast('MQTT init failed: '+e.message,'danger',6000);
   }
 }
 function _startHB(mc){
@@ -1028,33 +1048,18 @@ function ingest(d,fromMQTT=false){
   S.connected=true;
   S.lastUpdate=new Date();
 
-  // ── Animation: determine motion direction ──
+  // ── Animation only — no background sounds ──
   if(prev!=null&&S.m!=null){
-    if(S.m>prev){
-      // Filling
-      _setTankAnim(1);
-      // Play drip-into-tank sound (water entering)
-      if(ck('t-sound'))_scheduleDripSound('filling');
-    } else if(S.m<prev){
-      // Emptying / draining
-      _setTankAnim(-1);
-      // Play low-flow outflow sound
-      if(ck('t-sound'))_scheduleDripSound('emptying');
-    } else {
-      // Level unchanged — still water (gentle waves only)
-      _setTankAnim(0);
-    }
-    // Auto-stop animation after 8s of no change
+    if(S.m>prev)       _setTankAnim(1);
+    else if(S.m<prev)  _setTankAnim(-1);
+    else               _setTankAnim(0);
     clearTimeout(_animTimer);
-    if(S.m!==prev){
-      _animTimer=setTimeout(()=>_setTankAnim(0),8000);
-    }
+    if(S.m!==prev) _animTimer=setTimeout(()=>_setTankAnim(0),8000);
   }
 
-  // Clear boot guard on first real data + play connect sound
+  // Clear boot guard on first real data
   if(_bootGuardActive){
     clearTimeout(_bootGuardTimer);_bootGuardActive=false;
-    setTimeout(playConnectSound,300);
   }
   // Tell SW the latest level
   if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
@@ -1146,13 +1151,14 @@ function checkAlerts(prev,cur,isFull){
     _speakAlert(cur,'low');
   }
 
-  // Every 10% drop notification (silent — just log)
+  // Every 10% drop — silent log only, no toast/vibrate/sound
   const prevBand=Math.floor(prev/10);
   const curBand =Math.floor(cur/10);
   if(curBand<prevBand&&cur>=10&&cur<90){
     for(let b=prevBand-1;b>=curBand&&b>=1;b--){
-      const dropPct=b*10;
-      push('aw','💧 DROP: Tank crossed '+dropPct+'% — now at '+cur+'%.');
+      const a={type:'aw',msg:'💧 Tank crossed '+(b*10)+'% — now at '+cur+'%.',time:new Date().toISOString()};
+      alerts.unshift(a);if(alerts.length>60)alerts=alerts.slice(0,60);
+      localStorage.setItem('tasni_alerts',JSON.stringify(alerts));
     }
   }
 
@@ -1192,7 +1198,7 @@ function push(type,msg,critical=false){
       requireInteraction:critical&&type==='ac'});
   }
   showToast(msg,type==='ac'?'danger':type==='aw'?'warn':'info',3000);
-  if(ck('t-sound')&&type==='ac')playSound(type,critical);
+  // sound already played by checkAlerts() — no duplicate here
 }
 function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
 
