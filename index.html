@@ -413,12 +413,20 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <p style="font-size:11px;color:var(--muted);margin-top:-8px;margin-bottom:14px">Find the IP on the OLED at boot, or in your router's DHCP list.</p>
     <div class="sec-hd">MQTT REMOTE (FROM ANYWHERE)</div>
     <div class="info-box"><strong>⚠️ Browser MQTT</strong><br>ESP32 publishes on port <strong>8883 (TLS)</strong>. Browsers need WebSocket MQTT. Configure your broker's WS/WSS listener. Topic: <strong>tasni-water/+/state</strong></div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--pri);margin-bottom:8px;font-family:var(--head)">PRIMARY BROKER</div>
     <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="s-broker" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com" autocomplete="off"></div>
     <div class="form-row">
       <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port" type="number" value="8884"></div>
       <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="s-mquser" type="text" placeholder="tasni_water"></div>
     </div>
     <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="s-mqpass" type="password" placeholder="••••••••"></div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin:12px 0 8px;font-family:var(--head)">BACKUP BROKER <span style="font-weight:400;color:rgba(180,220,255,.3)">(optional — used if primary fails)</span></div>
+    <div class="form-grp"><label class="form-lbl">Backup Host</label><input class="form-in" id="s-broker2" type="text" placeholder="backup-broker.example.com" autocomplete="off"></div>
+    <div class="form-row">
+      <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port2" type="number" value="8884"></div>
+      <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="s-mquser2" type="text" placeholder="tasni_water"></div>
+    </div>
+    <div class="form-grp"><label class="form-lbl">Backup Password</label><input class="form-in" id="s-mqpass2" type="password" placeholder="••••••••"></div>
     <div class="form-grp"><label class="form-lbl">MQTT Topic</label><input class="form-in" id="s-topic" type="text" placeholder="tasni-water/E2A4/state"></div>
     <div class="form-grp"><label class="form-lbl">Tank Display Name</label><input class="form-in" id="s-name" type="text" value="Main Tank"></div>
     <button class="btn btn-p btn-full" onclick="applySetup()">⚡ CONNECT</button>
@@ -502,35 +510,74 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <div class="tab" id="tab-analytics">
     <div class="card">
       <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
-        Live Analytics
+        Session Analytics
         <div style="display:flex;gap:6px;align-items:center">
-          <button class="reset-btn-inline" onclick="resetAnalytics()" title="Reset usage counter">↺ RESET</button>
+          <button class="reset-btn-inline" onclick="resetAnalytics()">↺ RESET</button>
           <button class="btn btn-g btn-sm" style="padding:4px 10px;font-size:9px" onclick="downloadReport()">⬇ REPORT</button>
         </div>
       </div>
-      <div class="analytics-summary" id="analyticsSummary">
-        <div class="asumm"><div class="asumm-val" id="asum-avg">--</div><div class="asumm-lbl">Avg %</div></div>
+      <!-- 3-col KPI row -->
+      <div class="analytics-summary">
+        <div class="asumm"><div class="asumm-val" id="asum-cur">--</div><div class="asumm-lbl">Current %</div></div>
         <div class="asumm"><div class="asumm-val" id="asum-used">--</div><div class="asumm-lbl">Used L</div></div>
-        <div class="asumm"><div class="asumm-val" id="asum-rate">--</div><div class="asumm-lbl">L/hr avg</div></div>
+        <div class="asumm"><div class="asumm-val" id="asum-rate">--</div><div class="asumm-lbl">L/hr</div></div>
+      </div>
+      <!-- Donut + Volume side by side -->
+      <div style="display:flex;gap:12px;align-items:center;margin-top:4px">
+        <div style="position:relative;width:110px;height:110px;flex-shrink:0">
+          <canvas id="donutChart"></canvas>
+          <div id="donutLabel" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+            <div style="font-family:var(--mono);font-size:20px;color:var(--pri);line-height:1" id="donutPct">--</div>
+            <div style="font-size:9px;color:var(--muted);letter-spacing:1px;font-family:var(--head)">LEVEL</div>
+          </div>
+        </div>
+        <div style="flex:1">
+          <div style="margin-bottom:10px">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-family:var(--head);letter-spacing:1px">VOLUME IN TANK</div>
+            <div style="font-family:var(--mono);font-size:22px;color:var(--pri)" id="vol-display">-- L</div>
+            <div style="font-size:11px;color:var(--muted)">of <span id="vol-total-display">--</span> L capacity</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-family:var(--head);letter-spacing:1px">EST. EMPTY IN</div>
+            <div style="font-family:var(--mono);font-size:18px;color:var(--warn)" id="vol-empty-in">--</div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="card"><div class="card-title">24-Hour Level History</div><div class="chart-box"><canvas id="histChart"></canvas></div></div>
+
+    <!-- Line chart: 24h history -->
     <div class="card">
-      <div class="card-title">Usage by Time of Day <span style="font-size:9px;color:var(--muted);font-weight:400">(from session data)</span></div>
-      <div class="ubar-row"><div class="ubar-lbl"><span>🌅 Morning (6–12)</span><span id="u-morn">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-morn" style="width:0%"></div></div></div>
-      <div class="ubar-row"><div class="ubar-lbl"><span>☀️ Afternoon (12–18)</span><span id="u-aft">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-aft" style="width:0%"></div></div></div>
-      <div class="ubar-row"><div class="ubar-lbl"><span>🌆 Evening (18–24)</span><span id="u-eve">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-eve" style="width:0%"></div></div></div>
-      <div class="ubar-row"><div class="ubar-lbl"><span>🌙 Night (0–6)</span><span id="u-ngt">-- L</span></div><div class="ubar"><div class="ubar-fill" id="b-ngt" style="width:0%"></div></div></div>
-      <div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.5">Based on water level drops observed this session. Resets on page reload or when you tap Reset.</div>
+      <div class="card-title">24-Hour Level History</div>
+      <div class="chart-box"><canvas id="histChart"></canvas></div>
     </div>
+
+    <!-- Bar chart: usage by time of day -->
     <div class="card">
-      <div class="card-title">Forecast</div>
-      <div class="fc-row"><span>Current Level</span><span class="fc-val" id="fc-cur">--</span></div>
-      <div class="fc-row" style="font-size:11px;color:var(--muted)"><span>At current usage rate…</span></div>
-      <div class="fc-row"><span>In 24 hours</span><span class="fc-val" id="fc-24">--</span></div>
-      <div class="fc-row"><span>In 3 days</span><span class="fc-val" id="fc-3d">--</span></div>
-      <div class="fc-row"><span>Tank empty in</span><span class="fc-val" id="fc-emp">--</span></div>
+      <div class="card-title">Water Usage by Time of Day
+        <span style="font-size:9px;color:var(--muted);font-weight:400;margin-left:4px">(this session)</span>
+      </div>
+      <div style="height:160px"><canvas id="barChart"></canvas></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
+        Tracks actual level drops recorded this session. Empty = no drops recorded yet in that period.
+      </div>
     </div>
+
+    <!-- Forecast + status donut row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="card" style="padding:14px">
+        <div class="card-title" style="margin-bottom:10px">Forecast</div>
+        <div class="fc-row"><span style="font-size:11px">Now</span><span class="fc-val" id="fc-cur" style="font-size:13px">--</span></div>
+        <div class="fc-row"><span style="font-size:11px">24 hrs</span><span class="fc-val" id="fc-24" style="font-size:13px">--</span></div>
+        <div class="fc-row"><span style="font-size:11px">3 days</span><span class="fc-val" id="fc-3d" style="font-size:13px">--</span></div>
+        <div class="fc-row" style="border-bottom:none"><span style="font-size:11px">Empty in</span><span class="fc-val" id="fc-emp" style="font-size:12px;color:var(--warn)">--</span></div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div class="card-title" style="margin-bottom:10px">Usage Split</div>
+        <div style="height:100px"><canvas id="usagePieChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Recent events -->
     <div class="card">
       <div class="card-title">Recent Usage Events</div>
       <div id="usageEvents"><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No drops recorded yet this session</div></div>
@@ -555,13 +602,14 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;font-family:var(--head)">SOUND PREVIEW</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <button class="btn btn-o btn-sm" onclick="playSound('drop_10')">💧 Drop</button>
+          <button class="btn btn-o btn-sm" onclick="playSound('drop_10')">💧 Drip</button>
           <button class="btn btn-o btn-sm" onclick="playSound('refill')">🚿 Refill</button>
-          <button class="btn btn-o btn-sm" onclick="playSound('full_tank')">🎉 Full Tank</button>
-          <button class="btn btn-d btn-sm" onclick="playSound('critical_alarm')">🚨 Critical</button>
-          <button class="btn btn-o btn-sm" onclick="playSound('low_alert')">🔔 Low Bowl</button>
-          <button class="btn btn-g btn-sm" onclick="_speakAlert(28,'low')" style="font-size:9px">🗣 Voice Alert</button>
+          <button class="btn btn-o btn-sm" onclick="playSound('full_tank')">🎉 Full</button>
+          <button class="btn btn-o btn-sm" onclick="playSound('low_alert')">🔔 Low Alert</button>
+          <button class="btn btn-d btn-sm" onclick="playSound('critical_alarm')" style="grid-column:span 2">🚨 Critical Alarm</button>
+          <button class="btn btn-g btn-sm" onclick="_speakAlert(28,'low')" style="grid-column:span 2;background:linear-gradient(135deg,rgba(45,212,191,.15),rgba(124,58,237,.15));border-color:var(--pri);color:var(--pri)">🗣 TEST VOICE — English · Telugu · Urdu</button>
         </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">Voice speaks in all 3 languages on Low, Critical &amp; Full alerts. Tap TEST VOICE to preview.</div>
       </div>
     </div>
     <div class="card">
@@ -615,7 +663,12 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="card">
       <div class="acc-h" onclick="toggleAcc(this)"><span>🌐 MQTT Remote Broker</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
-        <div class="info-box"><strong>ESP32 topic:</strong> <code style="color:var(--ok)">tasni-water/{deviceID}/state</code><br>Port on device: <strong>8883 (TLS)</strong>. Browser connects via WebSocket.</div>
+        <div class="info-box"><strong>ESP32 topic:</strong> <code style="color:var(--ok)">tasni-water/{deviceID}/state</code><br>Port on device: <strong>8883 (TLS)</strong>. Browser connects via WebSocket.<br>Backup broker takes over automatically if primary fails for 15 seconds.</div>
+        <!-- Primary broker status -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--pri);font-family:var(--head)">PRIMARY BROKER</div>
+          <div id="pill-primary" style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:rgba(80,80,100,.2);color:var(--muted);font-family:var(--head)">OFFLINE</div>
+        </div>
         <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="c-mqb" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com"></div>
         <div class="form-row">
           <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp" type="number" placeholder="8884"></div>
@@ -623,19 +676,19 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         </div>
         <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="c-mqpass" type="password"></div>
         <div class="form-grp"><label class="form-lbl">Topic (blank = wildcard)</label><input class="form-in" id="c-mqtopic" type="text" placeholder="tasni-water/+/state"></div>
-        <button class="btn btn-p btn-full" onclick="saveMQTT()">Connect Primary MQTT</button>
-        <button class="btn btn-d btn-full" style="margin-top:8px" onclick="disconnMQTT()">Disconnect MQTT</button>
-        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-          <div class="form-lbl" style="color:var(--warn);margin-bottom:8px">🔁 BACKUP BROKER — Auto Failover</div>
-          <div class="info-box" style="margin-bottom:10px;font-size:11px">If primary broker fails, the app automatically switches to this backup. Your app never goes offline.</div>
-          <div class="form-grp"><label class="form-lbl">Backup Broker Host</label><input class="form-in" id="c-mqb2" type="text" placeholder="backup.broker.com"></div>
-          <div class="form-row">
-            <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp2" type="number" placeholder="8884"></div>
-            <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser2" type="text"></div>
-          </div>
-          <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="c-mqpass2" type="password"></div>
-          <button class="btn btn-o btn-full" onclick="saveBackupMQTT()">💾 Save Backup Broker</button>
+        <!-- Backup broker status -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);font-family:var(--head)">BACKUP BROKER <span style="font-weight:400;color:rgba(180,220,255,.25)">(auto-failover)</span></div>
+          <div id="pill-backup" style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:rgba(80,80,100,.2);color:var(--muted);font-family:var(--head)">STANDBY</div>
         </div>
+        <div class="form-grp"><label class="form-lbl">Backup Host</label><input class="form-in" id="c-mqb2" type="text" placeholder="backup.broker.example.com"></div>
+        <div class="form-row">
+          <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp2" type="number" placeholder="8884"></div>
+          <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser2" type="text"></div>
+        </div>
+        <div class="form-grp"><label class="form-lbl">Backup Password</label><input class="form-in" id="c-mqpass2" type="password"></div>
+        <button class="btn btn-p btn-full" onclick="saveMQTT()">⚡ Connect Both Brokers</button>
+        <button class="btn btn-d btn-full" style="margin-top:8px" onclick="disconnMQTT()">Disconnect MQTT</button>
       </div>
     </div>
     <div style="display:flex;gap:10px;padding:6px 0 16px">
@@ -708,17 +761,24 @@ let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'{}');
 // S.m starts as null — NIL until first real data
 const S={m:null,vol:0,total:1000,s:'Offline',dist:0,t:'',usage:0,up:0,rssi:0,boot:0,isFull:0,name:'Main Tank',history:Array(24).fill(null),connected:false,lastUpdate:null,_wasFull:false};
 let alerts=JSON.parse(localStorage.getItem('tasni_alerts')||'[]');
-let unread=0,demoMode=false,pollingTimer=null,mqttClient=null,chart=null,tipIdx=0,audioCtx=null;
-// MQTT keep-alive state
-let _mqttCfg=null,_hbTimer=null,_wdTimer=null,_lastAck=0,_silent=false;
-// Staleness — if no data arrives within STALE_MS, blank the dashboard
+let unread=0,demoMode=false,pollingTimer=null,chart=null,tipIdx=0,audioCtx=null;
+// Staleness watchdog
 const STALE_MS=30000;
 let _staleTimer=null;
 // Analytics — real session data only
 const analyticsSession={events:[],periodTotals:{morn:0,aft:0,eve:0,ngt:0},totalUsedL:0,readings:[]};
-// ── REAL DATA GUARD: dashboard shows NIL until first real device/MQTT data ──
-// _hasRealData stays false until ingest() is called from a real source (not demo)
-let _hasRealData=false;
+
+// ── BOOT DISPLAY GUARD ──
+// _displayReady = false means ALWAYS show NIL regardless of S.m
+// Releases after 10s OR when first real data arrives — whichever comes first
+// This prevents stale cached/localStorage values showing on startup
+let _displayReady=false;
+let _bootGuardActive=true;
+const _bootGuardTimer=setTimeout(()=>{
+  // 10s expired with no data — release guard, keep showing NIL until data arrives
+  _bootGuardActive=false;
+  _displayReady=false; // still NIL until real data comes
+},10000);
 
 // ═══════════════════════════════════════════
 //  ALERT TOGGLE PERSISTENCE
@@ -797,31 +857,31 @@ window.addEventListener('load',()=>{
   renderDash();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(async reg=>{
-      // ── Send config to SW so it can poll when app is closed ──
-      function sendCfgToSW(){
-        if(reg.active){
-          reg.active.postMessage({type:'STORE_CONFIG',config:{
+      // Wait for SW to become active before sending config
+      const sw=reg.installing||reg.waiting||reg.active;
+      const sendCfg=()=>{
+        const ctrl=navigator.serviceWorker.controller;
+        if(ctrl){
+          ctrl.postMessage({type:'STORE_CONFIG',config:{
             ip:cfg.ip,broker:cfg.broker,
             alertCrit:document.getElementById('t-crit')?.checked,
             alertLow:document.getElementById('t-low')?.checked,
           }});
         }
-      }
-      sendCfgToSW();
-      // ── Register Periodic Background Sync (Android Chrome PWA) ──
+      };
+      // If controller already exists send now, else wait for it
+      if(navigator.serviceWorker.controller){sendCfg();}
+      else{navigator.serviceWorker.addEventListener('controllerchange',sendCfg,{once:true});}
+      // Periodic Background Sync
       if('periodicSync' in reg){
         try{
           const status=await navigator.permissions.query({name:'periodic-background-sync'});
           if(status.state==='granted'){
             await reg.periodicSync.register('tasni-monitor',{minInterval:15*60*1000});
-            console.log('[TASNI] Periodic background sync registered (15 min)');
           }
-        }catch(e){console.log('[TASNI] Periodic sync not available:',e.message);}
+        }catch(_){}
       }
-      // ── Register one-shot Background Sync ──
-      if('sync' in reg){
-        try{await reg.sync.register('tasni-check');}catch(_){}
-      }
+      if('sync' in reg){try{await reg.sync.register('tasni-check');}catch(_){}}
     }).catch(()=>{});
   }
   unlockAch(0);
@@ -844,10 +904,14 @@ function loadFormValues(){
   const sv=(id,v)=>{if(v!=null&&v!==''&&document.getElementById(id))document.getElementById(id).value=v;};
   sv('s-ip',cfg.ip);sv('s-broker',cfg.broker);sv('s-port',cfg.port||8884);
   sv('s-mquser',cfg.mquser);sv('s-name',cfg.tankName||'Main Tank');sv('s-topic',cfg.topic||'');
+  sv('s-broker2',cfg.broker2);sv('s-port2',cfg.port2||8884);sv('s-mquser2',cfg.mquser2);
   sv('c-ip',cfg.ip);sv('c-ssid',cfg.ssid);sv('c-tgtoken',cfg.tgToken);sv('c-tgchat',cfg.tgChat);
   sv('c-empty',cfg.emptyDist||125);sv('c-full',cfg.fullDist||10);sv('c-vol',cfg.volume||1000);sv('c-tname',cfg.tankName||'Main Tank');
-  sv('c-shid',cfg.sheetsId);sv('c-shname',cfg.sheetsName);sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8884);
-  sv('c-mquser',cfg.mquser);sv('c-mqpass',cfg.mqpass);sv('c-mqtopic',cfg.topic||'');
+  sv('c-shid',cfg.sheetsId);sv('c-shname',cfg.sheetsName);
+  sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8884);
+  sv('c-mquser',cfg.mquser);sv('c-mqtopic',cfg.topic||'');
+  sv('c-mqb2',cfg.broker2);sv('c-mqp2',cfg.port2||8884);
+  sv('c-mquser2',cfg.mquser2);
   if(cfg.tankName)document.getElementById('tankNameLbl').textContent=cfg.tankName.toUpperCase();
 }
 
@@ -858,7 +922,9 @@ function applySetup(){
   const ip=g('s-ip'),broker=g('s-broker'),port=parseInt(g('s-port'))||8884;
   const mquser=g('s-mquser'),mqpass=g('s-mqpass'),name=g('s-name')||'Main Tank';
   const topic=g('s-topic')||'tasni-water/+/state';
-  saveCfg({ip,broker,port,mquser,mqpass,tankName:name,topic});
+  const broker2=g('s-broker2'),port2=parseInt(g('s-port2'))||8884;
+  const mquser2=g('s-mquser2'),mqpass2=g('s-mqpass2');
+  saveCfg({ip,broker,port,mquser,mqpass,tankName:name,topic,broker2,port2,mquser2,mqpass2});
   document.getElementById('tankNameLbl').textContent=name.toUpperCase();
   document.getElementById('connModal').classList.add('hidden');
   startConnections();
@@ -872,10 +938,9 @@ function useDemoMode(){
 function startConnections(){
   demoMode=false;
   document.getElementById('demoBanner').classList.add('hidden');
-  if(cfg.ip) startPoll(cfg.ip);
-  // Restore backup broker if previously saved
-  if(cfg.broker2) _mqttBackupCfg={host:cfg.broker2,port:cfg.port2||8884,user:cfg.mquser2,pass:cfg.mqpass2,topic:cfg.topic||'tasni-water/+/state'};
-  if(cfg.broker) _connectMQTT({host:cfg.broker,port:cfg.port||8884,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
+  if(cfg.ip)startPoll(cfg.ip);
+  if(cfg.broker)_connectMQTT({host:cfg.broker,port:cfg.port||8884,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
+  if(cfg.broker2)_connectMQTT2({host:cfg.broker2,port:cfg.port2||8884,user:cfg.mquser2,pass:cfg.mqpass2,topic:cfg.topic||'tasni-water/+/state'});
   _resetStaleTimer();
 }
 
@@ -897,102 +962,184 @@ async function fetchSensor(ip){
   updatePill();
 }
 
-// ═══════════════════════════════════════════
-//  MQTT — ALWAYS-ALIVE ENGINE
-// ═══════════════════════════════════════════
-// ── MQTT: primary + automatic backup failover ──
-let _mqttBackupCfg=null;
-let _mqttUsedBackup=false;
-function _connectMQTT(mc){_mqttCfg=mc;_silent=false;_mqttUsedBackup=false;_doConnect(mc);}
-function _doConnect(mc){
-  if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
+// ═══════════════════════════════════════════════════════
+//  DUAL MQTT ENGINE — Primary + Backup auto-failover
+//  Both run simultaneously as independent clients
+//  First one to receive data "wins" and feeds the dashboard
+//  If primary drops, backup seamlessly keeps data flowing
+// ═══════════════════════════════════════════════════════
+let mqttPrimary=null;      // primary client
+let mqttBackup=null;       // backup client
+let _mqttCfg=null;         // primary config
+let _mqttCfg2=null;        // backup config
+let _hbTimer=null,_hbTimer2=null;
+let _wdTimer=null,_wdTimer2=null;
+let _lastAck=0,_lastAck2=0;
+let _silent=false,_silent2=false;
+let _primaryOk=false,_backupOk=false;
+
+// Legacy alias so rest of code still works
+const mqttClient={get connected(){return _primaryOk||_backupOk;}};
+
+function _updateBrokerPills(){
+  const p=document.getElementById('pill-primary');
+  const b=document.getElementById('pill-backup');
+  if(p){
+    p.textContent=_primaryOk?'ONLINE':'OFFLINE';
+    p.style.background=_primaryOk?'rgba(52,211,153,.15)':'rgba(80,80,100,.2)';
+    p.style.color=_primaryOk?'var(--ok)':'var(--muted)';
+    p.style.border=_primaryOk?'1px solid rgba(52,211,153,.3)':'none';
+  }
+  if(b){
+    const hasCfg=!!(_mqttCfg2&&_mqttCfg2.host);
+    b.textContent=!hasCfg?'NOT SET':_backupOk?'ACTIVE':'STANDBY';
+    b.style.background=_backupOk?'rgba(251,191,36,.12)':hasCfg?'rgba(45,212,191,.07)':'rgba(80,80,100,.12)';
+    b.style.color=_backupOk?'var(--warn)':hasCfg?'var(--muted)':'rgba(120,120,140,.6)';
+    b.style.border=_backupOk?'1px solid rgba(251,191,36,.3)':hasCfg?'1px solid var(--border)':'none';
+  }
+  // Overall chip
+  setChip('chip-mqtt',_primaryOk||_backupOk);
+  updatePill();
+}
+
+function _buildMqttOpts(mc){
+  const opts={
+    clientId:`tasni_web_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`,
+    keepalive:30,
+    reconnectPeriod:5000,
+    connectTimeout:15000,
+    clean:true,
+  };
+  if(mc.user&&mc.user.trim())opts.username=mc.user.trim();
+  if(mc.pass&&mc.pass.trim())opts.password=mc.pass.trim();
+  return opts;
+}
+
+function _makeUrl(mc){
+  const raw=(mc.host||'').replace(/^wss?:\/\//,'');
+  const proto=(mc.port===8884||mc.port===8084||mc.port===443||mc.port===8083)?'wss':'ws';
+  return`${proto}://${raw}:${mc.port}/mqtt`;
+}
+
+// ── Connect PRIMARY broker ──
+function _connectPrimary(mc){
+  if(!mc||!mc.host)return;
+  if(mqttPrimary){try{mqttPrimary.end(true);}catch(_){}mqttPrimary=null;}
   clearInterval(_hbTimer);clearTimeout(_wdTimer);
-  setChip('chip-mqtt',false);updatePill();
-  const rawHost=(mc.host||'').replace(/^wss?:\/\//,'').trim();
-  if(!rawHost){showToast('MQTT: enter broker host first','warn');return;}
-  const port=parseInt(mc.port)||8884;
-  const proto=(port===8884||port===8084||port===443||port===8083)?'wss':'ws';
-  const url=`${proto}://${rawHost}:${port}/mqtt`;
-  const cid='tasni_'+Math.random().toString(36).slice(2,8);
-  const mqUser=(mc.user&&String(mc.user).trim())||undefined;
-  const mqPass=(mc.pass&&String(mc.pass).trim())||undefined;
-  console.log('[TASNI MQTT] →',url,'user:',mqUser||'(none)');
-  let _failedOnce=false;
+  _primaryOk=false;_updateBrokerPills();
   try{
-    mqttClient=mqtt.connect(url,{
-      clientId:cid,username:mqUser,password:mqPass,
-      keepalive:30,reconnectPeriod:0,connectTimeout:15000,
-      clean:true,rejectUnauthorized:false,protocolVersion:4
+    mqttPrimary=mqtt.connect(_makeUrl(mc),_buildMqttOpts(mc));
+    mqttPrimary.on('connect',()=>{
+      _lastAck=Date.now();_primaryOk=true;_updateBrokerPills();unlockAch(3);
+      const t=mc.topic||'tasni-water/+/state';
+      mqttPrimary.subscribe(t,{qos:1});
+      if(!_silent){showToast('☁️ Primary MQTT connected','ok',2500);push('ai','☁️ Primary broker connected: '+mc.host);}
+      else showToast('🔄 Primary reconnected','ok',2000);
+      _silent=true;
+      _startHBPrimary(mc);
     });
-    mqttClient.on('connect',()=>{
-      _failedOnce=false;
+    mqttPrimary.on('message',(_t,pl)=>{
       _lastAck=Date.now();
-      _mqttUsedBackup=(mc===_mqttBackupCfg);
-      const t=(mc.topic&&mc.topic.trim())||'tasni-water/+/state';
-      mqttClient.subscribe(t,{qos:1});
-      setChip('chip-mqtt',true);updatePill();unlockAch(3);
-      const lbl=_mqttUsedBackup?' (backup)':'';
-      if(!_silent){push('ai','☁️ MQTT connected to '+rawHost+lbl);showToast('MQTT connected'+lbl+'!','ok');}
-      else showToast('🔄 MQTT reconnected'+lbl,'ok',2000);
-      _silent=true;_startHB(mc);
+      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT-P JSON:',e);}
     });
-    mqttClient.on('message',(_t,pl)=>{
-      _lastAck=Date.now();
-      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT JSON:',e);}
-    });
-    mqttClient.on('reconnect',()=>{setChip('chip-mqtt',false);updatePill();});
-    mqttClient.on('close',()=>{
-      setChip('chip-mqtt',false);updatePill();
-      if(_failedOnce&&_mqttBackupCfg&&mc!==_mqttBackupCfg){
-        // Primary failed → try backup
-        console.warn('[TASNI] primary MQTT failed → switching to backup');
-        showToast('📡 Switching to backup MQTT…','warn',4000);
-        setTimeout(()=>_doConnect(_mqttBackupCfg),1500);
-      } else if(_failedOnce&&_mqttBackupCfg&&mc===_mqttBackupCfg){
-        // Backup also failed → retry primary after 10s
-        showToast('⚠️ Both brokers offline. Retrying in 10s…','danger',5000);
-        setTimeout(()=>{_silent=false;_doConnect(_mqttCfg);},10000);
-      } else if(!_failedOnce){
-        // Was connected, dropped cleanly → reconnect same in 5s
-        setTimeout(()=>{if(_mqttCfg&&(!mqttClient||!mqttClient.connected))_doConnect(mc);},5000);
-      }
-    });
-    mqttClient.on('offline',()=>{setChip('chip-mqtt',false);updatePill();});
-    mqttClient.on('error',(e)=>{
-      _failedOnce=true;
-      console.warn('[TASNI MQTT] error:',e.message||e);
-      showToast('MQTT: '+(e.message||'connection error'),'danger',5000);
-    });
+    mqttPrimary.on('reconnect',()=>{_primaryOk=false;_updateBrokerPills();});
+    mqttPrimary.on('close',()=>{_primaryOk=false;_updateBrokerPills();});
+    mqttPrimary.on('offline',()=>{_primaryOk=false;_updateBrokerPills();});
+    mqttPrimary.on('error',(e)=>{console.warn('MQTT-P error:',e.message);_primaryOk=false;_updateBrokerPills();});
   }catch(e){
-    setChip('chip-mqtt',false);updatePill();
-    showToast('MQTT init failed: '+e.message,'danger',5000);
+    console.warn('MQTT-P init failed:',e.message);
+    _primaryOk=false;_updateBrokerPills();
+    setTimeout(()=>_mqttCfg&&_connectPrimary(_mqttCfg),6000);
   }
 }
-function _startHB(mc){
+
+// ── Connect BACKUP broker ──
+function _connectBackup(mc){
+  if(!mc||!mc.host)return;
+  if(mqttBackup){try{mqttBackup.end(true);}catch(_){}mqttBackup=null;}
+  clearInterval(_hbTimer2);clearTimeout(_wdTimer2);
+  _backupOk=false;_updateBrokerPills();
+  try{
+    mqttBackup=mqtt.connect(_makeUrl(mc),_buildMqttOpts(mc));
+    mqttBackup.on('connect',()=>{
+      _lastAck2=Date.now();_backupOk=true;_updateBrokerPills();
+      const t=(mc.topic||_mqttCfg?.topic||'tasni-water/+/state');
+      mqttBackup.subscribe(t,{qos:1});
+      if(!_silent2){showToast('☁️ Backup MQTT connected','ok',2500);push('ai','☁️ Backup broker connected: '+mc.host);}
+      else showToast('🔄 Backup reconnected','ok',2000);
+      _silent2=true;
+      _startHBBackup(mc);
+    });
+    mqttBackup.on('message',(_t,pl)=>{
+      _lastAck2=Date.now();
+      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT-B JSON:',e);}
+    });
+    mqttBackup.on('reconnect',()=>{_backupOk=false;_updateBrokerPills();});
+    mqttBackup.on('close',()=>{_backupOk=false;_updateBrokerPills();});
+    mqttBackup.on('offline',()=>{_backupOk=false;_updateBrokerPills();});
+    mqttBackup.on('error',(e)=>{console.warn('MQTT-B error:',e.message);_backupOk=false;_updateBrokerPills();});
+  }catch(e){
+    console.warn('MQTT-B init failed:',e.message);
+    _backupOk=false;_updateBrokerPills();
+    setTimeout(()=>_mqttCfg2&&_connectBackup(_mqttCfg2),6000);
+  }
+}
+
+function _startHBPrimary(mc){
   clearInterval(_hbTimer);
   _hbTimer=setInterval(()=>{
-    if(!mqttClient||!mqttClient.connected)return;
-    mqttClient.publish('tasni-water/web/ping',JSON.stringify({ts:Date.now()}),{qos:0});
+    if(!mqttPrimary||!mqttPrimary.connected)return;
+    mqttPrimary.publish('tasni-water/web/ping',JSON.stringify({ts:Date.now()}),{qos:0});
     clearTimeout(_wdTimer);
     _wdTimer=setTimeout(()=>{
-      if(Date.now()-_lastAck>40000&&_mqttCfg){console.warn('TASNI watchdog: hard reconnect');_doConnect(_mqttCfg);}
-    },40000);
+      if(Date.now()-_lastAck>45000&&_mqttCfg){
+        console.warn('TASNI: primary watchdog — reconnect');
+        _primaryOk=false;_updateBrokerPills();
+        _connectPrimary(_mqttCfg);
+      }
+    },45000);
   },25000);
 }
+
+function _startHBBackup(mc){
+  clearInterval(_hbTimer2);
+  _hbTimer2=setInterval(()=>{
+    if(!mqttBackup||!mqttBackup.connected)return;
+    mqttBackup.publish('tasni-water/web/ping',JSON.stringify({ts:Date.now()}),{qos:0});
+    clearTimeout(_wdTimer2);
+    _wdTimer2=setTimeout(()=>{
+      if(Date.now()-_lastAck2>45000&&_mqttCfg2){
+        console.warn('TASNI: backup watchdog — reconnect');
+        _backupOk=false;_updateBrokerPills();
+        _connectBackup(_mqttCfg2);
+      }
+    },45000);
+  },25000);
+}
+
+// ── Public entry points ──
+function _connectMQTT(mc){_mqttCfg=mc;_silent=false;_connectPrimary(mc);}
+function _connectMQTT2(mc){_mqttCfg2=mc;_silent2=false;_connectBackup(mc);}
+
+// Visibility / network events
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'&&_mqttCfg){
-    if(!mqttClient||!mqttClient.connected)_doConnect(_mqttCfg);
-    else _startHB(_mqttCfg);
+  if(document.visibilityState==='visible'){
+    if(_mqttCfg&&(!mqttPrimary||!mqttPrimary.connected)){_connectPrimary(_mqttCfg);}
+    else if(_mqttCfg)_startHBPrimary(_mqttCfg);
+    if(_mqttCfg2&&(!mqttBackup||!mqttBackup.connected)){_connectBackup(_mqttCfg2);}
+    else if(_mqttCfg2)_startHBBackup(_mqttCfg2);
     requestWakeLock();
   }
 });
 window.addEventListener('online',()=>{
-  if(_mqttCfg&&(!mqttClient||!mqttClient.connected)){showToast('📶 Network restored','info',2500);_doConnect(_mqttCfg);}
+  showToast('📶 Network restored','info',2500);
+  if(_mqttCfg&&(!mqttPrimary||!mqttPrimary.connected))_connectPrimary(_mqttCfg);
+  if(_mqttCfg2&&(!mqttBackup||!mqttBackup.connected))_connectBackup(_mqttCfg2);
 });
 window.addEventListener('offline',()=>{
   showToast('📡 Network lost','warn',3000);
-  clearTimeout(_staleTimer);
-  _staleTimer=setTimeout(_markStale,5000);
+  _primaryOk=false;_backupOk=false;_updateBrokerPills();
+  clearTimeout(_staleTimer);_staleTimer=setTimeout(_markStale,5000);
 });
 async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await navigator.wakeLock.request('screen');}catch(_){}}
 
@@ -1056,7 +1203,6 @@ function _setTankAnim(dir){
 }
 
 function ingest(d,fromMQTT=false){
-  _hasRealData=true; // first real data arrived — unlock dashboard
   const prev=S.m;
   if(d.m     !=null)S.m     =parseInt(d.m);
   if(d.vol   !=null)S.vol   =parseFloat(d.vol);
@@ -1074,22 +1220,39 @@ function ingest(d,fromMQTT=false){
   S.connected=true;
   S.lastUpdate=new Date();
 
-  // ── Animation only — no background sounds ──
-  if(prev!=null&&S.m!=null){
-    if(S.m>prev)       _setTankAnim(1);
-    else if(S.m<prev)  _setTankAnim(-1);
-    else               _setTankAnim(0);
+  // ── Animation: only act when level actually changes ──
+  // MQTT sends repeated same-level messages — only trigger on real change
+  if(prev!=null&&S.m!=null&&S.m!==prev){
+    if(S.m>prev){
+      _setTankAnim(1);
+      // Schedule filling drips — safely deferred, never blocks MQTT
+      setTimeout(()=>{try{if(ck('t-sound'))_scheduleDripSound('filling');}catch(_){}},0);
+    } else {
+      _setTankAnim(-1);
+      // Emptying — nice alert sound, NOT dog/voice while draining
+      setTimeout(()=>{try{if(ck('t-sound'))_scheduleDripSound('emptying');}catch(_){}},0);
+    }
+    // Auto-freeze animation 10s after last change
     clearTimeout(_animTimer);
-    if(S.m!==prev) _animTimer=setTimeout(()=>_setTankAnim(0),8000);
+    _animTimer=setTimeout(()=>_setTankAnim(0),10000);
   }
+  // First real data — release boot guard and allow display
+  if(_bootGuardActive||!_displayReady){
+    clearTimeout(_bootGuardTimer);
+    _bootGuardActive=false;
+    _displayReady=true; // NOW allow renderDash to show real data
+    setTimeout(()=>{try{playConnectSound();}catch(_){}},400);
+  }
+  // Tell SW the latest level (non-blocking)
+  try{
+    if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
+      navigator.serviceWorker.controller.postMessage({type:'STORE_LEVEL',level:S.m});
+    }
+  }catch(_){}
 
-  // _hasRealData is set at top of ingest() — no timer needed
-  // Tell SW the latest level
-  if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({type:'STORE_LEVEL',level:S.m});
-  }
   _resetStaleTimer();
-  // Analytics: record usage drop events
+
+  // Analytics
   if(prev!=null&&S.m!=null&&prev>S.m){
     const dropL=((prev-S.m)/100)*S.total;
     recordUsageEvent(dropL,prev,S.m);
@@ -1107,16 +1270,21 @@ function ingest(d,fromMQTT=false){
 //  No ambulance sirens — natural water sounds + calm voice
 // ═══════════════════════════════════════════
 
-// ── Speech alert — speaks in 3 languages with pauses ──
+// ── Speech alert — speaks in English → Telugu → Urdu ──
+// Bulletproof: resets on any error, has safety timeout, never deadlocks
 let _speechBusy=false;
+let _speechTimeout=null;
+
 function _speakAlert(level,type){
   if(!('speechSynthesis' in window))return;
-  if(_speechBusy)return;
-  _speechBusy=true;
 
-  // Build utterance list: English → Telugu → Urdu
+  // Reset any stuck state first
+  clearTimeout(_speechTimeout);
+  speechSynthesis.cancel();
+  _speechBusy=false;
+
+  // Build phrase list
   const phrases=[];
-
   if(type==='low'){
     phrases.push({text:`Water tank is running low. Level at ${level} percent. Please refill soon.`,lang:'en-IN'});
     phrases.push({text:`నీటి ట్యాంకు తక్కువగా ఉంది. స్థాయి ${level} శాతం. దయచేసి నింపండి.`,lang:'te-IN'});
@@ -1130,31 +1298,63 @@ function _speakAlert(level,type){
     phrases.push({text:`ట్యాంకు నిండింది. నీటి స్థాయి గరిష్ఠంగా ఉంది.`,lang:'te-IN'});
     phrases.push({text:`ٹینکی بھر گئی ہے۔ پانی کی سطح زیادہ سے زیادہ ہے۔`,lang:'ur-PK'});
   }
+  if(!phrases.length)return;
 
-  // Speak sequentially with 600ms gap between languages
+  _speechBusy=true;
+  // Safety: always release after 30s no matter what
+  _speechTimeout=setTimeout(()=>{_speechBusy=false;speechSynthesis.cancel();},30000);
+
+  const voices=speechSynthesis.getVoices();
   let idx=0;
+
   function speakNext(){
-    if(idx>=phrases.length){_speechBusy=false;return;}
+    if(idx>=phrases.length){
+      _speechBusy=false;
+      clearTimeout(_speechTimeout);
+      return;
+    }
     const p=phrases[idx++];
     const utt=new SpeechSynthesisUtterance(p.text);
     utt.lang=p.lang;
-    utt.rate=0.88;
-    utt.pitch=1.0;
+    utt.rate=0.86;
+    utt.pitch=1.05;
     utt.volume=1.0;
-    // Try to pick a matching voice
-    const voices=speechSynthesis.getVoices();
-    const match=voices.find(v=>v.lang===p.lang)||voices.find(v=>v.lang.startsWith(p.lang.split('-')[0]))||null;
+
+    // Find best voice match: exact lang → language prefix → any en voice → default
+    const match=
+      voices.find(v=>v.lang===p.lang) ||
+      voices.find(v=>v.lang.startsWith(p.lang.split('-')[0])) ||
+      (p.lang.startsWith('en')?voices.find(v=>v.lang.startsWith('en')):null) ||
+      null;
     if(match)utt.voice=match;
-    utt.onend=()=>setTimeout(speakNext,600);
-    utt.onerror=()=>setTimeout(speakNext,400);
-    speechSynthesis.speak(utt);
+
+    utt.onend=()=>setTimeout(speakNext,700);
+    utt.onerror=(e)=>{
+      console.warn('Speech error for',p.lang,e.error);
+      // Skip this language, try next after short delay
+      setTimeout(speakNext,300);
+    };
+    try{
+      speechSynthesis.speak(utt);
+    }catch(e){
+      console.warn('speechSynthesis.speak threw:',e);
+      setTimeout(speakNext,300);
+    }
   }
-  speechSynthesis.cancel(); // stop any current speech
-  // Voices may not be loaded yet on first call
-  if(speechSynthesis.getVoices().length===0){
-    speechSynthesis.addEventListener('voiceschanged',()=>{speakNext();},{once:true});
+
+  // Wait for voices if not yet loaded (first call on some browsers)
+  if(voices.length===0){
+    speechSynthesis.addEventListener('voiceschanged',()=>{
+      // Refresh voices list after load
+      const v2=speechSynthesis.getVoices();
+      phrases.forEach((_,__)=>{}); // no-op, voices captured in speakNext via fresh call
+      speakNext();
+    },{once:true});
+    // Fallback if voiceschanged never fires (iOS)
+    setTimeout(()=>{if(_speechBusy&&idx===0)speakNext();},800);
   } else {
-    speakNext();
+    // Small delay so any previous cancel() finishes
+    setTimeout(speakNext,150);
   }
 }
 
@@ -1174,14 +1374,13 @@ function checkAlerts(prev,cur,isFull){
     _speakAlert(cur,'low');
   }
 
-  // Every 10% drop — silent log only (no toast/vibrate)
+  // Every 10% drop notification (silent — just log)
   const prevBand=Math.floor(prev/10);
   const curBand =Math.floor(cur/10);
   if(curBand<prevBand&&cur>=10&&cur<90){
     for(let b=prevBand-1;b>=curBand&&b>=1;b--){
-      const _a={type:'aw',msg:'💧 Tank dropped below '+(b*10)+'% — now at '+cur+'%.',time:new Date().toISOString()};
-      alerts.unshift(_a);if(alerts.length>60)alerts=alerts.slice(0,60);
-      localStorage.setItem('tasni_alerts',JSON.stringify(alerts));
+      const dropPct=b*10;
+      push('aw','💧 DROP: Tank crossed '+dropPct+'% — now at '+cur+'%.');
     }
   }
 
@@ -1194,50 +1393,13 @@ function checkAlerts(prev,cur,isFull){
     if(ck('t-sound')&&cur<100)playSound('refill');
   }
 
-  // Full tank — sound + voice
+  // Full tank — soothing sound + gentle voice
   if(!S._wasFull&&isFull===1&&ck('t-full')){
     push('ai','💧 FULL TANK: Water level is at maximum!');
     if(ck('t-sound'))playSound('full_tank');
-    setTimeout(()=>_speakAlert(100,'full'),2200);
+    setTimeout(()=>_speakAlert(100,'full'),2200); // speak after the full_tank sound finishes
   }
   S._wasFull=isFull===1;
-
-  // ── Fill milestones: voice at 25%, 50%, 75%, 100% while rising ──
-  if(cur>prev){
-    [25,50,75,100].forEach(m=>{
-      if(prev<m&&cur>=m){
-        push('ai','💧 '+m+'% — '+(m===100?'Tank is full!':'Tank reached '+m+'%.'));
-        _speakFillMilestone(m);
-      }
-    });
-  }
-}
-function _speakFillMilestone(pct){
-  if(!('speechSynthesis' in window)||_speechBusy)return;
-  _speechBusy=true;
-  const phrases=pct===100?[
-    {text:'Tank is now completely full. Please switch off the pump.',lang:'en-IN'},
-    {text:'ట్యాంకు పూర్తిగా నిండింది. పంపు ఆపండి.',lang:'te-IN'},
-    {text:'ٹینکی مکمل بھر گئی ہے۔ پمپ بند کریں۔',lang:'ur-PK'}
-  ]:[
-    {text:'Water tank has reached '+pct+' percent.',lang:'en-IN'},
-    {text:'నీటి ట్యాంకు '+pct+' శాతానికి చేరింది.',lang:'te-IN'},
-    {text:'پانی کی ٹینکی '+pct+' فیصد ہو گئی ہے۔',lang:'ur-PK'}
-  ];
-  let i=0;
-  function next(){
-    if(i>=phrases.length){_speechBusy=false;return;}
-    const p=phrases[i++],u=new SpeechSynthesisUtterance(p.text);
-    u.lang=p.lang;u.rate=0.88;u.pitch=1.0;u.volume=1.0;
-    const voices=speechSynthesis.getVoices();
-    const match=voices.find(v=>v.lang===p.lang)||voices.find(v=>v.lang.startsWith(p.lang.split('-')[0]))||null;
-    if(match)u.voice=match;
-    u.onend=()=>setTimeout(next,500);u.onerror=()=>setTimeout(next,300);
-    speechSynthesis.speak(u);
-  }
-  speechSynthesis.cancel();
-  if(speechSynthesis.getVoices().length===0)speechSynthesis.addEventListener('voiceschanged',()=>next(),{once:true});
-  else next();
 }
 
 function push(type,msg,critical=false){
@@ -1258,7 +1420,7 @@ function push(type,msg,critical=false){
       requireInteraction:critical&&type==='ac'});
   }
   showToast(msg,type==='ac'?'danger':type==='aw'?'warn':'info',3000);
-  // sound handled directly in checkAlerts() only
+  if(ck('t-sound')&&type==='ac')playSound(type,critical);
 }
 function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
 
@@ -1273,6 +1435,7 @@ function _resetStaleTimer(){
 function _markStale(){
   if(S.connected){
     S.connected=false;
+    _displayReady=false; // force NIL display until new data arrives after reconnect
     showToast('📡 No data — device may be offline','warn',4000);
   }
   renderDash();
@@ -1415,37 +1578,50 @@ function _chime(ctx,freq,startT,vol,dest){
 
 // Continuous drip scheduler — plays periodic natural drips while water moves
 let _dripInterval=null;
+let _dripScheduled=false; // debounce guard — prevent double-scheduling per ingest cycle
+
 function _scheduleDripSound(mode){
+  // Debounce: only one scheduler active at a time
+  if(_dripScheduled)return;
+  _dripScheduled=true;
+  setTimeout(()=>{_dripScheduled=false;},500);
+
   clearInterval(_dripInterval);
+
   if(mode==='filling'){
-    // Drips from inlet pipe into rising water
+    // Drips from inlet pipe into rising water — satisfying natural sound
     const tick=()=>{
       if(!ck('t-sound'))return;
       try{
         const ctx=getAudioCtx();
-        const f=360+Math.random()*140; // varied pitch
-        _drip(ctx,0,f,0.18+Math.random()*0.08);
-        _ripple(ctx,0.06+Math.random()*0.04,f*0.5,0.06);
+        const f=340+Math.random()*160;
+        _drip(ctx,0,f,0.16+Math.random()*0.07);
+        _ripple(ctx,0.07,f*0.48,0.05);
       }catch(_){}
     };
     tick();
-    _dripInterval=setInterval(tick,1600+Math.random()*900);
+    _dripInterval=setInterval(tick,1700+Math.floor(Math.random()*800));
+
   } else if(mode==='emptying'){
-    // Trickle from outlet — slower, deeper, quieter
+    // Water level dropping — soft musical tone + gentle trickle
+    // NOT a drip/dog sound — a calm descending chime to signal draining
     const tick=()=>{
       if(!ck('t-sound'))return;
       try{
         const ctx=getAudioCtx();
-        const f=180+Math.random()*70;
-        _drip(ctx,0,f,0.10+Math.random()*0.05);
-        _waterNoise(ctx,0.05,0.18,0.03,80,350,getMaster(ctx));
+        // Soft descending two-note — like water trickling away
+        _chime(ctx,330,0,0.12);          // gentle E4
+        _chime(ctx,247,0.28,0.09);       // B3 — descends, peaceful
+        // Very quiet background trickle noise (barely audible)
+        _waterNoise(ctx,0,0.4,0.02,120,500,getMaster(ctx));
       }catch(_){}
     };
     tick();
-    _dripInterval=setInterval(tick,2200+Math.random()*1200);
+    _dripInterval=setInterval(tick,3000+Math.floor(Math.random()*1500));
   }
-  // Auto-stop after 9 seconds
-  setTimeout(()=>clearInterval(_dripInterval),9000);
+
+  // Auto-stop after 10 seconds
+  setTimeout(()=>{clearInterval(_dripInterval);_dripInterval=null;},10000);
 }
 
 function playSound(type,critical=false){
@@ -1567,23 +1743,22 @@ function renderDash(){
   const fill=document.getElementById('waterFill');
   const body=document.getElementById('tankBody');
 
-  // ── NIL STATE: no real data yet, or stale/offline ──
-  if(!_hasRealData||S.m===null||(!S.connected&&!demoMode)){
-    _setTankAnim(0); // stop all animations
+  // ── NIL STATE ──
+  // Show NIL if: display not ready yet (boot guard) OR no data OR disconnected
+  if(!_displayReady||S.m===null||(!S.connected&&!demoMode)){
+    _setTankAnim(0);
     fill.style.height='0%';
     fill.style.background='linear-gradient(to top,rgba(80,80,110,.3),rgba(80,80,110,.15))';
     body.className='tank-body';
     set('levelNum','<span class="pct" style="font-size:28px;color:var(--muted)">NIL</span>');
     const bar=document.getElementById('lvlBar');bar.style.width='0%';
-    set('volL','--');set('distCm','--');set('usageRate','--');
+    set('volL','--');set('totalVol','--');set('distCm','--');set('usageRate','--');
     set('uptimeVal','--');set('rssiVal','--');set('bootVal','--');set('trendLbl','');
     const b=document.getElementById('statusBadge');b.className='badge b-off';
-    b.textContent=S.m===null?'WAITING':'NO DATA';
+    b.textContent=(!_displayReady||S.m===null)?'WAITING':'NO DATA';
     set('estEmpty','--');
-    const pc=document.getElementById('fc-cur');
-    if(pc){pc.textContent='--';['fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));}
-    if(S.lastUpdate)set('updLbl','Last seen '+S.lastUpdate.toLocaleTimeString());
-    else set('updLbl','Waiting for device…');
+    ['fc-cur','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));
+    set('updLbl',S.lastUpdate?'Last seen '+S.lastUpdate.toLocaleTimeString():'Waiting for device…');
     return;
   }
 
@@ -1645,54 +1820,204 @@ function renderDash(){
   }
 }
 
-// ═══════════════════════════════════════════
-//  ANALYTICS — real session data only
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  ANALYTICS — charts + correct real data only
+//  Charts: donut (level), line (history), bar (time of day), pie (usage split)
+// ═══════════════════════════════════════════════════════
+let donutChart=null,barChart=null,usagePieChart=null;
+
 function recordUsageEvent(dropL,fromPct,toPct){
   const now=new Date();
   const h=now.getHours();
-  let period;
-  if(h>=6&&h<12)period='morn';
-  else if(h>=12&&h<18)period='aft';
-  else if(h>=18)period='eve';
-  else period='ngt';
+  const period=h>=6&&h<12?'morn':h>=12&&h<18?'aft':h>=18?'eve':'ngt';
   analyticsSession.periodTotals[period]+=dropL;
   analyticsSession.totalUsedL+=dropL;
   analyticsSession.events.push({time:now.toLocaleTimeString(),dropL:dropL.toFixed(1),fromPct,toPct,period});
-  if(analyticsSession.events.length>50)analyticsSession.events.shift();
+  if(analyticsSession.events.length>60)analyticsSession.events.shift();
+}
+
+// Chart.js global defaults for dark theme
+function _chartDefaults(){
+  Chart.defaults.color='rgba(180,220,255,.45)';
+  Chart.defaults.borderColor='rgba(45,212,191,.06)';
+  Chart.defaults.font.family="'Rajdhani',sans-serif";
+}
+
+function initChart(){
+  _chartDefaults();
+  // ── Line chart: 24h history ──
+  const ctx=document.getElementById('histChart').getContext('2d');
+  const labels=Array.from({length:24},(_,i)=>{
+    const h=new Date();h.setHours(h.getHours()-(23-i));
+    return h.getHours().toString().padStart(2,'0')+':00';
+  });
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:'Level %',data:Array(24).fill(null),
+      borderColor:'#2DD4BF',
+      backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,'rgba(45,212,191,.28)');g.addColorStop(1,'rgba(45,212,191,0)');return g;},
+      borderWidth:2,fill:true,tension:.4,pointRadius:2,
+      pointBackgroundColor:'#2DD4BF',pointHoverRadius:5,spanGaps:false,
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,
+        titleColor:'#2DD4BF',bodyColor:'#cce7ff',
+        callbacks:{label:c=>c.parsed.y!=null?` ${c.parsed.y.toFixed(0)}% level`:' No data'}
+      }},
+      scales:{
+        x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},maxTicksLimit:6}},
+        y:{min:0,max:100,grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},callback:v=>v+'%'}}
+      }
+    }
+  });
+
+  // ── Donut chart: current level ──
+  const dc=document.getElementById('donutChart').getContext('2d');
+  donutChart=new Chart(dc,{
+    type:'doughnut',
+    data:{datasets:[{
+      data:[0,100],
+      backgroundColor:['rgba(45,212,191,.85)','rgba(45,212,191,.07)'],
+      borderColor:['rgba(45,212,191,.4)','rgba(45,212,191,.04)'],
+      borderWidth:1,hoverOffset:4
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      animation:{duration:800,easing:'easeInOutQuart'}
+    }
+  });
+
+  // ── Bar chart: usage by time of day ──
+  const bc=document.getElementById('barChart').getContext('2d');
+  barChart=new Chart(bc,{
+    type:'bar',
+    data:{
+      labels:['🌅 Morning\n6–12h','☀️ Afternoon\n12–18h','🌆 Evening\n18–24h','🌙 Night\n0–6h'],
+      datasets:[{
+        label:'Usage (L)',data:[0,0,0,0],
+        backgroundColor:['rgba(251,191,36,.55)','rgba(45,212,191,.55)','rgba(124,58,237,.55)','rgba(56,189,248,.55)'],
+        borderColor:['rgba(251,191,36,.8)','rgba(45,212,191,.8)','rgba(124,58,237,.8)','rgba(56,189,248,.8)'],
+        borderWidth:1,borderRadius:5,
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,
+        titleColor:'#2DD4BF',bodyColor:'#cce7ff',
+        callbacks:{label:c=>` ${c.parsed.y.toFixed(1)} L used`}
+      }},
+      scales:{
+        x:{grid:{display:false},ticks:{color:'rgba(200,230,255,.45)',font:{size:9}}},
+        y:{grid:{color:'rgba(45,212,191,.05)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},callback:v=>v+'L'},beginAtZero:true}
+      }
+    }
+  });
+
+  // ── Pie chart: usage split ──
+  const pc=document.getElementById('usagePieChart').getContext('2d');
+  usagePieChart=new Chart(pc,{
+    type:'doughnut',
+    data:{
+      labels:['Morning','Afternoon','Evening','Night'],
+      datasets:[{
+        data:[1,1,1,1],
+        backgroundColor:['rgba(251,191,36,.7)','rgba(45,212,191,.7)','rgba(124,58,237,.7)','rgba(56,189,248,.7)'],
+        borderColor:'rgba(4,13,26,.8)',borderWidth:2,hoverOffset:4
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'40%',
+      plugins:{
+        legend:{display:true,position:'right',labels:{color:'rgba(180,220,255,.6)',font:{size:9},boxWidth:10,padding:6}},
+        tooltip:{backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,
+          titleColor:'#2DD4BF',bodyColor:'#cce7ff',
+          callbacks:{label:c=>` ${c.parsed.toFixed(1)} L`}}
+      }
+    }
+  });
+}
+
+function renderChart(){
+  if(!chart)return;
+  chart.data.datasets[0].data=S.history.map(v=>v!=null?v:null);
+  chart.update('none');
 }
 
 function renderAnalytics(){
-  // ── Summary row ──
-  const readings=analyticsSession.readings;
-  if(readings.length>0){
-    const validM=readings.map(r=>r.m).filter(m=>m!=null&&!isNaN(m));
-    const avg=validM.length>0?Math.round(validM.reduce((a,b)=>a+b,0)/validM.length):0;
-    const avgUsage=S.usage>0?S.usage.toFixed(1):'--';
-    set('asum-avg',avg+'%');
-    set('asum-used',analyticsSession.totalUsedL.toFixed(0));
-    set('asum-rate',avgUsage);
+  const pt=analyticsSession.periodTotals;
+  const totalUsed=analyticsSession.totalUsedL;
+  const pct=(_displayReady&&S.m!=null)?S.m:0;
+  const volNow=(_displayReady&&S.m!=null)?S.vol:0;
+  const total=S.total||1000;
+
+  // ── KPI cards ──
+  set('asum-cur',(_displayReady&&S.m!=null)?pct+'%':'--');
+  set('asum-used',totalUsed>0?totalUsed.toFixed(1):'--');
+  set('asum-rate',(_displayReady&&S.usage>0)?S.usage.toFixed(1):'--');
+
+  // ── Donut ──
+  if(donutChart){
+    const filled=Math.max(0,Math.min(100,pct));
+    const empty=100-filled;
+    // Colour by level
+    const col=filled>=50?'rgba(45,212,191,.85)':filled>=20?'rgba(251,191,36,.85)':'rgba(248,113,113,.85)';
+    const colBg=filled>=50?'rgba(45,212,191,.07)':filled>=20?'rgba(251,191,36,.06)':'rgba(248,113,113,.06)';
+    donutChart.data.datasets[0].data=[filled,empty];
+    donutChart.data.datasets[0].backgroundColor=[col,colBg];
+    donutChart.data.datasets[0].borderColor=[col.replace('.85',',.35'),colBg];
+    donutChart.update('none');
+  }
+  set('donutPct',(_displayReady&&S.m!=null)?pct+'%':'--');
+  set('vol-display',(_displayReady&&S.m!=null)?volNow.toFixed(0)+' L':'-- L');
+  set('vol-total-display',total);
+  const emptyIn=(_displayReady&&S.usage>0&&volNow>0)?fmtHrs(volNow/S.usage):'∞';
+  set('vol-empty-in',emptyIn);
+
+  // ── Bar chart: time of day usage ──
+  if(barChart){
+    barChart.data.datasets[0].data=[pt.morn,pt.aft,pt.eve,pt.ngt];
+    barChart.update('none');
   }
 
-  // ── Time of day bars (real session data) ──
-  const pt=analyticsSession.periodTotals;
-  const mx=Math.max(pt.morn,pt.aft,pt.eve,pt.ngt,1);
-  ['morn','aft','eve','ngt'].forEach(id=>{
-    set('u-'+id,pt[id].toFixed(0)+' L');
-    document.getElementById('b-'+id).style.width=(pt[id]/mx*100)+'%';
-  });
+  // ── Usage pie: only show if we have any data ──
+  if(usagePieChart){
+    const hasData=pt.morn+pt.aft+pt.eve+pt.ngt>0;
+    usagePieChart.data.datasets[0].data=hasData
+      ?[Math.max(pt.morn,0.001),Math.max(pt.aft,0.001),Math.max(pt.eve,0.001),Math.max(pt.ngt,0.001)]
+      :[1,1,1,1]; // equal slices while no data
+    usagePieChart.update('none');
+  }
 
-  // ── Usage events log ──
+  // ── Forecast ──
+  if(_displayReady&&S.m!=null){
+    set('fc-cur',pct+'%');
+    if(S.usage>0&&total>0){
+      const pph=(S.usage/total)*100; // percent drop per hour
+      set('fc-24',Math.max(0,pct-pph*24).toFixed(0)+'%');
+      set('fc-3d',Math.max(0,pct-pph*72).toFixed(0)+'%');
+      set('fc-emp',fmtHrs(volNow/S.usage));
+    } else {
+      set('fc-24','--');set('fc-3d','--');set('fc-emp','∞');
+    }
+  } else {
+    ['fc-cur','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));
+  }
+
+  // ── Usage events ──
   const evEl=document.getElementById('usageEvents');
   if(analyticsSession.events.length===0){
     evEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No usage drops recorded yet this session</div>';
   } else {
-    evEl.innerHTML=[...analyticsSession.events].reverse().slice(0,10).map(e=>`
+    evEl.innerHTML=[...analyticsSession.events].reverse().slice(0,12).map(e=>`
       <div class="session-item">
-        <span>💧 ${e.fromPct}% → ${e.toPct}% drop</span>
-        <div style="text-align:right">
-          <div class="session-vol">${e.dropL} L</div>
+        <div>
+          <div style="font-size:13px;font-weight:600">💧 ${e.fromPct}% → ${e.toPct}%</div>
           <div class="session-time">${e.time}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="session-vol">−${e.dropL} L</div>
+          <div class="session-time" style="color:var(--muted)">${({morn:'Morning',aft:'Afternoon',eve:'Evening',ngt:'Night'})[e.period]}</div>
         </div>
       </div>`).join('');
   }
@@ -1708,86 +2033,72 @@ function resetAnalytics(){
   showToast('Usage counters reset','ok',2500);
 }
 
-// ═══════════════════════════════════════════
-//  DOWNLOAD REPORT — one-click CSV
-// ═══════════════════════════════════════════
-function _dlCSV(content,filename){
-  const blob=new Blob(['\uFEFF'+content],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');
-  a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
-}
+// ═══════════════════════════════════════════════════════
+//  DOWNLOAD REPORT — one-click CSV with correct figures
+// ═══════════════════════════════════════════════════════
 function downloadReport(){
   const now=new Date();
-  const dt=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  const tank=S.name||cfg.tankName||'Main Tank';
-  const cap=S.total||1000;const lvl=S.m??0;const vol=S.vol||0;const usg=S.usage||0;
-  const pt=analyticsSession.periodTotals;const tot=analyticsSession.totalUsedL;
-  const mx=Math.max(pt.morn,pt.aft,pt.eve,pt.ngt,1);
-  const bar=v=>'█'.repeat(Math.round(v/mx*15))||'░';
+  const pct=(_displayReady&&S.m!=null)?S.m:0;
+  const volNow=(_displayReady&&S.m!=null)?S.vol.toFixed(0):'N/A';
+  const total=S.total||1000;
+  const pt=analyticsSession.periodTotals;
+  const totalUsed=analyticsSession.totalUsedL.toFixed(1);
+  const usageRate=S.usage>0?S.usage.toFixed(1):'N/A';
+  const emptyIn=S.usage>0&&S.vol>0?fmtHrs(S.vol/S.usage):'N/A';
 
-  _dlCSV([
-    'TASNI WATER MONITOR - SUMMARY REPORT',
-    `Generated,${now.toLocaleString()}`,
-    `Tank Name,${tank}`,`Capacity,${cap} L`,`Report Date,${now.toLocaleDateString()}`,
-    '','CURRENT STATUS','Metric,Value,Note',
-    `Tank Level,${lvl}%,${lvl<10?'CRITICAL - Refill immediately':lvl<30?'LOW - Refill soon':lvl<75?'Normal':'Good'}`,
-    `Volume Available,${vol.toFixed(0)} L,of ${cap} L total`,
-    `Volume Consumed,${(cap-vol).toFixed(0)} L,${((cap-vol)/cap*100).toFixed(1)}% used`,
-    `Usage Rate,${usg.toFixed(2)} L/hr,current draw`,
-    `Est. Empty In,${usg>0?fmtHrs(vol/usg):'Infinity'},at current rate`,
-    `Est. Refill By,${usg>0?(()=>{const d=new Date(now.getTime()+(vol/usg)*3600000);return d.toLocaleString();})():'N/A'},`,
-    `Status,${S.s||'--'},`,`Last Update,${S.lastUpdate?S.lastUpdate.toLocaleString():'N/A'},`,
-    `Device Uptime,${fmtUp(S.up)},`,`WiFi Signal,${S.rssi||'--'} dBm,${S.rssi?S.rssi>=-60?'Excellent':S.rssi>=-75?'Good':S.rssi>=-85?'Fair':'Poor':'--'}`,
-    `Boot Count,${S.boot||0},reboots`,
-    '','PERIOD USAGE SUMMARY','Period,Litres Used,Share %,Bar',
-    `Morning 6am-12pm,${pt.morn.toFixed(1)},${tot>0?((pt.morn/tot)*100).toFixed(0):0}%,${bar(pt.morn)}`,
-    `Afternoon 12pm-6pm,${pt.aft.toFixed(1)},${tot>0?((pt.aft/tot)*100).toFixed(0):0}%,${bar(pt.aft)}`,
-    `Evening 6pm-12am,${pt.eve.toFixed(1)},${tot>0?((pt.eve/tot)*100).toFixed(0):0}%,${bar(pt.eve)}`,
-    `Night 12am-6am,${pt.ngt.toFixed(1)},${tot>0?((pt.ngt/tot)*100).toFixed(0):0}%,${bar(pt.ngt)}`,
-    `TOTAL,${tot.toFixed(1)},100%,`,
-    '','DAILY PROJECTION',`Usage per day,${(usg*24).toFixed(1)} L`,
-    `Days until empty,${usg>0?((vol/usg)/24).toFixed(1):'Infinity'}`,
-    '','SUPPORT','Contact,+91 8330928938','Product,TASNI Water Monitor v2.1',
-  ].join('\n'),`TASNI-Summary-${dt}.csv`);
-
-  setTimeout(()=>_dlCSV([
-    'TASNI WATER MONITOR - USAGE EVENTS LOG',
-    `Generated,${now.toLocaleString()}`,`Tank,${tank}`,
-    '','Time,From %,To %,Drop %,Litres,Period,Size',
-    ...analyticsSession.events.map(e=>{
-      const dp=e.fromPct-e.toPct;
-      const sz=dp>=20?'Large':dp>=10?'Medium':'Small';
-      const per=e.period==='morn'?'Morning':e.period==='aft'?'Afternoon':e.period==='eve'?'Evening':'Night';
-      return `${e.time},${e.fromPct}%,${e.toPct}%,${dp}%,${e.dropL} L,${per},${sz}`;
-    }),
-    '','TOTALS',`Events,${analyticsSession.events.length}`,`Total Used,${tot.toFixed(1)} L`,
-    `Avg per Event,${analyticsSession.events.length>0?(tot/analyticsSession.events.length).toFixed(1):0} L`,
-    `Largest Draw,${analyticsSession.events.length>0?Math.max(...analyticsSession.events.map(e=>parseFloat(e.dropL))).toFixed(1):0} L`,
-  ].join('\n'),`TASNI-UsageEvents-${dt}.csv`),600);
-
-  setTimeout(()=>_dlCSV([
-    'TASNI WATER MONITOR - ALERT AND LEVEL HISTORY',
-    `Generated,${now.toLocaleString()}`,`Tank,${tank}`,
-    '','ALERT LOG','Timestamp,Severity,Message',
-    ...alerts.slice(0,60).map(a=>{
-      const sev=a.type==='ac'?'CRITICAL':a.type==='aw'?'WARNING':'INFO';
-      const msg=a.msg.replace(/[^\x20-\x7E\u0600-\u06FF\u0C00-\u0C7F]/g,'').replace(/"/g,"'").trim();
-      return `${new Date(a.time).toLocaleString()},${sev},"${msg}"`;
-    }),
-    '','LEVEL HISTORY','Reading,Level %,Status,Volume L',
+  const lines=[
+    'TASNI Water Monitor — Analytics Report',
+    'Generated: '+now.toLocaleString(),
+    'Tank Name: '+(S.name||cfg.tankName||'Main Tank'),
+    'Tank Capacity: '+total+' L',
+    '',
+    '=== CURRENT STATUS ===',
+    'Level: '+pct+'%',
+    'Volume in Tank: '+volNow+' L',
+    'Usage Rate: '+usageRate+' L/hr',
+    'Est. Time to Empty: '+emptyIn,
+    'Sensor Distance: '+(S.dist?S.dist.toFixed(1)+' cm':'N/A'),
+    'Device Uptime: '+fmtUp(S.up),
+    'WiFi RSSI: '+(S.rssi||'N/A')+' dBm',
+    'Boot Count: '+(S.boot||'N/A'),
+    'Last Update: '+(S.lastUpdate?S.lastUpdate.toLocaleString():'N/A'),
+    '',
+    '=== SESSION USAGE SUMMARY ===',
+    'Total Used This Session: '+totalUsed+' L',
+    'Morning (06–12h): '+pt.morn.toFixed(1)+' L',
+    'Afternoon (12–18h): '+pt.aft.toFixed(1)+' L',
+    'Evening (18–24h): '+pt.eve.toFixed(1)+' L',
+    'Night (00–06h): '+pt.ngt.toFixed(1)+' L',
+    '',
+    '=== FORECAST (at current usage rate) ===',
+    'In 24 hours: '+(S.usage>0?Math.max(0,pct-(S.usage/total*100)*24).toFixed(0)+'%':'N/A'),
+    'In 3 days: '+(S.usage>0?Math.max(0,pct-(S.usage/total*100)*72).toFixed(0)+'%':'N/A'),
+    'Tank empty in: '+emptyIn,
+    '',
+    '=== USAGE DROP EVENTS (this session) ===',
+    'Time,From%,To%,Drop(L),Period',
+    ...analyticsSession.events.map(e=>`${e.time},${e.fromPct},${e.toPct},${e.dropL},${e.period}`),
+    '',
+    '=== 24-HOUR LEVEL HISTORY ===',
+    'Hour,Level%',
     ...S.history.map((v,i)=>{
-      if(v==null)return `${i+1},N/A,No data,N/A`;
-      const v2=((v/100)*cap).toFixed(0);
-      const st=v<10?'Critical':v<30?'Low':v<75?'Normal':'Good';
-      return `${i+1},${v}%,${st},${v2} L`;
+      const h=new Date();h.setHours(h.getHours()-(23-i));
+      return `${h.getHours().toString().padStart(2,'0')}:00,${v!=null?v:'NIL'}`;
     }),
-    '','ALERT COUNTS',`Total,${alerts.length}`,
-    `Critical,${alerts.filter(a=>a.type==='ac').length}`,
-    `Warnings,${alerts.filter(a=>a.type==='aw').length}`,
-    `Info,${alerts.filter(a=>a.type==='ai').length}`,
-  ].join('\n'),`TASNI-AlertHistory-${dt}.csv`),1200);
+    '',
+    '=== ALERT LOG (last 30) ===',
+    'Time,Type,Message',
+    ...alerts.slice(0,30).map(a=>`${new Date(a.time).toLocaleString()},${a.type},"${a.msg.replace(/"/g,"'")}"`)
+  ];
 
-  showToast('📊 3 CSV reports downloading…','ok',3000);
+  const blob=new Blob([lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  const d=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  a.download=`tasni-report-${d}.csv`;
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+  showToast('📊 Report downloaded!','ok',2500);
 }
 
 // ═══════════════════════════════════════════
@@ -1832,7 +2143,6 @@ function renderAlertLog(){
 //  DEMO MODE
 // ═══════════════════════════════════════════
 function startDemo(){
-  _hasRealData=true; // demo is intentional — show data
   let lvl=72,dir=-1;
   const tick=()=>{
     lvl+=dir*(Math.random()*1.5);
@@ -1925,22 +2235,21 @@ async function saveSheets(){
 function saveMQTT(){
   const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8884,mquser=g('c-mquser'),mqpass=g('c-mqpass');
   const topic=g('c-mqtopic')||'tasni-water/+/state';
-  saveCfg({broker:host,port,mquser,mqpass,topic});
+  const host2=g('c-mqb2'),port2=parseInt(g('c-mqp2'))||8884,mquser2=g('c-mquser2'),mqpass2=g('c-mqpass2');
+  saveCfg({broker:host,port,mquser,mqpass,topic,broker2:host2,port2,mquser2,mqpass2});
   if(host){_silent=false;_connectMQTT({host,port,user:mquser,pass:mqpass,topic});}
-}
-function saveBackupMQTT(){
-  const host=g('c-mqb2'),port=parseInt(g('c-mqp2'))||8884;
-  const mquser=g('c-mquser2'),mqpass=g('c-mqpass2');
-  if(!host){showToast('Enter backup broker host first','warn');return;}
-  const topic=cfg.topic||'tasni-water/+/state';
-  _mqttBackupCfg={host,port,user:mquser,pass:mqpass,topic};
-  saveCfg({broker2:host,port2:port,mquser2:mquser,mqpass2:mqpass});
-  showToast('✅ Backup MQTT saved — auto-failover active','ok',3000);
+  if(host2){_silent2=false;_connectMQTT2({host:host2,port:port2,user:mquser2,pass:mqpass2,topic});}
+  if(!host&&!host2)showToast('Enter at least one broker host','warn');
 }
 function disconnMQTT(){
-  if(mqttClient){try{mqttClient.end(true);}catch(_){}mqttClient=null;}
-  _mqttCfg=null;clearInterval(_hbTimer);clearTimeout(_wdTimer);
-  setChip('chip-mqtt',false);updatePill();push('ai','ℹ️ MQTT disconnected.');
+  if(mqttPrimary){try{mqttPrimary.end(true);}catch(_){}mqttPrimary=null;}
+  if(mqttBackup){try{mqttBackup.end(true);}catch(_){}mqttBackup=null;}
+  _mqttCfg=null;_mqttCfg2=null;
+  clearInterval(_hbTimer);clearInterval(_hbTimer2);
+  clearTimeout(_wdTimer);clearTimeout(_wdTimer2);
+  _primaryOk=false;_backupOk=false;
+  _updateBrokerPills();
+  push('ai','ℹ️ MQTT disconnected (both brokers).');
 }
 function resetApp(){if(!confirm('Clear all local data?'))return;localStorage.clear();alerts=[];renderAlertLog();location.reload();}
 
