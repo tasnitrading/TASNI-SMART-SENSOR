@@ -632,9 +632,56 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="card">
       <div class="acc-h" onclick="toggleAcc(this)"><span>✈️ Telegram Bot</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
-        <div class="form-grp"><label class="form-lbl">Bot Token</label><input class="form-in" id="c-tgtoken" type="text" placeholder="1234567890:ABCDEF..."></div>
-        <div class="form-grp"><label class="form-lbl">Chat ID</label><input class="form-in" id="c-tgchat" type="text" placeholder="-1001234567890"></div>
-        <button class="btn btn-p btn-full" onclick="saveTelegram()">Save Telegram to Device</button>
+        <!-- Status row -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0 14px;border-bottom:1px solid var(--border);margin-bottom:14px">
+          <div id="tg-status-dot" style="width:10px;height:10px;border-radius:50%;background:#333;flex-shrink:0;transition:all .3s"></div>
+          <div>
+            <div id="tg-status-lbl" style="font-size:12px;font-weight:700;color:var(--muted)">Not configured</div>
+            <div id="tg-status-sub" style="font-size:10px;color:var(--muted);margin-top:1px">Enter credentials below and save to device</div>
+          </div>
+          <button class="btn btn-o btn-sm" style="margin-left:auto;font-size:10px" onclick="testTelegram()">TEST</button>
+        </div>
+
+        <!-- How to setup guide -->
+        <div class="info-box" style="margin-bottom:14px">
+          <strong>How to set up:</strong><br>
+          1. Open Telegram → search <strong>@BotFather</strong><br>
+          2. Send <code>/newbot</code> → follow steps → copy the <strong>token</strong><br>
+          3. Message your bot once, then open:<br>
+          <code style="font-size:10px;word-break:break-all">https://api.telegram.org/bot<b>TOKEN</b>/getUpdates</code><br>
+          4. Copy the <strong>chat id</strong> number from the response<br>
+          5. Paste both below and tap Save
+        </div>
+
+        <div class="form-grp">
+          <label class="form-lbl">Bot Token</label>
+          <input class="form-in" id="c-tgtoken" type="text" placeholder="1234567890:ABCDEFghijklmno...">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Chat ID <span style="font-weight:400;color:var(--muted)">(your personal or group ID)</span></label>
+          <input class="form-in" id="c-tgchat" type="text" placeholder="-1001234567890 or 987654321">
+        </div>
+        <button class="btn btn-p btn-full" onclick="saveTelegram()">📲 Save Telegram to Device</button>
+        <button class="btn btn-d btn-full" style="margin-top:8px" onclick="clearTelegram()">🗑 Remove Telegram</button>
+
+        <!-- Bot commands reference -->
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;font-family:var(--head)">BOT COMMANDS (send these to your bot)</div>
+          <div id="tg-cmds" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+        </div>
+
+        <!-- Device auto-alerts reference -->
+        <div style="margin-top:14px;padding:10px 12px;background:rgba(45,212,191,.04);border:1px solid rgba(45,212,191,.1);border-radius:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--pri);margin-bottom:6px;font-family:var(--head)">AUTO ALERTS FROM DEVICE</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.8">
+            🔴 Critical alert when level &lt; 10%<br>
+            🟡 Low alert when level &lt; 30%<br>
+            ✅ Refill complete when level &gt; 90%<br>
+            💧 Full tank when sensor reads ≤10 cm<br>
+            📡 Offline alert if device unreachable<br>
+            <span style="color:rgba(180,220,255,.3);font-size:10px">All alerts sent automatically by ESP32 — no PWA needed</span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -853,7 +900,8 @@ window.addEventListener('load',()=>{
   renderAchievements();
   renderAlertLog();
   checkNotifPerm();
-  // FIX: start in NIL state always — don't show stale localStorage data
+  _updateTgStatus();
+  _renderTgCmds();
   renderDash();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(async reg=>{
@@ -2208,10 +2256,139 @@ async function saveWifi(){
   if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','✅ WiFi sent to device at '+ip);}catch{push('aw','⚠️ Could not reach device. Saved locally.');}}
   if(ip)startPoll(ip);
 }
+// ══════════════════════════════════════════
+//  TELEGRAM
+// ══════════════════════════════════════════
+const TG_COMMANDS=[
+  {cmd:'/status',   desc:'Live tank level + visual meter'},
+  {cmd:'/volume',   desc:'Volume in litres remaining'},
+  {cmd:'/trend',    desc:'Level change over time'},
+  {cmd:'/tip',      desc:'Water saving tip'},
+  {cmd:'/diagnostics',desc:'WiFi, RSSI, uptime info'},
+  {cmd:'/notify_on',desc:'Unmute all alerts'},
+  {cmd:'/notify_off',desc:'Mute all alerts'},
+  {cmd:'/upload_now',desc:'Force Google Sheets upload'},
+  {cmd:'/wifi',     desc:'Show WiFi network info'},
+  {cmd:'/sheets',   desc:'Google Sheets sync status'},
+  {cmd:'/reboot',   desc:'Restart device (needs password)'},
+  {cmd:'/help',     desc:'All commands list'},
+];
+
+function _renderTgCmds(){
+  const el=document.getElementById('tg-cmds');
+  if(!el)return;
+  el.innerHTML=TG_COMMANDS.map(c=>`
+    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:7px;padding:7px 9px;cursor:pointer"
+         onclick="copyToClipboard('${c.cmd}')">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--pri)">${c.cmd}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;line-height:1.3">${c.desc}</div>
+    </div>`).join('');
+}
+
+function _updateTgStatus(){
+  const dot=document.getElementById('tg-status-dot');
+  const lbl=document.getElementById('tg-status-lbl');
+  const sub=document.getElementById('tg-status-sub');
+  if(!dot)return;
+  const hasToken=!!(cfg.tgToken&&cfg.tgToken.length>10);
+  const hasChat=!!(cfg.tgChat&&cfg.tgChat.length>3);
+  if(hasToken&&hasChat){
+    dot.style.background='var(--ok)';dot.style.boxShadow='0 0 8px var(--ok)';
+    lbl.style.color='var(--ok)';lbl.textContent='Configured ✓';
+    sub.textContent='Bot active on device — send /status to test';
+  } else if(hasToken){
+    dot.style.background='var(--warn)';dot.style.boxShadow='0 0 6px var(--warn)';
+    lbl.style.color='var(--warn)';lbl.textContent='Token saved — Chat ID missing';
+    sub.textContent='Add your Chat ID and save again';
+  } else {
+    dot.style.background='#333';dot.style.boxShadow='none';
+    lbl.style.color='var(--muted)';lbl.textContent='Not configured';
+    sub.textContent='Enter credentials below and save to device';
+  }
+}
+
 async function saveTelegram(){
-  const ip=cfg.ip,token=g('c-tgtoken'),chatid=g('c-tgchat');
+  const ip=cfg.ip;
+  const token=g('c-tgtoken').trim();
+  const chatid=g('c-tgchat').trim();
+  if(!token){showToast('Enter bot token first','warn');return;}
+  if(!chatid){showToast('Enter chat ID first','warn');return;}
   saveCfg({tgToken:token,tgChat:chatid});
-  if(ip&&token){try{await fetch(`http://${ip}/save-telegram`,{method:'POST',body:new URLSearchParams({token,chatid})});push('ai','✅ Telegram saved to device.');}catch{push('aw','⚠️ Settings saved locally.');}}
+  _updateTgStatus();
+  if(ip){
+    try{
+      const r=await fetch(`http://${ip}/save-telegram`,{
+        method:'POST',
+        body:new URLSearchParams({token,chatid}),
+        signal:AbortSignal.timeout(5000)
+      });
+      if(r.ok){
+        push('ai','✅ Telegram saved to device at '+ip);
+        showToast('Telegram saved to device!','ok',3000);
+      } else {
+        push('aw','⚠️ Device responded with error. Check IP.');
+        showToast('Device returned error — check IP','warn');
+      }
+    }catch(e){
+      push('aw','⚠️ Could not reach device at '+ip+'. Credentials saved locally.');
+      showToast('Saved locally — device unreachable','warn',3000);
+    }
+  } else {
+    push('ai','ℹ️ Telegram credentials saved. Enter device IP in WiFi settings to push to device.');
+    showToast('Saved — add device IP to push to device','info',3500);
+  }
+}
+
+async function testTelegram(){
+  const token=cfg.tgToken||g('c-tgtoken').trim();
+  const chatid=cfg.tgChat||g('c-tgchat').trim();
+  if(!token||!chatid){showToast('Save token and chat ID first','warn');return;}
+  showToast('Sending test message…','info',2000);
+  try{
+    const pct=(_displayReady&&S.m!=null)?S.m+'%':'--';
+    const msg=`🧪 *TASNI Test Message*\n\nBot is working correctly!\nCurrent level: *${pct}*\nDevice: ${S.name||cfg.tankName||'TASNI Water'}\n\nSend /status for live reading.`;
+    const url=`https://api.telegram.org/bot${token}/sendMessage`;
+    const r=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:chatid,text:msg,parse_mode:'Markdown'}),
+      signal:AbortSignal.timeout(8000)
+    });
+    const d=await r.json();
+    if(d.ok){
+      showToast('✅ Test message sent! Check Telegram.','ok',4000);
+      push('ai','✅ Telegram test message delivered successfully.');
+    } else {
+      showToast('Telegram error: '+d.description,'danger',5000);
+      push('aw','⚠️ Telegram: '+d.description);
+    }
+  }catch(e){
+    showToast('Could not reach Telegram API','danger',4000);
+  }
+}
+
+async function clearTelegram(){
+  if(!confirm('Remove Telegram credentials?'))return;
+  saveCfg({tgToken:'',tgChat:''});
+  const ip=cfg.ip;
+  if(ip){
+    try{
+      await fetch(`http://${ip}/save-telegram`,{
+        method:'POST',
+        body:new URLSearchParams({token:'',chatid:''}),
+        signal:AbortSignal.timeout(4000)
+      });
+    }catch(_){}
+  }
+  document.getElementById('c-tgtoken').value='';
+  document.getElementById('c-tgchat').value='';
+  _updateTgStatus();
+  showToast('Telegram credentials removed','ok',2500);
+}
+
+function copyToClipboard(text){
+  navigator.clipboard?.writeText(text).then(()=>showToast('Copied: '+text,'ok',1500))
+    .catch(()=>showToast(text+' — copy manually','info',2500));
 }
 async function saveCalib(){
   const ip=cfg.ip,empty=g('c-empty'),full=g('c-full'),volume=g('c-vol'),name=g('c-tname')||'Main Tank';
@@ -2268,7 +2445,7 @@ function goTab(name,btn){
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
   if(name==='analytics'){unlockAch(1);renderAnalytics();}
   if(name==='tips'){unlockAch(5);renderTips();}
-  if(name==='settings')unlockAch(4);
+  if(name==='settings'){unlockAch(4);_updateTgStatus();_renderTgCmds();}
 }
 function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
 </script>
