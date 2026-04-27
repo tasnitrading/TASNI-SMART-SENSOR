@@ -626,8 +626,8 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <button class="btn btn-p btn-full" onclick="saveMQTT()">Connect Primary MQTT</button>
         <button class="btn btn-d btn-full" style="margin-top:8px" onclick="disconnMQTT()">Disconnect MQTT</button>
         <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-          <div class="form-lbl" style="margin-bottom:10px;color:var(--warn)">🔁 BACKUP BROKER (Auto-Failover)</div>
-          <div class="info-box" style="margin-bottom:10px">If primary broker fails, app automatically connects to backup. App stays online.</div>
+          <div class="form-lbl" style="color:var(--warn);margin-bottom:8px">🔁 BACKUP BROKER — Auto Failover</div>
+          <div class="info-box" style="margin-bottom:10px;font-size:11px">If primary broker fails, the app automatically switches to this backup. Your app never goes offline.</div>
           <div class="form-grp"><label class="form-lbl">Backup Broker Host</label><input class="form-in" id="c-mqb2" type="text" placeholder="backup.broker.com"></div>
           <div class="form-row">
             <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp2" type="number" placeholder="8884"></div>
@@ -656,63 +656,6 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="sec-hd" style="margin-top:18px">ACHIEVEMENTS</div>
     <div class="ach-grid" id="achGrid"></div>
   </div>
-
-  <!-- ABOUT -->
-  <div class="tab" id="tab-about">
-    <div class="card" style="background:linear-gradient(135deg,rgba(0,30,80,.9),rgba(0,10,40,.97));border-color:rgba(45,212,191,.25);text-align:center;padding:28px 20px">
-      <div style="font-family:var(--head);font-size:28px;font-weight:900;color:var(--pri);letter-spacing:.08em;text-shadow:0 0 30px rgba(45,212,191,.5);margin-bottom:4px">TASNI®</div>
-      <div style="font-size:10px;letter-spacing:3px;color:var(--muted);font-family:var(--sans);margin-bottom:20px">WATER MONITOR v2.1</div>
-      <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--pri));display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:28px;box-shadow:0 0 30px rgba(45,212,191,.3)">💧</div>
-      <div style="font-family:var(--head);font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px">Mohammed Imran Ahmed Soofi</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:20px">Founder &amp; Engineer — Tasni Trading Private Limited</div>
-      <div style="background:rgba(45,212,191,.06);border-left:3px solid var(--pri);border-radius:0 8px 8px 0;padding:14px 16px;text-align:left;margin-bottom:20px;font-size:13px;line-height:1.7;color:var(--text)">
-        Designed and developed <strong style="color:var(--pri)">end-to-end</strong> — from embedded hardware to cloud infrastructure, intelligent dashboard, alert systems, and analytics engine. Built for real-world commercial IoT deployment.
-      </div>
-      <div style="display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:30px;padding:8px 20px;font-size:13px;font-weight:600;color:var(--text);margin-bottom:20px">
-        🇮🇳 <span>Made in India</span>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">TECHNICAL SUPPORT</div>
-      <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)">
-        <div style="width:40px;height:40px;border-radius:50%;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📞</div>
-        <div>
-          <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1.5px;font-family:var(--head)">PHONE / WHATSAPP</div>
-          <a href="tel:+918330928938" style="font-family:var(--mono);font-size:18px;color:var(--pri);text-decoration:none;font-weight:700">+91 83309 28938</a>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)">
-        <div style="width:40px;height:40px;border-radius:50%;background:rgba(45,212,191,.1);border:1px solid rgba(45,212,191,.25);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏢</div>
-        <div>
-          <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1.5px;font-family:var(--head)">COMPANY</div>
-          <div style="font-size:14px;color:var(--text);font-weight:600">Tasni Trading Private Limited</div>
-        </div>
-      </div>
-      <div style="padding:12px 0;border-bottom:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1.5px;font-family:var(--head);margin-bottom:8px">SUPPORT HOURS</div>
-        <div style="font-size:13px;color:var(--text)">Monday – Saturday &nbsp;·&nbsp; 9:00 AM – 7:00 PM IST</div>
-      </div>
-      <div style="padding:12px 0">
-        <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1.5px;font-family:var(--head);margin-bottom:8px">FOR SUPPORT MENTION</div>
-        <div style="font-size:13px;color:var(--text);line-height:1.6">Your device IP address, tank name, and describe the issue. Screenshots of the app are helpful.</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">APP INFORMATION</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="stat"><div class="stat-lbl">Version</div><div class="stat-val" style="font-size:16px">v2.1</div></div>
-        <div class="stat"><div class="stat-lbl">Platform</div><div class="stat-val" style="font-size:14px">PWA / IoT</div></div>
-        <div class="stat"><div class="stat-lbl">Session Start</div><div class="stat-val" style="font-size:12px" id="about-sess">--</div></div>
-        <div class="stat"><div class="stat-lbl">Data Points</div><div class="stat-val" id="about-pts">--</div></div>
-        <div class="stat"><div class="stat-lbl">Total Alerts</div><div class="stat-val" id="about-alrts">--</div></div>
-        <div class="stat"><div class="stat-lbl">App Uptime</div><div class="stat-val" id="about-uptime">--</div></div>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:24px">
-      <div class="card-title">SYSTEM STATUS</div>
-      <div style="font-size:12px;line-height:2;color:var(--text)" id="about-sys">Loading…</div>
-    </div>
-  </div>
 </main>
 
 <nav>
@@ -736,10 +679,6 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <button class="nb" id="nb-tips" onclick="goTab('tips',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
     <span class="nb-lbl">Tips</span>
-  </button>
-  <button class="nb" id="nb-about" onclick="goTab('about',this);renderAbout()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    <span class="nb-lbl">About</span>
   </button>
 </nav>
 
@@ -777,10 +716,9 @@ const STALE_MS=30000;
 let _staleTimer=null;
 // Analytics — real session data only
 const analyticsSession={events:[],periodTotals:{morn:0,aft:0,eve:0,ngt:0},totalUsedL:0,readings:[]};
-// ── FIX: 10-second boot guard ──
-// Dashboard stays NIL for first 10s unless real data arrives
-let _bootGuardActive=true;
-let _bootGuardTimer=setTimeout(()=>{_bootGuardActive=false;},10000);
+// ── REAL DATA GUARD: dashboard shows NIL until first real device/MQTT data ──
+// _hasRealData stays false until ingest() is called from a real source (not demo)
+let _hasRealData=false;
 
 // ═══════════════════════════════════════════
 //  ALERT TOGGLE PERSISTENCE
@@ -935,7 +873,7 @@ function startConnections(){
   demoMode=false;
   document.getElementById('demoBanner').classList.add('hidden');
   if(cfg.ip) startPoll(cfg.ip);
-  // Load backup broker from saved config
+  // Restore backup broker if previously saved
   if(cfg.broker2) _mqttBackupCfg={host:cfg.broker2,port:cfg.port2||8884,user:cfg.mquser2,pass:cfg.mqpass2,topic:cfg.topic||'tasni-water/+/state'};
   if(cfg.broker) _connectMQTT({host:cfg.broker,port:cfg.port||8884,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
   _resetStaleTimer();
@@ -962,8 +900,8 @@ async function fetchSensor(ip){
 // ═══════════════════════════════════════════
 //  MQTT — ALWAYS-ALIVE ENGINE
 // ═══════════════════════════════════════════
-// ── MQTT primary + backup broker engine ──
-let _mqttBackupCfg=null;   // set via saveBackupMQTT()
+// ── MQTT: primary + automatic backup failover ──
+let _mqttBackupCfg=null;
 let _mqttUsedBackup=false;
 function _connectMQTT(mc){_mqttCfg=mc;_silent=false;_mqttUsedBackup=false;_doConnect(mc);}
 function _doConnect(mc){
@@ -979,7 +917,7 @@ function _doConnect(mc){
   const mqUser=(mc.user&&String(mc.user).trim())||undefined;
   const mqPass=(mc.pass&&String(mc.pass).trim())||undefined;
   console.log('[TASNI MQTT] →',url,'user:',mqUser||'(none)');
-  let _connectFailed=false;
+  let _failedOnce=false;
   try{
     mqttClient=mqtt.connect(url,{
       clientId:cid,username:mqUser,password:mqPass,
@@ -987,17 +925,16 @@ function _doConnect(mc){
       clean:true,rejectUnauthorized:false,protocolVersion:4
     });
     mqttClient.on('connect',()=>{
-      _connectFailed=false;
+      _failedOnce=false;
       _lastAck=Date.now();
       _mqttUsedBackup=(mc===_mqttBackupCfg);
       const t=(mc.topic&&mc.topic.trim())||'tasni-water/+/state';
       mqttClient.subscribe(t,{qos:1});
       setChip('chip-mqtt',true);updatePill();unlockAch(3);
-      const label=_mqttUsedBackup?' (backup)':'';
-      if(!_silent){push('ai','☁️ MQTT connected to '+rawHost+label);showToast('MQTT connected'+label+'!','ok');}
-      else showToast('🔄 MQTT reconnected'+label,'ok',2000);
-      _silent=true;
-      _startHB(mc);
+      const lbl=_mqttUsedBackup?' (backup)':'';
+      if(!_silent){push('ai','☁️ MQTT connected to '+rawHost+lbl);showToast('MQTT connected'+lbl+'!','ok');}
+      else showToast('🔄 MQTT reconnected'+lbl,'ok',2000);
+      _silent=true;_startHB(mc);
     });
     mqttClient.on('message',(_t,pl)=>{
       _lastAck=Date.now();
@@ -1006,26 +943,25 @@ function _doConnect(mc){
     mqttClient.on('reconnect',()=>{setChip('chip-mqtt',false);updatePill();});
     mqttClient.on('close',()=>{
       setChip('chip-mqtt',false);updatePill();
-      // Auto-failover to backup if primary fails and backup is configured
-      if(_connectFailed&&_mqttBackupCfg&&mc!==_mqttBackupCfg){
-        console.warn('[TASNI MQTT] primary failed → trying backup');
-        showToast('📡 Primary MQTT failed, trying backup…','warn',4000);
+      if(_failedOnce&&_mqttBackupCfg&&mc!==_mqttBackupCfg){
+        // Primary failed → try backup
+        console.warn('[TASNI] primary MQTT failed → switching to backup');
+        showToast('📡 Switching to backup MQTT…','warn',4000);
         setTimeout(()=>_doConnect(_mqttBackupCfg),1500);
-      } else if(_connectFailed&&_mqttBackupCfg&&mc===_mqttBackupCfg){
-        // Backup also failed — retry primary after 10s
-        showToast('📡 Both brokers down, retrying…','danger',4000);
+      } else if(_failedOnce&&_mqttBackupCfg&&mc===_mqttBackupCfg){
+        // Backup also failed → retry primary after 10s
+        showToast('⚠️ Both brokers offline. Retrying in 10s…','danger',5000);
         setTimeout(()=>{_silent=false;_doConnect(_mqttCfg);},10000);
-      } else if(!_connectFailed){
-        // Was connected, dropped — reconnect same broker
+      } else if(!_failedOnce){
+        // Was connected, dropped cleanly → reconnect same in 5s
         setTimeout(()=>{if(_mqttCfg&&(!mqttClient||!mqttClient.connected))_doConnect(mc);},5000);
       }
     });
     mqttClient.on('offline',()=>{setChip('chip-mqtt',false);updatePill();});
     mqttClient.on('error',(e)=>{
-      _connectFailed=true;
-      const msg=e.message||String(e);
-      console.warn('[TASNI MQTT] error:',msg);
-      showToast('MQTT: '+msg,'danger',5000);
+      _failedOnce=true;
+      console.warn('[TASNI MQTT] error:',e.message||e);
+      showToast('MQTT: '+(e.message||'connection error'),'danger',5000);
     });
   }catch(e){
     setChip('chip-mqtt',false);updatePill();
@@ -1120,6 +1056,7 @@ function _setTankAnim(dir){
 }
 
 function ingest(d,fromMQTT=false){
+  _hasRealData=true; // first real data arrived — unlock dashboard
   const prev=S.m;
   if(d.m     !=null)S.m     =parseInt(d.m);
   if(d.vol   !=null)S.vol   =parseFloat(d.vol);
@@ -1137,7 +1074,7 @@ function ingest(d,fromMQTT=false){
   S.connected=true;
   S.lastUpdate=new Date();
 
-  // ── Animation only — zero background sounds ──
+  // ── Animation only — no background sounds ──
   if(prev!=null&&S.m!=null){
     if(S.m>prev)       _setTankAnim(1);
     else if(S.m<prev)  _setTankAnim(-1);
@@ -1146,7 +1083,7 @@ function ingest(d,fromMQTT=false){
     if(S.m!==prev) _animTimer=setTimeout(()=>_setTankAnim(0),8000);
   }
 
-  if(_bootGuardActive){clearTimeout(_bootGuardTimer);_bootGuardActive=false;}
+  // _hasRealData is set at top of ingest() — no timer needed
   // Tell SW the latest level
   if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
     navigator.serviceWorker.controller.postMessage({type:'STORE_LEVEL',level:S.m});
@@ -1160,7 +1097,6 @@ function ingest(d,fromMQTT=false){
   if(S.m!=null)analyticsSession.readings.push({t:Date.now(),m:S.m,usage:S.usage||0});
   if(analyticsSession.readings.length>500)analyticsSession.readings.shift();
 
-  _totalDataPoints++;
   checkAlerts(prev,S.m,S.isFull);
   renderDash();renderChart();renderAnalytics();
 }
@@ -1238,7 +1174,7 @@ function checkAlerts(prev,cur,isFull){
     _speakAlert(cur,'low');
   }
 
-  // Every 10% drop — silent log, no toast/vibrate/sound
+  // Every 10% drop — silent log only (no toast/vibrate)
   const prevBand=Math.floor(prev/10);
   const curBand =Math.floor(cur/10);
   if(curBand<prevBand&&cur>=10&&cur<90){
@@ -1258,7 +1194,7 @@ function checkAlerts(prev,cur,isFull){
     if(ck('t-sound')&&cur<100)playSound('refill');
   }
 
-  // Full tank — soothing sound + voice
+  // Full tank — sound + voice
   if(!S._wasFull&&isFull===1&&ck('t-full')){
     push('ai','💧 FULL TANK: Water level is at maximum!');
     if(ck('t-sound'))playSound('full_tank');
@@ -1266,20 +1202,16 @@ function checkAlerts(prev,cur,isFull){
   }
   S._wasFull=isFull===1;
 
-  // ── Fill milestone voice alerts: 25%, 50%, 75% while rising ──
+  // ── Fill milestones: voice at 25%, 50%, 75%, 100% while rising ──
   if(cur>prev){
-    const milestones=[25,50,75,100];
-    milestones.forEach(m=>{
+    [25,50,75,100].forEach(m=>{
       if(prev<m&&cur>=m){
-        const msg=m===100?'Tank is now completely full.':'Tank has reached '+m+' percent.';
-        push('ai','💧 '+m+'% reached — '+msg);
+        push('ai','💧 '+m+'% — '+(m===100?'Tank is full!':'Tank reached '+m+'%.'));
         _speakFillMilestone(m);
       }
     });
   }
 }
-
-// Speak fill milestone in English + Telugu + Urdu
 function _speakFillMilestone(pct){
   if(!('speechSynthesis' in window)||_speechBusy)return;
   _speechBusy=true;
@@ -1292,17 +1224,15 @@ function _speakFillMilestone(pct){
     {text:'నీటి ట్యాంకు '+pct+' శాతానికి చేరింది.',lang:'te-IN'},
     {text:'پانی کی ٹینکی '+pct+' فیصد ہو گئی ہے۔',lang:'ur-PK'}
   ];
-  let idx=0;
+  let i=0;
   function next(){
-    if(idx>=phrases.length){_speechBusy=false;return;}
-    const p=phrases[idx++];
-    const u=new SpeechSynthesisUtterance(p.text);
+    if(i>=phrases.length){_speechBusy=false;return;}
+    const p=phrases[i++],u=new SpeechSynthesisUtterance(p.text);
     u.lang=p.lang;u.rate=0.88;u.pitch=1.0;u.volume=1.0;
     const voices=speechSynthesis.getVoices();
     const match=voices.find(v=>v.lang===p.lang)||voices.find(v=>v.lang.startsWith(p.lang.split('-')[0]))||null;
     if(match)u.voice=match;
-    u.onend=()=>setTimeout(next,500);
-    u.onerror=()=>setTimeout(next,300);
+    u.onend=()=>setTimeout(next,500);u.onerror=()=>setTimeout(next,300);
     speechSynthesis.speak(u);
   }
   speechSynthesis.cancel();
@@ -1328,7 +1258,7 @@ function push(type,msg,critical=false){
       requireInteraction:critical&&type==='ac'});
   }
   showToast(msg,type==='ac'?'danger':type==='aw'?'warn':'info',3000);
-  // sound handled in checkAlerts() — no duplicate
+  // sound handled directly in checkAlerts() only
 }
 function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
 
@@ -1637,8 +1567,8 @@ function renderDash(){
   const fill=document.getElementById('waterFill');
   const body=document.getElementById('tankBody');
 
-  // ── NIL STATE: first boot (before any data) or stale/offline ──
-  if(S.m===null||(!S.connected&&!demoMode)){
+  // ── NIL STATE: no real data yet, or stale/offline ──
+  if(!_hasRealData||S.m===null||(!S.connected&&!demoMode)){
     _setTankAnim(0); // stop all animations
     fill.style.height='0%';
     fill.style.background='linear-gradient(to top,rgba(80,80,110,.3),rgba(80,80,110,.15))';
@@ -1781,124 +1711,81 @@ function resetAnalytics(){
 // ═══════════════════════════════════════════
 //  DOWNLOAD REPORT — one-click CSV
 // ═══════════════════════════════════════════
-function _dlCSV(content, filename){
-  const blob=new Blob([content],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=filename;a.click();
-  setTimeout(()=>URL.revokeObjectURL(url),2000);
+function _dlCSV(content,filename){
+  const blob=new Blob(['\uFEFF'+content],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
-
 function downloadReport(){
   const now=new Date();
   const dt=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  const tankName=(S.name||cfg.tankName||'Main Tank');
-  const capacity=S.total||1000;
-  const level=S.m!=null?S.m:0;
-  const vol=S.vol||0;
-  const usage=S.usage||0;
-  const emptyIn=usage>0?fmtHrs(vol/usage):'N/A';
-  const pt=analyticsSession.periodTotals;
-  const totalUsed=analyticsSession.totalUsedL;
-  const maxPeriod=Math.max(pt.morn,pt.aft,pt.eve,pt.ngt,1);
-  const pct=v=>((v/maxPeriod)*100).toFixed(0);
+  const tank=S.name||cfg.tankName||'Main Tank';
+  const cap=S.total||1000;const lvl=S.m??0;const vol=S.vol||0;const usg=S.usage||0;
+  const pt=analyticsSession.periodTotals;const tot=analyticsSession.totalUsedL;
+  const mx=Math.max(pt.morn,pt.aft,pt.eve,pt.ngt,1);
+  const bar=v=>'█'.repeat(Math.round(v/mx*15))||'░';
 
-  // ── FILE 1: Summary & Status Report ──
-  const summary=[
-    'TASNI WATER MONITOR — SUMMARY REPORT',
-    'Generated,' + now.toLocaleString(),
-    'Tank Name,' + tankName,
-    '',
-    'CURRENT STATUS',
-    'Field,Value,Notes',
-    `Tank Level,${level}%,${level<10?'CRITICAL — Refill immediately':level<30?'LOW — Refill soon':level<75?'Normal':'Good'}`,
-    `Volume Available,${vol.toFixed(0)} L,out of ${capacity} L capacity`,
-    `Volume Used,${(capacity-vol).toFixed(0)} L,${((capacity-vol)/capacity*100).toFixed(1)}% consumed`,
-    `Usage Rate,${usage.toFixed(2)} L/hr,current draw rate`,
-    `Estimated Empty In,${emptyIn},at current rate`,
-    `Tank Status,${S.s||'--'},`,
-    `Last Update,${S.lastUpdate?S.lastUpdate.toLocaleString():'N/A'},`,
-    `Device Uptime,${fmtUp(S.up)},`,
-    `WiFi Signal,${S.rssi||'--'} dBm,${S.rssi?S.rssi>=-60?'Excellent':S.rssi>=-75?'Good':S.rssi>=-85?'Fair':'Poor':'--'}`,
-    `Boot Count,${S.boot||'--'},reboots since install`,
-    '',
-    'SESSION USAGE SUMMARY',
-    'Period,Litres Used,% of Total,Bar Chart',
-    `Morning (6am-12pm),${pt.morn.toFixed(1)},${totalUsed>0?((pt.morn/totalUsed)*100).toFixed(0):0}%,${'█'.repeat(Math.round(pt.morn/maxPeriod*20))||'-'}`,
-    `Afternoon (12pm-6pm),${pt.aft.toFixed(1)},${totalUsed>0?((pt.aft/totalUsed)*100).toFixed(0):0}%,${'█'.repeat(Math.round(pt.aft/maxPeriod*20))||'-'}`,
-    `Evening (6pm-12am),${pt.eve.toFixed(1)},${totalUsed>0?((pt.eve/totalUsed)*100).toFixed(0):0}%,${'█'.repeat(Math.round(pt.eve/maxPeriod*20))||'-'}`,
-    `Night (12am-6am),${pt.ngt.toFixed(1)},${totalUsed>0?((pt.ngt/totalUsed)*100).toFixed(0):0}%,${'█'.repeat(Math.round(pt.ngt/maxPeriod*20))||'-'}`,
-    `TOTAL,${totalUsed.toFixed(1)},100%,`,
-    '',
-    'DAILY PROJECTION (at current usage rate)',
-    'Metric,Value',
-    `Usage per day,${(usage*24).toFixed(1)} L`,
-    `Days until empty,${usage>0?((vol/usage)/24).toFixed(1):' ∞'} days`,
-    `Refill needed by,${usage>0?(()=>{const d=new Date(now.getTime()+(vol/usage)*3600000);return d.toLocaleDateString()+' '+d.toLocaleTimeString();})():'N/A'}`,
-    '',
-    'TECHNICAL SUPPORT',
-    'Contact,+91 8330928938',
-    'Product,TASNI Water Monitor v2.1',
-    'Developer,Mohammed Imran Ahmed Soofi',
-    'Company,Tasni Trading Private Limited',
-  ].join('\n');
-  _dlCSV(summary, `TASNI-Summary-${dt}.csv`);
+  _dlCSV([
+    'TASNI WATER MONITOR - SUMMARY REPORT',
+    `Generated,${now.toLocaleString()}`,
+    `Tank Name,${tank}`,`Capacity,${cap} L`,`Report Date,${now.toLocaleDateString()}`,
+    '','CURRENT STATUS','Metric,Value,Note',
+    `Tank Level,${lvl}%,${lvl<10?'CRITICAL - Refill immediately':lvl<30?'LOW - Refill soon':lvl<75?'Normal':'Good'}`,
+    `Volume Available,${vol.toFixed(0)} L,of ${cap} L total`,
+    `Volume Consumed,${(cap-vol).toFixed(0)} L,${((cap-vol)/cap*100).toFixed(1)}% used`,
+    `Usage Rate,${usg.toFixed(2)} L/hr,current draw`,
+    `Est. Empty In,${usg>0?fmtHrs(vol/usg):'Infinity'},at current rate`,
+    `Est. Refill By,${usg>0?(()=>{const d=new Date(now.getTime()+(vol/usg)*3600000);return d.toLocaleString();})():'N/A'},`,
+    `Status,${S.s||'--'},`,`Last Update,${S.lastUpdate?S.lastUpdate.toLocaleString():'N/A'},`,
+    `Device Uptime,${fmtUp(S.up)},`,`WiFi Signal,${S.rssi||'--'} dBm,${S.rssi?S.rssi>=-60?'Excellent':S.rssi>=-75?'Good':S.rssi>=-85?'Fair':'Poor':'--'}`,
+    `Boot Count,${S.boot||0},reboots`,
+    '','PERIOD USAGE SUMMARY','Period,Litres Used,Share %,Bar',
+    `Morning 6am-12pm,${pt.morn.toFixed(1)},${tot>0?((pt.morn/tot)*100).toFixed(0):0}%,${bar(pt.morn)}`,
+    `Afternoon 12pm-6pm,${pt.aft.toFixed(1)},${tot>0?((pt.aft/tot)*100).toFixed(0):0}%,${bar(pt.aft)}`,
+    `Evening 6pm-12am,${pt.eve.toFixed(1)},${tot>0?((pt.eve/tot)*100).toFixed(0):0}%,${bar(pt.eve)}`,
+    `Night 12am-6am,${pt.ngt.toFixed(1)},${tot>0?((pt.ngt/tot)*100).toFixed(0):0}%,${bar(pt.ngt)}`,
+    `TOTAL,${tot.toFixed(1)},100%,`,
+    '','DAILY PROJECTION',`Usage per day,${(usg*24).toFixed(1)} L`,
+    `Days until empty,${usg>0?((vol/usg)/24).toFixed(1):'Infinity'}`,
+    '','SUPPORT','Contact,+91 8330928938','Product,TASNI Water Monitor v2.1',
+  ].join('\n'),`TASNI-Summary-${dt}.csv`);
 
-  // ── FILE 2: Usage Events Log ──
-  setTimeout(()=>{
-    const evRows=[
-      'TASNI WATER MONITOR — USAGE EVENTS LOG',
-      `Generated,${now.toLocaleString()}`,
-      `Tank,${tankName}`,
-      '',
-      'Time,From %,To %,Drop %,Litres Used,Period,Notes',
-      ...analyticsSession.events.map(e=>{
-        const dropPct=e.fromPct-e.toPct;
-        const note=dropPct>=20?'Large draw — possible multiple uses':dropPct>=10?'Medium draw':'Small draw';
-        return `${e.time},${e.fromPct}%,${e.toPct}%,${dropPct}%,${e.dropL} L,${e.period==='morn'?'Morning':e.period==='aft'?'Afternoon':e.period==='eve'?'Evening':'Night'},${note}`;
-      }),
-      '',
-      'USAGE STATISTICS',
-      `Total Events,${analyticsSession.events.length}`,
-      `Total Water Used,${totalUsed.toFixed(1)} L`,
-      `Average Drop per Event,${analyticsSession.events.length>0?(totalUsed/analyticsSession.events.length).toFixed(1):0} L`,
-      `Largest Single Draw,${analyticsSession.events.length>0?Math.max(...analyticsSession.events.map(e=>parseFloat(e.dropL))).toFixed(1):0} L`,
-    ].join('\n');
-    _dlCSV(evRows, `TASNI-UsageEvents-${dt}.csv`);
-  },600);
+  setTimeout(()=>_dlCSV([
+    'TASNI WATER MONITOR - USAGE EVENTS LOG',
+    `Generated,${now.toLocaleString()}`,`Tank,${tank}`,
+    '','Time,From %,To %,Drop %,Litres,Period,Size',
+    ...analyticsSession.events.map(e=>{
+      const dp=e.fromPct-e.toPct;
+      const sz=dp>=20?'Large':dp>=10?'Medium':'Small';
+      const per=e.period==='morn'?'Morning':e.period==='aft'?'Afternoon':e.period==='eve'?'Evening':'Night';
+      return `${e.time},${e.fromPct}%,${e.toPct}%,${dp}%,${e.dropL} L,${per},${sz}`;
+    }),
+    '','TOTALS',`Events,${analyticsSession.events.length}`,`Total Used,${tot.toFixed(1)} L`,
+    `Avg per Event,${analyticsSession.events.length>0?(tot/analyticsSession.events.length).toFixed(1):0} L`,
+    `Largest Draw,${analyticsSession.events.length>0?Math.max(...analyticsSession.events.map(e=>parseFloat(e.dropL))).toFixed(1):0} L`,
+  ].join('\n'),`TASNI-UsageEvents-${dt}.csv`),600);
 
-  // ── FILE 3: Alert & Level History Log ──
-  setTimeout(()=>{
-    const alertRows=[
-      'TASNI WATER MONITOR — ALERT & LEVEL HISTORY',
-      `Generated,${now.toLocaleString()}`,
-      `Tank,${tankName}`,
-      '',
-      'ALERT LOG',
-      'Timestamp,Severity,Message',
-      ...alerts.slice(0,60).map(a=>{
-        const sev=a.type==='ac'?'CRITICAL':a.type==='aw'?'WARNING':'INFO';
-        const cleanMsg=a.msg.replace(/[^\x20-\x7E\u0600-\u06FF\u0C00-\u0C7F]/g,'').replace(/"/g,"'");
-        return `${new Date(a.time).toLocaleString()},${sev},"${cleanMsg}"`;
-      }),
-      '',
-      'LEVEL HISTORY (last 24 readings)',
-      'Reading #,Level %,Status,Volume (L)',
-      ...S.history.map((v,i)=>{
-        if(v==null)return `${i+1},N/A,No data,N/A`;
-        const vol2=((v/100)*capacity).toFixed(0);
-        const st=v<10?'Critical':v<30?'Low':v<75?'Normal':'Good';
-        return `${i+1},${v}%,${st},${vol2} L`;
-      }),
-      '',
-      'ALERT SUMMARY',
-      `Total Alerts,${alerts.length}`,
-      `Critical,${alerts.filter(a=>a.type==='ac').length}`,
-      `Warnings,${alerts.filter(a=>a.type==='aw').length}`,
-      `Info,${alerts.filter(a=>a.type==='ai').length}`,
-    ].join('\n');
-    _dlCSV(alertRows, `TASNI-AlertHistory-${dt}.csv`);
-  },1200);
+  setTimeout(()=>_dlCSV([
+    'TASNI WATER MONITOR - ALERT AND LEVEL HISTORY',
+    `Generated,${now.toLocaleString()}`,`Tank,${tank}`,
+    '','ALERT LOG','Timestamp,Severity,Message',
+    ...alerts.slice(0,60).map(a=>{
+      const sev=a.type==='ac'?'CRITICAL':a.type==='aw'?'WARNING':'INFO';
+      const msg=a.msg.replace(/[^\x20-\x7E\u0600-\u06FF\u0C00-\u0C7F]/g,'').replace(/"/g,"'").trim();
+      return `${new Date(a.time).toLocaleString()},${sev},"${msg}"`;
+    }),
+    '','LEVEL HISTORY','Reading,Level %,Status,Volume L',
+    ...S.history.map((v,i)=>{
+      if(v==null)return `${i+1},N/A,No data,N/A`;
+      const v2=((v/100)*cap).toFixed(0);
+      const st=v<10?'Critical':v<30?'Low':v<75?'Normal':'Good';
+      return `${i+1},${v}%,${st},${v2} L`;
+    }),
+    '','ALERT COUNTS',`Total,${alerts.length}`,
+    `Critical,${alerts.filter(a=>a.type==='ac').length}`,
+    `Warnings,${alerts.filter(a=>a.type==='aw').length}`,
+    `Info,${alerts.filter(a=>a.type==='ai').length}`,
+  ].join('\n'),`TASNI-AlertHistory-${dt}.csv`),1200);
 
   showToast('📊 3 CSV reports downloading…','ok',3000);
 }
@@ -1945,6 +1832,7 @@ function renderAlertLog(){
 //  DEMO MODE
 // ═══════════════════════════════════════════
 function startDemo(){
+  _hasRealData=true; // demo is intentional — show data
   let lvl=72,dir=-1;
   const tick=()=>{
     lvl+=dir*(Math.random()*1.5);
@@ -2041,8 +1929,9 @@ function saveMQTT(){
   if(host){_silent=false;_connectMQTT({host,port,user:mquser,pass:mqpass,topic});}
 }
 function saveBackupMQTT(){
-  const host=g('c-mqb2'),port=parseInt(g('c-mqp2'))||8884,mquser=g('c-mquser2'),mqpass=g('c-mqpass2');
-  if(!host){showToast('Enter backup broker host','warn');return;}
+  const host=g('c-mqb2'),port=parseInt(g('c-mqp2'))||8884;
+  const mquser=g('c-mquser2'),mqpass=g('c-mqpass2');
+  if(!host){showToast('Enter backup broker host first','warn');return;}
   const topic=cfg.topic||'tasni-water/+/state';
   _mqttBackupCfg={host,port,user:mquser,pass:mqpass,topic};
   saveCfg({broker2:host,port2:port,mquser2:mquser,mqpass2:mqpass});
@@ -2063,9 +1952,6 @@ function ck(id){const e=document.getElementById(id);return e?e.checked:false;}
 function set(id,html){const e=document.getElementById(id);if(e)e.innerHTML=html;}
 function fmtUp(s){if(!s)return'--';if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';return Math.floor(s/86400)+'d '+Math.floor((s%86400)/3600)+'h';}
 function fmtHrs(h){if(!isFinite(h)||h<=0)return'∞';if(h<1)return Math.round(h*60)+' min';if(h<24)return Math.round(h)+' hrs';return Math.floor(h/24)+'d '+Math.round(h%24)+'h';}
-const _sessionStart=new Date();
-let _totalDataPoints=0;
-
 function goTab(name,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
@@ -2074,30 +1960,6 @@ function goTab(name,btn){
   if(name==='analytics'){unlockAch(1);renderAnalytics();}
   if(name==='tips'){unlockAch(5);renderTips();}
   if(name==='settings')unlockAch(4);
-  if(name==='about')renderAbout();
-}
-
-function renderAbout(){
-  const uptimMs=Date.now()-_sessionStart.getTime();
-  const uptimMins=Math.floor(uptimMs/60000);
-  const uptimDisp=uptimMins<60?uptimMins+'m':Math.floor(uptimMins/60)+'h '+( uptimMins%60)+'m';
-  const sesEl=document.getElementById('about-sess');
-  const ptsEl=document.getElementById('about-pts');
-  const alEl=document.getElementById('about-alrts');
-  const upEl=document.getElementById('about-uptime');
-  const sysEl=document.getElementById('about-sys');
-  if(sesEl)sesEl.textContent=_sessionStart.toLocaleTimeString();
-  if(ptsEl)ptsEl.textContent=_totalDataPoints;
-  if(alEl)alEl.textContent=alerts.length;
-  if(upEl)upEl.textContent=uptimDisp;
-  if(sysEl)sysEl.innerHTML=[
-    `<span style="color:var(--muted)">MQTT Status:</span> <span style="color:${document.getElementById('chip-mqtt').classList.contains('on')?'var(--ok)':'var(--danger)'}">${document.getElementById('chip-mqtt').classList.contains('on')?'● Connected':'● Disconnected'}</span>`,
-    `<span style="color:var(--muted)">Local WiFi:</span> <span style="color:${document.getElementById('chip-local').classList.contains('on')?'var(--ok)':'var(--muted)'}">${document.getElementById('chip-local').classList.contains('on')?'● Connected':'● Not connected'}</span>`,
-    `<span style="color:var(--muted)">Backup Broker:</span> <span style="color:${_mqttBackupCfg?'var(--warn)':'var(--muted)'}">${_mqttBackupCfg?'● Configured':'● Not set'}</span>`,
-    `<span style="color:var(--muted)">Tank Level:</span> <span>${S.m!=null?S.m+'%':'NIL'}</span>`,
-    `<span style="color:var(--muted)">Notifications:</span> <span>${Notification.permission==='granted'?'✅ Enabled':'⚠️ Disabled'}</span>`,
-    `<span style="color:var(--muted)">Service Worker:</span> <span>${'serviceWorker' in navigator?'✅ Active':'❌ Not supported'}</span>`,
-  ].join('<br>');
 }
 function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
 </script>
