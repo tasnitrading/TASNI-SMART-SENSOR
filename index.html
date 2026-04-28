@@ -602,7 +602,6 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:8px;font-family:var(--head)">VOICE ALERT LANGUAGES</div>
         <div class="tog-row" style="padding:7px 0"><div><div class="tog-lbl" style="font-size:13px">🇬🇧 English</div></div><label class="toggle"><input type="checkbox" id="t-lang-en" checked><div class="tslider"></div></label></div>
-        <div class="tog-row" style="padding:7px 0"><div><div class="tog-lbl" style="font-size:13px">🇮🇳 Hindi</div></div><label class="toggle"><input type="checkbox" id="t-lang-hi" checked><div class="tslider"></div></label></div>
         <div class="tog-row" style="padding:7px 0"><div><div class="tog-lbl" style="font-size:13px">🇮🇳 Telugu</div></div><label class="toggle"><input type="checkbox" id="t-lang-te" checked><div class="tslider"></div></label></div>
         <div class="tog-row" style="padding:7px 0;border-bottom:none"><div><div class="tog-lbl" style="font-size:13px">🇮🇳 Urdu</div></div><label class="toggle"><input type="checkbox" id="t-lang-ur" checked><div class="tslider"></div></label></div>
         <div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5">Voice speaks only in selected languages on Low, Critical &amp; Full alerts.</div>
@@ -839,10 +838,10 @@ const _bootGuardTimer=setTimeout(()=>{
 //  ALERT TOGGLE PERSISTENCE
 //  FIX: toggles persist across app close/open
 // ═══════════════════════════════════════════
-const ALERT_TOGGLE_IDS=['t-crit','t-low','t-drop','t-fill','t-full','t-sound','t-lang-en','t-lang-hi','t-lang-te','t-lang-ur'];
+const ALERT_TOGGLE_IDS=['t-crit','t-low','t-drop','t-fill','t-full','t-sound','t-lang-en','t-lang-te','t-lang-ur'];
 const ALERT_TOGGLE_DEFAULTS={
   't-crit':true,'t-low':true,'t-drop':true,'t-fill':true,'t-full':true,'t-sound':true,
-  't-lang-en':true,'t-lang-hi':true,'t-lang-te':true,'t-lang-ur':true
+  't-lang-en':true,'t-lang-te':true,'t-lang-ur':true
 };
 function loadAlertPrefs(){
   let prefs=JSON.parse(localStorage.getItem(ALERT_PREFS_KEY)||'null');
@@ -1328,94 +1327,80 @@ function ingest(d,fromMQTT=false){
 
 // ═══════════════════════════════════════════
 //  ALERT ENGINE
-//  Multilingual speech: English, Hindi, Telugu, Urdu
+//  Multilingual speech: English, Telugu, Urdu
 //  No ambulance sirens — natural water sounds + calm voice
 // ═══════════════════════════════════════════
 
-// ── Speech alert — speaks in English → Hindi → Telugu → Urdu ──
-// Bulletproof: resets on any error, has safety timeout, never deadlocks
+// ── Speech alert — speaks in English → Telugu → Urdu (browser TTS) ──
 let _speechBusy=false;
 let _speechTimeout=null;
 
 function _speakAlert(level,type){
-  if(!('speechSynthesis' in window))return;
-
   clearTimeout(_speechTimeout);
-  speechSynthesis.cancel();
+  if('speechSynthesis' in window)speechSynthesis.cancel();
   _speechBusy=false;
 
-  // Build ALL phrases
+  // Build ALL phrases — English, Telugu, Urdu via browser TTS
   const allPhrases={
     low:[
-      {key:'en',text:`Water tank is running low. Level at ${level} percent. Please refill soon.`,lang:'en-IN'},
-      {key:'hi',text:`पानी की टंकी कम हो रही है। स्तर ${level} प्रतिशत है। कृपया जल्द भरें।`,lang:'hi-IN'},
-      {key:'te',text:`నీటి ట్యాంకు తక్కువగా ఉంది. స్థాయి ${level} శాతం. దయచేసి నింపండి.`,lang:'te-IN'},
-      {key:'ur',text:`پانی کی ٹینکی کم ہو رہی ہے۔ سطح ${level} فیصد ہے۔ براہ کرم بھریں۔`,lang:'ur-IN'},
+      {key:'en',text:`Water tank is running low. Level at ${level} percent. Please refill soon.`,lang:'en-IN',engine:'browser'},
+      {key:'te',text:`నీటి ట్యాంకు తక్కువగా ఉంది. స్థాయి ${level} శాతం. దయచేసి నింపండి.`,lang:'te-IN',engine:'browser'},
+      {key:'ur',text:`پانی کی ٹینکی کم ہو رہی ہے۔ سطح ${level} فیصد ہے۔ براہ کرم بھریں۔`,lang:'ur-IN',engine:'browser'},
     ],
     critical:[
-      {key:'en',text:`Warning! Tank is critically low at ${level} percent. Refill immediately!`,lang:'en-IN'},
-      {key:'hi',text:`चेतावनी! टंकी बहुत कम है। केवल ${level} प्रतिशत बचा है। तुरंत भरें!`,lang:'hi-IN'},
-      {key:'te',text:`హెచ్చరిక! ట్యాంకు చాలా తక్కువగా ఉంది. ${level} శాతం మాత్రమే ఉంది. వెంటనే నింపండి!`,lang:'te-IN'},
-      {key:'ur',text:`خبردار! ٹینکی بہت کم ہے۔ صرف ${level} فیصد باقی ہے۔ فوری طور پر بھریں!`,lang:'ur-IN'},
+      {key:'en',text:`Warning! Tank is critically low at ${level} percent. Refill immediately!`,lang:'en-IN',engine:'browser'},
+      {key:'te',text:`హెచ్చరిక! ట్యాంకు చాలా తక్కువగా ఉంది. ${level} శాతం మాత్రమే ఉంది. వెంటనే నింపండి!`,lang:'te-IN',engine:'browser'},
+      {key:'ur',text:`خبردار! ٹینکی بہت کم ہے۔ صرف ${level} فیصد باقی ہے۔ فوری طور پر بھریں!`,lang:'ur-IN',engine:'browser'},
     ],
     full:[
-      {key:'en',text:`Tank is full. Water level is at maximum.`,lang:'en-IN'},
-      {key:'hi',text:`टंकी भर गई है। पानी का स्तर अधिकतम है।`,lang:'hi-IN'},
-      {key:'te',text:`ట్యాంకు నిండింది. నీటి స్థాయి గరిష్ఠంగా ఉంది.`,lang:'te-IN'},
-      {key:'ur',text:`ٹینکی بھر گئی ہے۔ پانی کی سطح زیادہ سے زیادہ ہے۔`,lang:'ur-IN'},
+      {key:'en',text:`Tank is full. Water level is at maximum.`,lang:'en-IN',engine:'browser'},
+      {key:'te',text:`ట్యాంకు నిండింది. నీటి స్థాయి గరిష్ఠంగా ఉంది.`,lang:'te-IN',engine:'browser'},
+      {key:'ur',text:`ٹینکی بھر گئی ہے۔ پانی کی سطح زیادہ سے زیادہ ہے۔`,lang:'ur-IN',engine:'browser'},
     ],
   };
 
   // Filter by user's language toggles
   const phrases=(allPhrases[type]||allPhrases.low).filter(p=>{
     if(p.key==='en')return ck('t-lang-en');
-    if(p.key==='hi')return ck('t-lang-hi');
     if(p.key==='te')return ck('t-lang-te');
     if(p.key==='ur')return ck('t-lang-ur');
     return true;
   });
 
-  if(!phrases.length)return; // all languages disabled
+  if(!phrases.length)return;
 
   _speechBusy=true;
-  _speechTimeout=setTimeout(()=>{_speechBusy=false;speechSynthesis.cancel();},30000);
+  _speechTimeout=setTimeout(()=>{_speechBusy=false;if('speechSynthesis' in window)speechSynthesis.cancel();},30000);
 
-  // Voices may not be loaded yet — always re-fetch at speak time
-  let _cachedVoices=[];
-  function _getVoices(){
-    const v=speechSynthesis.getVoices();
-    if(v.length)_cachedVoices=v;
-    return _cachedVoices;
-  }
   let idx=0;
 
   function speakNext(){
     if(idx>=phrases.length){_speechBusy=false;clearTimeout(_speechTimeout);return;}
     const p=phrases[idx++];
+
+    // ── Other languages: browser TTS ──
+    if(!('speechSynthesis' in window)){speakNext();return;}
     const utt=new SpeechSynthesisUtterance(p.text);
     utt.lang=p.lang;utt.rate=0.86;utt.pitch=1.05;utt.volume=1.0;
-    const vv=_getVoices();
-    const langCode=p.lang.split('-')[0]; // e.g. 'hi', 'te', 'ur', 'en'
+    const vv=speechSynthesis.getVoices();
+    const lc=p.lang.split('-')[0];
     const match=
-      vv.find(v=>v.lang===p.lang)||                          // exact: hi-IN
-      vv.find(v=>v.lang.toLowerCase()===p.lang.toLowerCase())||
-      vv.find(v=>v.lang.startsWith(langCode+'-'))||          // hi-IN, hi-US, etc.
-      vv.find(v=>v.lang===langCode)||                        // bare 'hi'
-      vv.find(v=>v.lang.startsWith(langCode))||              // any hi* match
-      (langCode==='en'?vv.find(v=>v.lang.startsWith('en')):null)||
-      null;
+      vv.find(v=>v.lang===p.lang)||
+      vv.find(v=>v.lang.startsWith(lc+'-'))||
+      vv.find(v=>v.lang===lc)||
+      vv.find(v=>v.lang.startsWith(lc))||
+      (lc==='en'?vv.find(v=>v.lang.startsWith('en')):null)||null;
     if(match)utt.voice=match;
     utt.onend=()=>setTimeout(speakNext,700);
     utt.onerror=()=>setTimeout(speakNext,300);
     try{speechSynthesis.speak(utt);}catch(e){setTimeout(speakNext,300);}
   }
 
-  const initialVoices=speechSynthesis.getVoices();
-  if(initialVoices.length===0){
-    // Chrome loads voices async — wait for the event, with a timeout fallback
-    const onVoices=()=>speakNext();
-    speechSynthesis.addEventListener('voiceschanged',onVoices,{once:true});
-    setTimeout(()=>{if(_speechBusy&&idx===0)speakNext();},1000);
+  // Boot voices then speak
+  const iv=('speechSynthesis' in window)?speechSynthesis.getVoices():[];
+  if(iv.length===0&&'speechSynthesis' in window){
+    speechSynthesis.addEventListener('voiceschanged',()=>speakNext(),{once:true});
+    setTimeout(()=>{if(_speechBusy&&idx===0)speakNext();},900);
   } else {
     setTimeout(speakNext,150);
   }
