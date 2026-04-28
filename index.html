@@ -834,7 +834,9 @@ const analyticsSession={events:[],periodTotals:{morn:0,aft:0,eve:0,ngt:0},totalU
 // Demo mode sets _displayReady itself but does NOT write analytics/history.
 let _displayReady=false;
 let _bootGuardActive=true;
-let _realReadingCount=0; // counts confirmed device readings (not demo)
+let _realReadingCount=0;
+const _BOOT_MS=10000; // hard 10-second NIL lock on every PWA open
+const _bootStart=Date.now(); // timestamp when page loaded
 
 // Hourly history persisted in localStorage for 24h chart continuity
 const HOURLY_KEY='tasni_hourly_v1';
@@ -849,10 +851,11 @@ function _loadHourly(){
   }catch(_){}
 }
 
+// Boot guard timer — after 10s allow display to unlock on next real reading
 const _bootGuardTimer=setTimeout(()=>{
-  // 10 s expired with no data — keep NIL; _displayReady stays false until real data
   _bootGuardActive=false;
-},10000);
+  // _displayReady stays false — will flip on next ingest() from real device
+},_BOOT_MS);
 
 // ═══════════════════════════════════════════
 //  ALERT TOGGLE PERSISTENCE
@@ -1321,25 +1324,20 @@ function ingest(d,fromMQTT=false){
     clearTimeout(_animTimer);
     _animTimer=setTimeout(()=>_setTankAnim(0),10000);
   }
-  // Boot guard: demo bypasses; real device needs 2 readings
-  if(demoMode){
-    if(!_displayReady){
+  // ── BOOT GUARD ──
+  // HARD RULE: NIL is shown for the first 10 seconds on every PWA open, no exceptions.
+  // Demo mode also respects the 10s lock.
+  // After 10s the next ingest() from any source unlocks the display.
+  if(!_displayReady){
+    const _elapsed=Date.now()-_bootStart;
+    if(_elapsed>=_BOOT_MS){
+      // 10 seconds have passed — allow display now
       _displayReady=true;
       clearTimeout(_bootGuardTimer);
       _bootGuardActive=false;
+      if(!demoMode)setTimeout(()=>{try{playConnectSound();}catch(_){}},200);
     }
-  } else {
-    // Real device path — require 2 readings before showing anything
-    if(_bootGuardActive||!_displayReady){
-      clearTimeout(_bootGuardTimer);
-      _bootGuardActive=false;
-      _realReadingCount++;
-      if(_realReadingCount>=2){
-        _displayReady=true;
-        setTimeout(()=>{try{playConnectSound();}catch(_){}},400);
-      }
-      // If only 1st reading: stay NIL until 2nd arrives
-    }
+    // else: still inside 10s window — keep NIL, do nothing
   }
   // Tell SW the latest level (non-blocking)
   try{
@@ -1525,7 +1523,8 @@ function _markStale(){
   if(S.connected){
     S.connected=false;
     _displayReady=false; // force NIL display until new data arrives after reconnect
-    _realReadingCount=0; // reset so 2 fresh readings required again
+    _realReadingCount=0;
+    _bootGuardActive=false; // after stale, unlock immediately on next reading (no 10s re-lock)
     showToast('📡 No data — device may be offline','warn',4000);
   }
   renderDash();
@@ -2232,7 +2231,8 @@ function renderAlertLog(){
 function startDemo(){
   // Demo mode: analytics/history/report are all blocked
   // Reset real-reading counter so switching back to device requires 2 fresh readings
-  _realReadingCount=0;_displayReady=false;
+  _realReadingCount=0;
+  // Demo respects the 10s boot lock — NIL shown until 10s has elapsed
   let lvl=72,dir=-1;
   const tick=()=>{
     lvl+=dir*(Math.random()*1.5);
