@@ -558,7 +558,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
       <div style="position:relative;height:160px">
         <canvas id="barChart"></canvas>
-        <div id="barNoData" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);text-align:center;letter-spacing:1px;font-family:var(--head)">NO USAGE DROPS<br>RECORDED YET</div>
+        <div id="barNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:10px;color:var(--muted);font-family:var(--head);letter-spacing:1.5px;text-align:center">NO USAGE RECORDED<br>THIS SESSION YET</div>
       </div>
       <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
         Tracks actual level drops recorded this session. Empty = no drops recorded yet in that period.
@@ -578,7 +578,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <div class="card-title" style="margin-bottom:10px">Usage Split</div>
         <div style="position:relative;height:100px">
           <canvas id="usagePieChart"></canvas>
-          <div id="pieNoData" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);text-align:center;letter-spacing:1px;font-family:var(--head)">NO USAGE<br>RECORDED YET</div>
+          <div id="pieNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:9px;color:var(--muted);font-family:var(--head);letter-spacing:1px;text-align:center">NO DATA</div>
         </div>
       </div>
     </div>
@@ -609,7 +609,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:8px;font-family:var(--head)">VOICE ALERT LANGUAGES</div>
         <div class="tog-row" style="padding:7px 0"><div><div class="tog-lbl" style="font-size:13px">🇬🇧 English</div></div><label class="toggle"><input type="checkbox" id="t-lang-en" checked><div class="tslider"></div></label></div>
         <div class="tog-row" style="padding:7px 0"><div><div class="tog-lbl" style="font-size:13px">🇮🇳 Telugu</div></div><label class="toggle"><input type="checkbox" id="t-lang-te" checked><div class="tslider"></div></label></div>
-        <div class="tog-row" style="padding:7px 0;border-bottom:none"><div><div class="tog-lbl" style="font-size:13px">🇮🇳 Urdu (IND)</div></div><label class="toggle"><input type="checkbox" id="t-lang-ur" checked><div class="tslider"></div></label></div>
+        <div class="tog-row" style="padding:7px 0;border-bottom:none"><div><div class="tog-lbl" style="font-size:13px">🇮🇳 Urdu</div></div><label class="toggle"><input type="checkbox" id="t-lang-ur" checked><div class="tslider"></div></label></div>
         <div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5">Voice speaks only in selected languages on Low, Critical &amp; Full alerts.</div>
       </div>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
@@ -818,47 +818,40 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 const CFG_KEY='tasni_cfg';
 const ALERT_PREFS_KEY='tasni_alert_prefs';
 let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'{}');
-// S.m starts as null — NIL until first real data
+// S.m starts as null — NIL until first real DEVICE reading
 const S={m:null,vol:0,total:1000,s:'Offline',dist:0,t:'',usage:0,up:0,rssi:0,boot:0,isFull:0,name:'Main Tank',history:Array(24).fill(null),connected:false,lastUpdate:null,_wasFull:false};
 let alerts=JSON.parse(localStorage.getItem('tasni_alerts')||'[]');
 let unread=0,demoMode=false,pollingTimer=null,chart=null,tipIdx=0,audioCtx=null;
 // Staleness watchdog
 const STALE_MS=30000;
 let _staleTimer=null;
-// Analytics — real session data only
+// Analytics — REAL session data only (never demo, never stale)
 const analyticsSession={events:[],periodTotals:{morn:0,aft:0,eve:0,ngt:0},totalUsedL:0,readings:[]};
 
 // ── BOOT DISPLAY GUARD ──
-// _displayReady = false means ALWAYS show NIL regardless of S.m
-// Releases after 10s OR when first real data arrives — whichever comes first
-// This prevents stale cached/localStorage values showing on startup
+// Requires 2 consecutive REAL device readings before displaying anything.
+// This prevents stale MQTT retained messages (e.g. old 79%) showing on open.
+// Demo mode sets _displayReady itself but does NOT write analytics/history.
 let _displayReady=false;
 let _bootGuardActive=true;
-let _dataCount=0; // require 2 readings before display (prevents stale MQTT retained msg showing)
-let _lastHistoryRecord=0; // throttle: record at most once per 3 minutes
-// ── Hourly history: 24 slots, one per hour, persisted in localStorage ──
-const HOURLY_KEY='tasni_hourly_history';
-function _loadHourlyHistory(){
+let _realReadingCount=0; // counts confirmed device readings (not demo)
+
+// Hourly history persisted in localStorage for 24h chart continuity
+const HOURLY_KEY='tasni_hourly_v1';
+let _lastHistorySave=0;
+function _saveHourly(){
+  try{localStorage.setItem(HOURLY_KEY,JSON.stringify(S.history));}catch(_){}
+}
+function _loadHourly(){
   try{
-    const saved=JSON.parse(localStorage.getItem(HOURLY_KEY)||'null');
-    if(!Array.isArray(saved)||saved.length!==24)return;
-    // Validate and apply: replace null slots with saved, respecting hours
-    const nowH=new Date().getHours();
-    // saved = [{hour, val}] indexed 0–23 relative to current hour
-    saved.forEach((item,i)=>{
-      if(item&&item.val!=null)S.history[i]=item.val;
-    });
+    const d=JSON.parse(localStorage.getItem(HOURLY_KEY)||'null');
+    if(Array.isArray(d)&&d.length===24)d.forEach((v,i)=>{if(v!=null)S.history[i]=v;});
   }catch(_){}
 }
-function _saveHourlyHistory(){
-  try{
-    localStorage.setItem(HOURLY_KEY,JSON.stringify(S.history.map(v=>({val:v}))));
-  }catch(_){}
-}
+
 const _bootGuardTimer=setTimeout(()=>{
-  // 10s expired with no data — release guard, keep showing NIL until data arrives
+  // 10 s expired with no data — keep NIL; _displayReady stays false until real data
   _bootGuardActive=false;
-  _displayReady=false; // still NIL until real data comes
 },10000);
 
 // ═══════════════════════════════════════════
@@ -937,7 +930,7 @@ window.addEventListener('load',()=>{
   checkNotifPerm();
   _updateTgStatus();
   _renderTgCmds();
-  _loadHourlyHistory();
+  _loadHourly();
   renderDash();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(async reg=>{
@@ -1300,17 +1293,16 @@ function ingest(d,fromMQTT=false){
   if(d.boot  !=null)S.boot  =parseInt(d.boot);
   if(d.isFull!=null)S.isFull=parseInt(d.isFull);
   if(d.name  !=null)S.name  =d.name;
-  // ── History: record from both WiFi and MQTT, throttled to 1 per 3 min ──
-  if(_displayReady&&S.m!=null){
-    const now=Date.now();
-    if(now-_lastHistoryRecord>180000){
-      _lastHistoryRecord=now;
+  // History: only record REAL device data (never demo), rate-limited
+  if(!demoMode&&S.m!=null){
+    const _hn=Date.now();
+    if(_hn-_lastHistorySave>120000){ // at most once per 2 minutes
+      _lastHistorySave=_hn;
       S.history.shift();S.history.push(S.m);
-      _saveHourlyHistory();
+      _saveHourly();
+    } else if(!fromMQTT){ // WiFi poll: always push (local poll is already slow)
+      S.history.shift();S.history.push(S.m);
     }
-  } else if(!fromMQTT&&S.m!=null&&!_displayReady){
-    // Before display ready: still record WiFi data so chart primes quickly
-    S.history.shift();S.history.push(S.m);
   }
   S.connected=true;
   S.lastUpdate=new Date();
@@ -1329,17 +1321,25 @@ function ingest(d,fromMQTT=false){
     clearTimeout(_animTimer);
     _animTimer=setTimeout(()=>_setTankAnim(0),10000);
   }
-  // First real data — require 2 readings before releasing boot guard
-  // Prevents stale MQTT retained message from showing a fake value on PWA open
-  if(_bootGuardActive||!_displayReady){
-    clearTimeout(_bootGuardTimer);
-    _bootGuardActive=false;
-    _dataCount++;
-    if(_dataCount>=2){
-      _displayReady=true; // 2nd reading = confirmed fresh data, allow display
-      setTimeout(()=>{try{playConnectSound();}catch(_){}},400);
+  // Boot guard: demo bypasses; real device needs 2 readings
+  if(demoMode){
+    if(!_displayReady){
+      _displayReady=true;
+      clearTimeout(_bootGuardTimer);
+      _bootGuardActive=false;
     }
-    // 1st reading: keep NIL displayed ("until the next reading is fetched")
+  } else {
+    // Real device path — require 2 readings before showing anything
+    if(_bootGuardActive||!_displayReady){
+      clearTimeout(_bootGuardTimer);
+      _bootGuardActive=false;
+      _realReadingCount++;
+      if(_realReadingCount>=2){
+        _displayReady=true;
+        setTimeout(()=>{try{playConnectSound();}catch(_){}},400);
+      }
+      // If only 1st reading: stay NIL until 2nd arrives
+    }
   }
   // Tell SW the latest level (non-blocking)
   try{
@@ -1350,8 +1350,8 @@ function ingest(d,fromMQTT=false){
 
   _resetStaleTimer();
 
-  // Analytics — ONLY record after display is ready (stale startup values are NEVER recorded)
-  if(_displayReady){
+  // Analytics — ONLY real device data, never demo, never stale startup values
+  if(_displayReady&&!demoMode){
     if(prev!=null&&S.m!=null&&prev>S.m){
       const dropL=((prev-S.m)/100)*S.total;
       recordUsageEvent(dropL,prev,S.m);
@@ -1525,6 +1525,7 @@ function _markStale(){
   if(S.connected){
     S.connected=false;
     _displayReady=false; // force NIL display until new data arrives after reconnect
+    _realReadingCount=0; // reset so 2 fresh readings required again
     showToast('📡 No data — device may be offline','warn',4000);
   }
   renderDash();
@@ -2068,8 +2069,8 @@ function renderAnalytics(){
     donutChart.data.datasets[0].borderColor=[col.replace('.85',',.35'),colBg];
     donutChart.update('none');
   }
-  set('donutPct',(_displayReady&&S.m!=null)?pct+'%':'--');
-  if(donutChart&&!(_displayReady&&S.m!=null)){donutChart.data.datasets[0].data=[0,100];donutChart.update('none');}
+  set('donutPct',(_displayReady&&!demoMode&&S.m!=null)?pct+'%':(_displayReady&&S.m!=null)?pct+'%':'--');
+  if(donutChart&&!_displayReady){donutChart.data.datasets[0].data=[0,100];donutChart.update('none');}
   set('vol-display',(_displayReady&&S.m!=null)?volNow.toFixed(0)+' L':'-- L');
   set('vol-total-display',total);
   const emptyIn=(_displayReady&&S.usage>0&&volNow>0)?fmtHrs(volNow/S.usage):'∞';
@@ -2077,22 +2078,22 @@ function renderAnalytics(){
 
   // ── Bar chart: time of day usage ──
   if(barChart){
-    const hasBars=pt.morn+pt.aft+pt.eve+pt.ngt>0;
+    const _hasBar=pt.morn+pt.aft+pt.eve+pt.ngt>0;
     barChart.data.datasets[0].data=[pt.morn,pt.aft,pt.eve,pt.ngt];
     barChart.update('none');
-    const barNoEl=document.getElementById('barNoData');
-    if(barNoEl)barNoEl.style.display=hasBars?'none':'flex';
+    const _bnd=document.getElementById('barNoData');
+    if(_bnd)_bnd.style.display=_hasBar?'none':'flex';
   }
 
   // ── Usage pie: only show if we have any data ──
   if(usagePieChart){
-    const hasData=pt.morn+pt.aft+pt.eve+pt.ngt>0;
-    usagePieChart.data.datasets[0].data=hasData
+    const _hasPie=pt.morn+pt.aft+pt.eve+pt.ngt>0;
+    usagePieChart.data.datasets[0].data=_hasPie
       ?[Math.max(pt.morn,0.001),Math.max(pt.aft,0.001),Math.max(pt.eve,0.001),Math.max(pt.ngt,0.001)]
-      :[0.001,0.001,0.001,0.001]; // invisible equal slices while no data
+      :[0.001,0.001,0.001,0.001];
     usagePieChart.update('none');
-    const noDataEl=document.getElementById('pieNoData');
-    if(noDataEl)noDataEl.style.display=hasData?'none':'flex';
+    const _pnd=document.getElementById('pieNoData');
+    if(_pnd)_pnd.style.display=_hasPie?'none':'flex';
   }
 
   // ── Forecast ──
@@ -2143,9 +2144,12 @@ function resetAnalytics(){
 //  DOWNLOAD REPORT — one-click CSV with correct figures
 // ═══════════════════════════════════════════════════════
 function downloadReport(){
+  if(demoMode){showToast('⚠️ Report not available in Demo Mode — connect a real device first','warn',4000);return;}
+  if(!_displayReady||S.m===null){showToast('⚠️ No real device data yet — waiting for readings','warn',3500);return;}
   const now=new Date();
-  const pct=(_displayReady&&S.m!=null)?S.m:0;
-  const volNow=(_displayReady&&S.m!=null)?S.vol.toFixed(0):'N/A';
+  // At this point _displayReady is true and !demoMode (guarded above)
+  const pct=S.m;
+  const volNow=S.vol!=null?S.vol.toFixed(0):'N/A';
   const total=S.total||1000;
   const pt=analyticsSession.periodTotals;
   const totalUsed=analyticsSession.totalUsedL.toFixed(1);
@@ -2207,9 +2211,7 @@ function downloadReport(){
   showToast('📊 Report downloaded!','ok',2500);
 }
 
-// ═══════════════════════════════════════════
-//  CHART.JS — initChart & renderChart defined above (full version with all 4 charts)
-// ═══════════════════════════════════════════
+// [initChart & renderChart — full versions defined above with all 4 charts]
 
 // ═══════════════════════════════════════════
 //  ALERT LOG RENDER
@@ -2228,6 +2230,9 @@ function renderAlertLog(){
 //  DEMO MODE
 // ═══════════════════════════════════════════
 function startDemo(){
+  // Demo mode: analytics/history/report are all blocked
+  // Reset real-reading counter so switching back to device requires 2 fresh readings
+  _realReadingCount=0;_displayReady=false;
   let lvl=72,dir=-1;
   const tick=()=>{
     lvl+=dir*(Math.random()*1.5);
