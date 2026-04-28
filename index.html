@@ -599,17 +599,24 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="tog-row"><div><div class="tog-lbl">✅ Refilled (&gt;90%)</div><div class="tog-sub">Notify when refill completes</div></div><label class="toggle"><input type="checkbox" id="t-fill"><div class="tslider"></div></label></div>
       <div class="tog-row"><div><div class="tog-lbl">💧 Full Tank (isFull)</div><div class="tog-sub">Sensor reads ≤10 cm</div></div><label class="toggle"><input type="checkbox" id="t-full"><div class="tslider"></div></label></div>
       <div class="tog-row"><div><div class="tog-lbl">🔊 Sound Alerts</div><div class="tog-sub">Natural water sounds for events</div></div><label class="toggle"><input type="checkbox" id="t-sound"><div class="tslider"></div></label></div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:8px;font-family:var(--head)">VOICE ALERT LANGUAGES</div>
+        <div class="tog-row" style="padding:7px 0"><div><div class="tog-lbl" style="font-size:13px">🇬🇧 English</div></div><label class="toggle"><input type="checkbox" id="t-lang-en" checked><div class="tslider"></div></label></div>
+        <div class="tog-row" style="padding:7px 0"><div><div class="tog-lbl" style="font-size:13px">🇮🇳 Telugu</div></div><label class="toggle"><input type="checkbox" id="t-lang-te" checked><div class="tslider"></div></label></div>
+        <div class="tog-row" style="padding:7px 0;border-bottom:none"><div><div class="tog-lbl" style="font-size:13px">🇵🇰 Urdu</div></div><label class="toggle"><input type="checkbox" id="t-lang-ur" checked><div class="tslider"></div></label></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5">Voice speaks only in selected languages on Low, Critical &amp; Full alerts.</div>
+      </div>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;font-family:var(--head)">SOUND PREVIEW</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <button class="btn btn-o btn-sm" onclick="playSound('drop_10')">💧 Drip</button>
+          <button class="btn btn-o btn-sm" onclick="playSound('drop_10')">💧 Fill Drip</button>
           <button class="btn btn-o btn-sm" onclick="playSound('refill')">🚿 Refill</button>
           <button class="btn btn-o btn-sm" onclick="playSound('full_tank')">🎉 Full</button>
           <button class="btn btn-o btn-sm" onclick="playSound('low_alert')">🔔 Low Alert</button>
-          <button class="btn btn-d btn-sm" onclick="playSound('critical_alarm')" style="grid-column:span 2">🚨 Critical Alarm</button>
-          <button class="btn btn-g btn-sm" onclick="_speakAlert(28,'low')" style="grid-column:span 2;background:linear-gradient(135deg,rgba(45,212,191,.15),rgba(124,58,237,.15));border-color:var(--pri);color:var(--pri)">🗣 TEST VOICE — English · Telugu · Urdu</button>
+          <button class="btn btn-o btn-sm" onclick="playSound('five_pct')">⚠️ 5% Warning</button>
+          <button class="btn btn-d btn-sm" onclick="playSound('critical_alarm')">🚨 Critical</button>
+          <button class="btn btn-g btn-sm" onclick="_speakAlert(28,'low')" style="grid-column:span 2;background:linear-gradient(135deg,rgba(45,212,191,.12),rgba(124,58,237,.12));border-color:var(--pri);color:var(--pri)">🗣 TEST VOICE (selected languages)</button>
         </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">Voice speaks in all 3 languages on Low, Critical &amp; Full alerts. Tap TEST VOICE to preview.</div>
       </div>
     </div>
     <div class="card">
@@ -831,9 +838,10 @@ const _bootGuardTimer=setTimeout(()=>{
 //  ALERT TOGGLE PERSISTENCE
 //  FIX: toggles persist across app close/open
 // ═══════════════════════════════════════════
-const ALERT_TOGGLE_IDS=['t-crit','t-low','t-drop','t-fill','t-full','t-sound'];
+const ALERT_TOGGLE_IDS=['t-crit','t-low','t-drop','t-fill','t-full','t-sound','t-lang-en','t-lang-te','t-lang-ur'];
 const ALERT_TOGGLE_DEFAULTS={
-  't-crit':true,'t-low':true,'t-drop':true,'t-fill':true,'t-full':true,'t-sound':true
+  't-crit':true,'t-low':true,'t-drop':true,'t-fill':true,'t-full':true,'t-sound':true,
+  't-lang-en':true,'t-lang-te':true,'t-lang-ur':true
 };
 function loadAlertPrefs(){
   let prefs=JSON.parse(localStorage.getItem(ALERT_PREFS_KEY)||'null');
@@ -1300,13 +1308,17 @@ function ingest(d,fromMQTT=false){
 
   _resetStaleTimer();
 
-  // Analytics
-  if(prev!=null&&S.m!=null&&prev>S.m){
-    const dropL=((prev-S.m)/100)*S.total;
-    recordUsageEvent(dropL,prev,S.m);
+  // Analytics — ONLY record after display is ready (stale startup values are NEVER recorded)
+  if(_displayReady){
+    if(prev!=null&&S.m!=null&&prev>S.m){
+      const dropL=((prev-S.m)/100)*S.total;
+      recordUsageEvent(dropL,prev,S.m);
+    }
+    if(S.m!=null){
+      analyticsSession.readings.push({t:Date.now(),m:S.m,usage:S.usage||0});
+      if(analyticsSession.readings.length>500)analyticsSession.readings.shift();
+    }
   }
-  if(S.m!=null)analyticsSession.readings.push({t:Date.now(),m:S.m,usage:S.usage||0});
-  if(analyticsSession.readings.length>500)analyticsSession.readings.shift();
 
   checkAlerts(prev,S.m,S.isFull);
   renderDash();renderChart();renderAnalytics();
@@ -1326,82 +1338,64 @@ let _speechTimeout=null;
 function _speakAlert(level,type){
   if(!('speechSynthesis' in window))return;
 
-  // Reset any stuck state first
   clearTimeout(_speechTimeout);
   speechSynthesis.cancel();
   _speechBusy=false;
 
-  // Build phrase list
-  const phrases=[];
-  if(type==='low'){
-    phrases.push({text:`Water tank is running low. Level at ${level} percent. Please refill soon.`,lang:'en-IN'});
-    phrases.push({text:`నీటి ట్యాంకు తక్కువగా ఉంది. స్థాయి ${level} శాతం. దయచేసి నింపండి.`,lang:'te-IN'});
-    phrases.push({text:`پانی کی ٹینکی کم ہو رہی ہے۔ سطح ${level} فیصد ہے۔ براہ کرم بھریں۔`,lang:'ur-PK'});
-  } else if(type==='critical'){
-    phrases.push({text:`Warning! Tank is critically low at ${level} percent. Refill immediately!`,lang:'en-IN'});
-    phrases.push({text:`హెచ్చరిక! ట్యాంకు చాలా తక్కువగా ఉంది. ${level} శాతం మాత్రమే ఉంది. వెంటనే నింపండి!`,lang:'te-IN'});
-    phrases.push({text:`خبردار! ٹینکی بہت کم ہے۔ صرف ${level} فیصد باقی ہے۔ فوری طور پر بھریں!`,lang:'ur-PK'});
-  } else if(type==='full'){
-    phrases.push({text:`Tank is full. Water level is at maximum.`,lang:'en-IN'});
-    phrases.push({text:`ట్యాంకు నిండింది. నీటి స్థాయి గరిష్ఠంగా ఉంది.`,lang:'te-IN'});
-    phrases.push({text:`ٹینکی بھر گئی ہے۔ پانی کی سطح زیادہ سے زیادہ ہے۔`,lang:'ur-PK'});
-  }
-  if(!phrases.length)return;
+  // Build ALL phrases
+  const allPhrases={
+    low:[
+      {key:'en',text:`Water tank is running low. Level at ${level} percent. Please refill soon.`,lang:'en-IN'},
+      {key:'te',text:`నీటి ట్యాంకు తక్కువగా ఉంది. స్థాయి ${level} శాతం. దయచేసి నింపండి.`,lang:'te-IN'},
+      {key:'ur',text:`پانی کی ٹینکی کم ہو رہی ہے۔ سطح ${level} فیصد ہے۔ براہ کرم بھریں۔`,lang:'ur-PK'},
+    ],
+    critical:[
+      {key:'en',text:`Warning! Tank is critically low at ${level} percent. Refill immediately!`,lang:'en-IN'},
+      {key:'te',text:`హెచ్చరిక! ట్యాంకు చాలా తక్కువగా ఉంది. ${level} శాతం మాత్రమే ఉంది. వెంటనే నింపండి!`,lang:'te-IN'},
+      {key:'ur',text:`خبردار! ٹینکی بہت کم ہے۔ صرف ${level} فیصد باقی ہے۔ فوری طور پر بھریں!`,lang:'ur-PK'},
+    ],
+    full:[
+      {key:'en',text:`Tank is full. Water level is at maximum.`,lang:'en-IN'},
+      {key:'te',text:`ట్యాంకు నిండింది. నీటి స్థాయి గరిష్ఠంగా ఉంది.`,lang:'te-IN'},
+      {key:'ur',text:`ٹینکی بھر گئی ہے۔ پانی کی سطح زیادہ سے زیادہ ہے۔`,lang:'ur-PK'},
+    ],
+  };
+
+  // Filter by user's language toggles
+  const phrases=(allPhrases[type]||allPhrases.low).filter(p=>{
+    if(p.key==='en')return ck('t-lang-en');
+    if(p.key==='te')return ck('t-lang-te');
+    if(p.key==='ur')return ck('t-lang-ur');
+    return true;
+  });
+
+  if(!phrases.length)return; // all languages disabled
 
   _speechBusy=true;
-  // Safety: always release after 30s no matter what
   _speechTimeout=setTimeout(()=>{_speechBusy=false;speechSynthesis.cancel();},30000);
 
   const voices=speechSynthesis.getVoices();
   let idx=0;
 
   function speakNext(){
-    if(idx>=phrases.length){
-      _speechBusy=false;
-      clearTimeout(_speechTimeout);
-      return;
-    }
+    if(idx>=phrases.length){_speechBusy=false;clearTimeout(_speechTimeout);return;}
     const p=phrases[idx++];
     const utt=new SpeechSynthesisUtterance(p.text);
-    utt.lang=p.lang;
-    utt.rate=0.86;
-    utt.pitch=1.05;
-    utt.volume=1.0;
-
-    // Find best voice match: exact lang → language prefix → any en voice → default
+    utt.lang=p.lang;utt.rate=0.86;utt.pitch=1.05;utt.volume=1.0;
     const match=
-      voices.find(v=>v.lang===p.lang) ||
-      voices.find(v=>v.lang.startsWith(p.lang.split('-')[0])) ||
-      (p.lang.startsWith('en')?voices.find(v=>v.lang.startsWith('en')):null) ||
-      null;
+      voices.find(v=>v.lang===p.lang)||
+      voices.find(v=>v.lang.startsWith(p.lang.split('-')[0]))||
+      (p.lang.startsWith('en')?voices.find(v=>v.lang.startsWith('en')):null)||null;
     if(match)utt.voice=match;
-
     utt.onend=()=>setTimeout(speakNext,700);
-    utt.onerror=(e)=>{
-      console.warn('Speech error for',p.lang,e.error);
-      // Skip this language, try next after short delay
-      setTimeout(speakNext,300);
-    };
-    try{
-      speechSynthesis.speak(utt);
-    }catch(e){
-      console.warn('speechSynthesis.speak threw:',e);
-      setTimeout(speakNext,300);
-    }
+    utt.onerror=()=>setTimeout(speakNext,300);
+    try{speechSynthesis.speak(utt);}catch(e){setTimeout(speakNext,300);}
   }
 
-  // Wait for voices if not yet loaded (first call on some browsers)
   if(voices.length===0){
-    speechSynthesis.addEventListener('voiceschanged',()=>{
-      // Refresh voices list after load
-      const v2=speechSynthesis.getVoices();
-      phrases.forEach((_,__)=>{}); // no-op, voices captured in speakNext via fresh call
-      speakNext();
-    },{once:true});
-    // Fallback if voiceschanged never fires (iOS)
+    speechSynthesis.addEventListener('voiceschanged',()=>speakNext(),{once:true});
     setTimeout(()=>{if(_speechBusy&&idx===0)speakNext();},800);
   } else {
-    // Small delay so any previous cancel() finishes
     setTimeout(speakNext,150);
   }
 }
@@ -1409,30 +1403,35 @@ function _speakAlert(level,type){
 function checkAlerts(prev,cur,isFull){
   if(prev==null||cur==null)return;
   if(prev===cur)return;
+  // Only fire alerts after display is ready — no stale startup triggers
+  if(!_displayReady)return;
 
-  // Critical threshold crossing
+  // Critical threshold crossing (<10%)
   if(prev>=10&&cur<10&&ck('t-crit')){
     push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
     if(ck('t-sound'))playSound('critical_alarm');
     _speakAlert(cur,'critical');
   } else if(prev>=30&&cur<30&&ck('t-low')){
-    // LOW alert — decent calm water sound + multilingual voice
     push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
     if(ck('t-sound'))playSound('low_alert');
     _speakAlert(cur,'low');
   }
 
-  // Every 10% drop notification (silent — just log)
+  // Special 5% chime — only plays ONCE when crossing below 5% (not every drop)
+  if(prev>=5&&cur<5&&ck('t-crit')){
+    if(ck('t-sound'))playSound('five_pct');
+  }
+
+  // Every 10% drop — SILENT log only, no sound, no chime (was annoying)
   const prevBand=Math.floor(prev/10);
   const curBand =Math.floor(cur/10);
   if(curBand<prevBand&&cur>=10&&cur<90){
     for(let b=prevBand-1;b>=curBand&&b>=1;b--){
-      const dropPct=b*10;
-      push('aw','💧 DROP: Tank crossed '+dropPct+'% — now at '+cur+'%.');
+      push('aw','💧 DROP: Tank crossed '+(b*10)+'% — now at '+cur+'%.');
     }
   }
 
-  // Sudden large drop
+  // Sudden large drop — leak detection
   if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
 
   // Refill above 90
@@ -1441,11 +1440,11 @@ function checkAlerts(prev,cur,isFull){
     if(ck('t-sound')&&cur<100)playSound('refill');
   }
 
-  // Full tank — soothing sound + gentle voice
+  // Full tank
   if(!S._wasFull&&isFull===1&&ck('t-full')){
     push('ai','💧 FULL TANK: Water level is at maximum!');
     if(ck('t-sound'))playSound('full_tank');
-    setTimeout(()=>_speakAlert(100,'full'),2200); // speak after the full_tank sound finishes
+    setTimeout(()=>_speakAlert(100,'full'),2200);
   }
   S._wasFull=isFull===1;
 }
@@ -1629,15 +1628,13 @@ let _dripInterval=null;
 let _dripScheduled=false; // debounce guard — prevent double-scheduling per ingest cycle
 
 function _scheduleDripSound(mode){
-  // Debounce: only one scheduler active at a time
   if(_dripScheduled)return;
   _dripScheduled=true;
   setTimeout(()=>{_dripScheduled=false;},500);
-
   clearInterval(_dripInterval);
 
   if(mode==='filling'){
-    // Drips from inlet pipe into rising water — satisfying natural sound
+    // Natural drips falling into rising water from inlet pipe
     const tick=()=>{
       if(!ck('t-sound'))return;
       try{
@@ -1651,24 +1648,24 @@ function _scheduleDripSound(mode){
     _dripInterval=setInterval(tick,1700+Math.floor(Math.random()*800));
 
   } else if(mode==='emptying'){
-    // Water level dropping — soft musical tone + gentle trickle
-    // NOT a drip/dog sound — a calm descending chime to signal draining
+    // Natural water trickle sound — like water draining from a pipe
+    // Pure water physics: bandpass noise + soft low drip. NO chimes, NO owl.
     const tick=()=>{
       if(!ck('t-sound'))return;
       try{
         const ctx=getAudioCtx();
-        // Soft descending two-note — like water trickling away
-        _chime(ctx,330,0,0.12);          // gentle E4
-        _chime(ctx,247,0.28,0.09);       // B3 — descends, peaceful
-        // Very quiet background trickle noise (barely audible)
-        _waterNoise(ctx,0,0.4,0.02,120,500,getMaster(ctx));
+        const out=getMaster(ctx);
+        // Short rushing trickle noise — like water running through a narrow pipe
+        _waterNoise(ctx,0,0.25,0.045,200,800,out);
+        _waterNoise(ctx,0,0.25,0.025,80,300,out);
+        // Single soft low-pitch drip exiting at bottom
+        _drip(ctx,0.08,160+Math.random()*60,0.09);
       }catch(_){}
     };
     tick();
-    _dripInterval=setInterval(tick,3000+Math.floor(Math.random()*1500));
+    _dripInterval=setInterval(tick,2800+Math.floor(Math.random()*1400));
   }
 
-  // Auto-stop after 10 seconds
   setTimeout(()=>{clearInterval(_dripInterval);_dripInterval=null;},10000);
 }
 
@@ -1676,9 +1673,7 @@ function playSound(type,critical=false){
   try{
     const ctx=getAudioCtx();
 
-    // ─────────────────────────────────────────
-    //  💧 SINGLE DROP — 10% band crossing
-    // ─────────────────────────────────────────
+    // ── Natural water drip (level rising/general) ──
     if(type==='drop_10'){
       const f1=380+Math.random()*80;
       _drip(ctx,0,f1,0.38);
@@ -1690,42 +1685,45 @@ function playSound(type,critical=false){
       return;
     }
 
-    // ─────────────────────────────────────────
-    //  🔔 LOW ALERT — warm water-bowl gong tone
-    //  Like a temple bell or singing bowl
-    //  Calm, dignified, impossible to mistake
-    // ─────────────────────────────────────────
+    // ── 5% chime — last warning, pure water resonance ──
+    // One deep resonant drip into a nearly-empty vessel (high pitch = almost no water)
+    if(type==='five_pct'){
+      // Nearly empty tank = very high-pitched resonant drip (small water volume)
+      _drip(ctx,0,980,0.32);
+      _drip(ctx,0.3,860,0.24);
+      _drip(ctx,0.58,740,0.16);
+      // Echo of emptiness
+      _ripple(ctx,0.05,490,0.10);
+      _ripple(ctx,0.35,430,0.07);
+      // Thin trickle underneath
+      _waterNoise(ctx,0,1.2,0.025,600,2000,getMaster(ctx));
+      return;
+    }
+
+    // ── LOW ALERT — warm singing bowl (temple bell) ──
     if(type==='low_alert'){
-      // Deep resonant bowl strike — warm bass note
-      _chime(ctx,196,0,0.38);      // G2 — grounding bass
-      _chime(ctx,246,0.65,0.30);   // B2 — harmonious second
-      _chime(ctx,294,1.3,0.22);    // D3 — gentle resolution
-      // A single slow sad drip underneath
+      _chime(ctx,196,0,0.38);
+      _chime(ctx,246,0.65,0.30);
+      _chime(ctx,294,1.3,0.22);
       _drip(ctx,0.3,260,0.18);
       _ripple(ctx,0.38,130,0.07);
-      // Soft noise wash — like water lapping at low level
       _waterNoise(ctx,0,3.0,0.035,60,280,getMaster(ctx));
       return;
     }
 
-    // ─────────────────────────────────────────
-    //  🚿 REFILL — rushing water + chimes
-    // ─────────────────────────────────────────
+    // ── REFILL — rushing water + celebratory chimes ──
     if(type==='refill'){
       _stream(ctx,0,1.2,0.18,900);
       _stream(ctx,0,1.2,0.10,300);
       [0,0.15,0.3,0.45,0.6,0.75].forEach((t,i)=>{
-        const f=500-i*25;
-        _drip(ctx,t,f,0.22-i*0.02);
+        _drip(ctx,t,500-i*25,0.22-i*0.02);
       });
       _stream(ctx,1.0,0.4,0.06,600);
       [523,659,784].forEach((f,i)=>{_chime(ctx,f,1.2+i*0.18,0.25);});
       return;
     }
 
-    // ─────────────────────────────────────────
-    //  💧 FULL TANK — soothing completion
-    // ─────────────────────────────────────────
+    // ── FULL TANK — soothing completion ──
     if(type==='full_tank'){
       _stream(ctx,0,0.6,0.10,500);
       _drip(ctx,0.1,220,0.30);
@@ -1740,33 +1738,45 @@ function playSound(type,critical=false){
       return;
     }
 
-    // ─────────────────────────────────────────
-    //  🚨 CRITICAL — urgent fast drips + alarm
-    // ─────────────────────────────────────────
+    // ── CRITICAL ALARM — water hammer + resonant danger (NO fire engine, NO siren) ──
+    // Sounds like pipes banging + rapidly emptying vessel — unmistakably urgent
     if(type==='critical_alarm'||type==='ac'){
-      [0,0.18,0.34,0.48,0.60,0.70,0.78,0.84].forEach((t,i)=>{
-        const f=900+Math.random()*200;
-        _drip(ctx,t,f,0.32-i*0.02);
-      });
       const now=ctx.currentTime;
       const out=getMaster(ctx);
-      [0,0.4,0.8,1.2,1.6,2.0].forEach(t=>{
-        const o=ctx.createOscillator();const g=ctx.createGain();
-        o.connect(g);g.connect(out);o.type='sawtooth';
-        o.frequency.setValueAtTime(880,now+t);
-        o.frequency.setValueAtTime(1100,now+t+0.18);
-        o.frequency.setValueAtTime(880,now+t+0.36);
-        g.gain.setValueAtTime(0,now+t);
-        g.gain.linearRampToValueAtTime(0.28,now+t+0.01);
-        g.gain.setValueAtTime(0.28,now+t+0.34);
-        g.gain.exponentialRampToValueAtTime(0.0001,now+t+0.39);
-        o.start(now+t);o.stop(now+t+0.4);
+      // Rapid urgent high-pitch drips — nearly empty vessel resonance
+      [0,0.12,0.22,0.30,0.37,0.43,0.48,0.52,0.55,0.57].forEach((t,i)=>{
+        const f=1200-i*30+Math.random()*80; // pitch falls as each drop hits less water
+        _drip(ctx,t,f,0.28-i*0.018);
       });
-      _waterNoise(ctx,0,2.5,0.08,60,200,getMaster(ctx));
+      // Water hammer — pipe banging (sharp low thud, 3 hits)
+      [0,0.35,0.7].forEach(t=>{
+        const o=ctx.createOscillator();const g=ctx.createGain();
+        const filt=ctx.createBiquadFilter();filt.type='lowpass';filt.frequency.value=180;filt.Q.value=8;
+        o.connect(filt);filt.connect(g);g.connect(out);
+        o.type='sine';o.frequency.setValueAtTime(55,now+t);
+        g.gain.setValueAtTime(0,now+t);
+        g.gain.linearRampToValueAtTime(0.55,now+t+0.008);
+        g.gain.exponentialRampToValueAtTime(0.001,now+t+0.28);
+        o.start(now+t);o.stop(now+t+0.3);
+        // Impact click
+        _waterNoise(ctx,t,0.018,0.4,100,600,out);
+      });
+      // Rushing empty-pipe air hiss between hits
+      _waterNoise(ctx,0.1,0.22,0.06,800,3000,out);
+      _waterNoise(ctx,0.45,0.20,0.05,800,3000,out);
+      _waterNoise(ctx,0.8,0.25,0.07,800,3000,out);
+      // Deep resonant danger tone — not a siren, more like a large bell struck hard
+      const o2=ctx.createOscillator();const g2=ctx.createGain();
+      o2.connect(g2);g2.connect(out);
+      o2.type='sine';o2.frequency.setValueAtTime(82,now);
+      g2.gain.setValueAtTime(0,now);
+      g2.gain.linearRampToValueAtTime(0.22,now+0.01);
+      g2.gain.exponentialRampToValueAtTime(0.001,now+1.8);
+      o2.start(now);o2.stop(now+1.9);
       return;
     }
 
-    // ── Default info ──
+    // Default
     _drip(ctx,0,440,0.25);
     _ripple(ctx,0.06,220,0.08);
 
