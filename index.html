@@ -414,7 +414,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="sec-hd">MQTT REMOTE (FROM ANYWHERE)</div>
     <div class="info-box"><strong>⚠️ Browser MQTT</strong><br>ESP32 publishes on port <strong>8883 (TLS)</strong>. Browsers need WebSocket MQTT. Configure your broker's WS/WSS listener. Topic: <strong>tasni-water/+/state</strong></div>
     <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--pri);margin-bottom:8px;font-family:var(--head)">PRIMARY BROKER</div>
-    <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="s-broker" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com" autocomplete="off"></div>
+    <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="s-broker" type="text" placeholder="your-broker-host.com" autocomplete="off"></div>
     <div class="form-row">
       <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port" type="number" value="8084"></div>
       <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="s-mquser" type="text" placeholder="tasni_water"></div>
@@ -734,7 +734,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
           <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--pri);font-family:var(--head)">PRIMARY BROKER</div>
           <div id="pill-primary" style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:rgba(80,80,100,.2);color:var(--muted);font-family:var(--head)">OFFLINE</div>
         </div>
-        <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="c-mqb" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com"></div>
+        <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="c-mqb" type="text" placeholder="your-broker-host.com"></div>
         <div class="form-row">
           <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp" type="number" placeholder="8084"></div>
           <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser" type="text"></div>
@@ -1138,7 +1138,7 @@ function _connectPrimary(mc){
       _lastAck=Date.now();_primaryOk=true;_updateBrokerPills();unlockAch(3);
       const t=mc.topic||'tasni-water/+/state';
       mqttPrimary.subscribe(t,{qos:1});
-      if(!_silent){showToast('☁️ Primary MQTT connected','ok',2500);push('ai','☁️ Primary broker connected: '+mc.host);}
+      if(!_silent){showToast('☁️ Primary MQTT connected','ok',2500);push('ai','☁️ Primary broker connected');}
       else showToast('🔄 Primary reconnected','ok',2000);
       _silent=true;
       _startHBPrimary(mc);
@@ -1170,7 +1170,7 @@ function _connectBackup(mc){
       _lastAck2=Date.now();_backupOk=true;_updateBrokerPills();
       const t=(mc.topic||_mqttCfg?.topic||'tasni-water/+/state');
       mqttBackup.subscribe(t,{qos:1});
-      if(!_silent2){showToast('☁️ Backup MQTT connected','ok',2500);push('ai','☁️ Backup broker connected: '+mc.host);}
+      if(!_silent2){showToast('☁️ Backup MQTT connected','ok',2500);push('ai','☁️ Backup broker connected');}
       else showToast('🔄 Backup reconnected','ok',2000);
       _silent2=true;
       _startHBBackup(mc);
@@ -1612,7 +1612,9 @@ function checkAlerts(prev,cur,isFull){
 }
 
 function push(type,msg,critical=false){
-  const a={type,msg,time:new Date().toISOString()};
+  // Scrub sensitive server info before storing any alert
+  const _m=msg.replace(/[:\s]+\S*\.\S+\.\S+/g,'').replace(/:\s*\d{1,3}(\.\d{1,3}){3}/g,'').replace(/https?:\/\/\S+/g,'').replace(/\[.*?\]/g,'').trim().replace(/:$/,'');
+  const a={type,msg:_m,time:new Date().toISOString()};
   alerts.unshift(a);if(alerts.length>60)alerts=alerts.slice(0,60);
   localStorage.setItem('tasni_alerts',JSON.stringify(alerts));
   unread++;const b=document.getElementById('alertBadge');
@@ -2514,7 +2516,16 @@ function downloadReport(){
     if(alerts.length>0){
       p3+=`<h2>Alert Log (Last 30)</h2><div class="card"><table>
         <tr><th>Time</th><th>Type</th><th>Message</th></tr>`;
-      alerts.slice(0,30).forEach(a=>{
+      // Sanitize: strip server hostnames/IPs from alert messages before export
+      function _sanitizeMsg(msg){
+        return msg
+          .replace(/:\s*\S+\.\S+\.\S+/g,'')   // remove :hostname.domain.tld
+          .replace(/:\s*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/g,'') // remove :IP
+          .replace(/\[.*?\]/g,'')                  // remove [any link]
+          .replace(/https?:\/\/\S+/g,'')          // remove URLs
+          .trim().replace(/:\s*$/,'');              // clean trailing colon
+      }
+      alerts.slice(0,30).forEach(a=>{a={...a,msg:_sanitizeMsg(a.msg)};
         const tc=a.type==='ac'?'danger':a.type==='aw'?'warn':'ok';
         const tl=a.type==='ac'?'Critical':a.type==='aw'?'Warning':'Info';
         p3+=`<tr><td>${new Date(a.time).toLocaleString()}</td><td><span class="badge badge-${a.type==='ac'?'danger':a.type==='aw'?'warn':'ok'}">${tl}</span></td><td>${a.msg}</td></tr>`;
