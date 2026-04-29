@@ -2297,6 +2297,12 @@ function _downloadBlob(content, filename){
 function downloadReport(){
   if(demoMode){showToast('⚠️ Report blocked — Demo Mode active','warn',4000);return;}
   if(!_displayReady||S.m===null){showToast('⚠️ No confirmed device data yet','warn',3500);return;}
+  if(analyticsSession.confirmedSamples<MIN_SAMPLES){
+    const _need=MIN_SAMPLES-analyticsSession.confirmedSamples;
+    const _minLeft=_need*30;
+    showToast('⏳ Need ~'+_minLeft+' more min of data ('+_need+' samples). Report needs 3h of readings.','warn',5000);
+    return;
+  }
 
   const now=new Date();
   const ds=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
@@ -2305,8 +2311,9 @@ function downloadReport(){
   const total=S.total||1000;
   const pct=S.m;
   const vol=S.vol!=null?S.vol.toFixed(0):'N/A';
-  const usageRate=S.usage>0?S.usage.toFixed(1):'N/A';
-  const emptyIn=S.usage>0&&S.vol>0?fmtHrs(S.vol/S.usage):'N/A';
+  const _rur=analyticsSession.computedUsageRate>0?analyticsSession.computedUsageRate:(S.usage>0&&S.usage<500?S.usage:0);
+  const usageRate=_rur>0?_rur.toFixed(1):'N/A';
+  const emptyIn=_rur>0&&S.vol>0?fmtHrs(S.vol/_rur):'N/A';
   const pt=analyticsSession.periodTotals;
   const totalUsed=analyticsSession.totalUsedL.toFixed(1);
   const hs=analyticsSession.healthScore;
