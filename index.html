@@ -416,14 +416,14 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--pri);margin-bottom:8px;font-family:var(--head)">PRIMARY BROKER</div>
     <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="s-broker" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com" autocomplete="off"></div>
     <div class="form-row">
-      <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port" type="number" value="8884"></div>
+      <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port" type="number" value="8084"></div>
       <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="s-mquser" type="text" placeholder="tasni_water"></div>
     </div>
     <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="s-mqpass" type="password" placeholder="••••••••"></div>
     <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin:12px 0 8px;font-family:var(--head)">BACKUP BROKER <span style="font-weight:400;color:rgba(180,220,255,.3)">(optional — used if primary fails)</span></div>
     <div class="form-grp"><label class="form-lbl">Backup Host</label><input class="form-in" id="s-broker2" type="text" placeholder="backup-broker.example.com" autocomplete="off"></div>
     <div class="form-row">
-      <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port2" type="number" value="8884"></div>
+      <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="s-port2" type="number" value="8084"></div>
       <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="s-mquser2" type="text" placeholder="tasni_water"></div>
     </div>
     <div class="form-grp"><label class="form-lbl">Backup Password</label><input class="form-in" id="s-mqpass2" type="password" placeholder="••••••••"></div>
@@ -496,6 +496,9 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         </div>
       </div>
     </div>
+    <!-- Tank Health + Night Leakage + Day/Night insights -->
+    <div id="dashInsights"></div>
+
     <div class="stats-grid">
       <div class="stat"><div class="stat-lbl">Usage Rate</div><div class="stat-val"><span id="usageRate">--</span><span class="stat-unit"> L/hr</span></div></div>
       <div class="stat"><div class="stat-lbl">Est. Empty In</div><div class="stat-val" id="estEmpty" style="font-size:17px">--</div></div>
@@ -513,14 +516,16 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         Session Analytics
         <div style="display:flex;gap:6px;align-items:center">
           <button class="reset-btn-inline" onclick="resetAnalytics()">↺ RESET</button>
-          <button class="btn btn-g btn-sm" style="padding:4px 10px;font-size:9px" onclick="downloadReport()">⬇ REPORT</button>
+          <button class="btn btn-g btn-sm" style="padding:4px 10px;font-size:9px" onclick="downloadReport()">⬇ 3-PART REPORT</button>
         </div>
       </div>
-      <!-- 3-col KPI row -->
-      <div class="analytics-summary">
-        <div class="asumm"><div class="asumm-val" id="asum-cur">--</div><div class="asumm-lbl">Current %</div></div>
+      <!-- KPI row — 5 cards -->
+      <div class="analytics-summary" style="grid-template-columns:repeat(5,1fr)">
+        <div class="asumm"><div class="asumm-val" id="asum-cur">--</div><div class="asumm-lbl">Level %</div></div>
         <div class="asumm"><div class="asumm-val" id="asum-used">--</div><div class="asumm-lbl">Used L</div></div>
         <div class="asumm"><div class="asumm-val" id="asum-rate">--</div><div class="asumm-lbl">L/hr</div></div>
+        <div class="asumm"><div class="asumm-val" id="asum-fills">--</div><div class="asumm-lbl">Full Fills</div></div>
+        <div class="asumm"><div class="asumm-val" id="asum-health" style="font-size:14px">--</div><div class="asumm-lbl">Health</div></div>
       </div>
       <!-- Donut + Volume side by side -->
       <div style="display:flex;gap:12px;align-items:center;margin-top:4px">
@@ -731,7 +736,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         </div>
         <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="c-mqb" type="text" placeholder="d7917721.ala.asia-southeast1.emqxsl.com"></div>
         <div class="form-row">
-          <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp" type="number" placeholder="8884"></div>
+          <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp" type="number" placeholder="8084"></div>
           <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser" type="text"></div>
         </div>
         <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="c-mqpass" type="password"></div>
@@ -743,7 +748,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         </div>
         <div class="form-grp"><label class="form-lbl">Backup Host</label><input class="form-in" id="c-mqb2" type="text" placeholder="backup.broker.example.com"></div>
         <div class="form-row">
-          <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp2" type="number" placeholder="8884"></div>
+          <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp2" type="number" placeholder="8084"></div>
           <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser2" type="text"></div>
         </div>
         <div class="form-grp"><label class="form-lbl">Backup Password</label><input class="form-in" id="c-mqpass2" type="password"></div>
@@ -826,7 +831,27 @@ let unread=0,demoMode=false,pollingTimer=null,chart=null,tipIdx=0,audioCtx=null;
 const STALE_MS=30000;
 let _staleTimer=null;
 // Analytics — REAL session data only (never demo, never stale)
-const analyticsSession={events:[],periodTotals:{morn:0,aft:0,eve:0,ngt:0},totalUsedL:0,readings:[]};
+const analyticsSession={
+  events:[],
+  periodTotals:{morn:0,aft:0,eve:0,ngt:0},
+  totalUsedL:0,
+  readings:[],
+  // Full tank events — each time level crosses >= 95% from below
+  fullTankEvents:[],   // [{time, pct}]
+  // Night leakage tracking (22:00–06:00)
+  nightReadings:[],    // [{time, pct}] during night hours
+  nightLeakDetected:false,
+  nightLeakLiters:0,
+  // Day/night averages
+  dayReadings:[],      // pct values 06:00–22:00
+  nightReadingsPct:[], // pct values 22:00–06:00
+  // Sudden drops log
+  suddenDrops:[],      // [{time, fromPct, toPct, dropL}]
+  // Tank health
+  healthScore:100,     // 0-100
+  healthLabel:'GOOD',
+  sessionStart: new Date().toISOString(),
+};
 
 // ── BOOT DISPLAY GUARD ──
 // Requires 2 consecutive REAL device readings before displaying anything.
@@ -982,15 +1007,15 @@ window.addEventListener('load',()=>{
 function saveCfg(u){Object.assign(cfg,u);localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
 function loadFormValues(){
   const sv=(id,v)=>{if(v!=null&&v!==''&&document.getElementById(id))document.getElementById(id).value=v;};
-  sv('s-ip',cfg.ip);sv('s-broker',cfg.broker);sv('s-port',cfg.port||8884);
+  sv('s-ip',cfg.ip);sv('s-broker',cfg.broker);sv('s-port',cfg.port||8084);
   sv('s-mquser',cfg.mquser);sv('s-name',cfg.tankName||'Main Tank');sv('s-topic',cfg.topic||'');
-  sv('s-broker2',cfg.broker2);sv('s-port2',cfg.port2||8884);sv('s-mquser2',cfg.mquser2);
+  sv('s-broker2',cfg.broker2);sv('s-port2',cfg.port2||8084);sv('s-mquser2',cfg.mquser2);
   sv('c-ip',cfg.ip);sv('c-ssid',cfg.ssid);sv('c-tgtoken',cfg.tgToken);sv('c-tgchat',cfg.tgChat);
   sv('c-empty',cfg.emptyDist||125);sv('c-full',cfg.fullDist||10);sv('c-vol',cfg.volume||1000);sv('c-tname',cfg.tankName||'Main Tank');
   sv('c-shid',cfg.sheetsId);sv('c-shname',cfg.sheetsName);
-  sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8884);
+  sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8084);
   sv('c-mquser',cfg.mquser);sv('c-mqtopic',cfg.topic||'');
-  sv('c-mqb2',cfg.broker2);sv('c-mqp2',cfg.port2||8884);
+  sv('c-mqb2',cfg.broker2);sv('c-mqp2',cfg.port2||8084);
   sv('c-mquser2',cfg.mquser2);
   if(cfg.tankName)document.getElementById('tankNameLbl').textContent=cfg.tankName.toUpperCase();
 }
@@ -999,10 +1024,10 @@ function loadFormValues(){
 //  CONNECTIONS
 // ═══════════════════════════════════════════
 function applySetup(){
-  const ip=g('s-ip'),broker=g('s-broker'),port=parseInt(g('s-port'))||8884;
+  const ip=g('s-ip'),broker=g('s-broker'),port=parseInt(g('s-port'))||8084;
   const mquser=g('s-mquser'),mqpass=g('s-mqpass'),name=g('s-name')||'Main Tank';
   const topic=g('s-topic')||'tasni-water/+/state';
-  const broker2=g('s-broker2'),port2=parseInt(g('s-port2'))||8884;
+  const broker2=g('s-broker2'),port2=parseInt(g('s-port2'))||8084;
   const mquser2=g('s-mquser2'),mqpass2=g('s-mqpass2');
   saveCfg({ip,broker,port,mquser,mqpass,tankName:name,topic,broker2,port2,mquser2,mqpass2});
   document.getElementById('tankNameLbl').textContent=name.toUpperCase();
@@ -1019,8 +1044,8 @@ function startConnections(){
   demoMode=false;
   document.getElementById('demoBanner').classList.add('hidden');
   if(cfg.ip)startPoll(cfg.ip);
-  if(cfg.broker)_connectMQTT({host:cfg.broker,port:cfg.port||8884,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
-  if(cfg.broker2)_connectMQTT2({host:cfg.broker2,port:cfg.port2||8884,user:cfg.mquser2,pass:cfg.mqpass2,topic:cfg.topic||'tasni-water/+/state'});
+  if(cfg.broker)_connectMQTT({host:cfg.broker,port:cfg.port||8084,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
+  if(cfg.broker2)_connectMQTT2({host:cfg.broker2,port:cfg.port2||8084,user:cfg.mquser2,pass:cfg.mqpass2,topic:cfg.topic||'tasni-water/+/state'});
   _resetStaleTimer();
 }
 
@@ -1097,7 +1122,7 @@ function _buildMqttOpts(mc){
 
 function _makeUrl(mc){
   const raw=(mc.host||'').replace(/^wss?:\/\//,'');
-  const proto=(mc.port===8884||mc.port===8084||mc.port===443||mc.port===8083)?'wss':'ws';
+  const proto=(mc.port===8084||mc.port===443||mc.port===8083||mc.port===8880||mc.port===8081)?'ws':'wss';
   return`${proto}://${raw}:${mc.port}/mqtt`;
 }
 
@@ -1349,19 +1374,52 @@ function ingest(d,fromMQTT=false){
   _resetStaleTimer();
 
   // Analytics — ONLY real device data, never demo, never stale startup values
-  if(_displayReady&&!demoMode){
-    if(prev!=null&&S.m!=null&&prev>S.m){
+  if(_displayReady&&!demoMode&&S.m!=null){
+    const _now=new Date();
+    const _hr=_now.getHours();
+    const _isNight=_hr>=22||_hr<6;
+    const _isDay=_hr>=6&&_hr<22;
+
+    // Usage drop event
+    if(prev!=null&&S.m<prev){
       const dropL=((prev-S.m)/100)*S.total;
       recordUsageEvent(dropL,prev,S.m);
+
+      // Sudden drop detection (>5% in one reading)
+      if(prev-S.m>=5){
+        analyticsSession.suddenDrops.push({time:_now.toLocaleTimeString(),fromPct:prev,toPct:S.m,dropL:dropL.toFixed(1)});
+        if(analyticsSession.suddenDrops.length>30)analyticsSession.suddenDrops.shift();
+      }
+
+      // Night leakage: track drops during night hours
+      if(_isNight&&prev-S.m>=2){
+        const ll=(prev-S.m)/100*S.total;
+        analyticsSession.nightLeakLiters+=ll;
+        if(analyticsSession.nightLeakLiters>20)analyticsSession.nightLeakDetected=true;
+      }
     }
-    if(S.m!=null){
-      analyticsSession.readings.push({t:Date.now(),m:S.m,usage:S.usage||0});
-      if(analyticsSession.readings.length>500)analyticsSession.readings.shift();
+
+    // Full tank event — level crosses 95% upward
+    if(prev!=null&&S.m>=95&&prev<95){
+      analyticsSession.fullTankEvents.push({time:_now.toLocaleString(),pct:S.m,vol:S.vol.toFixed(0)});
     }
+
+    // Day/Night running averages
+    if(_isDay) analyticsSession.dayReadings.push(S.m);
+    if(_isNight) analyticsSession.nightReadingsPct.push(S.m);
+    if(analyticsSession.dayReadings.length>500)analyticsSession.dayReadings.shift();
+    if(analyticsSession.nightReadingsPct.length>500)analyticsSession.nightReadingsPct.shift();
+
+    // Tank health score
+    _updateTankHealth();
+
+    // Raw readings log
+    analyticsSession.readings.push({t:Date.now(),m:S.m,usage:S.usage||0});
+    if(analyticsSession.readings.length>500)analyticsSession.readings.shift();
   }
 
   checkAlerts(prev,S.m,S.isFull);
-  renderDash();renderChart();renderAnalytics();
+  renderDash();renderChart();renderAnalytics();_renderDashInsights();
 }
 
 // ═══════════════════════════════════════════
@@ -1438,6 +1496,70 @@ function _speakAlert(level,type){
   } else {
     setTimeout(speakNext,150);
   }
+}
+
+// ── Tank health scorer ──
+function _updateTankHealth(){
+  let score=100;
+  const sd=analyticsSession.suddenDrops.length;
+  const nl=analyticsSession.nightLeakLiters;
+  const fc=analyticsSession.fullTankEvents.length;
+  if(nl>50)score-=30;
+  else if(nl>20)score-=15;
+  if(sd>5)score-=20;
+  else if(sd>2)score-=10;
+  if(S.rssi&&S.rssi<-80)score-=5;
+  score=Math.max(0,Math.min(100,score));
+  analyticsSession.healthScore=score;
+  analyticsSession.healthLabel=score>=80?'GOOD':score>=50?'FAIR':'POOR';
+}
+
+// ── Dashboard night leakage + health cards ──
+function _renderDashInsights(){
+  const el=document.getElementById('dashInsights');
+  if(!el||!_displayReady||demoMode)return;
+  let html='';
+  if(analyticsSession.nightLeakDetected){
+    html+=`<div style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:18px">🚨</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#f87171;letter-spacing:1px;font-family:var(--head)">NIGHT LEAKAGE DETECTED</div>
+        <div style="font-size:11px;color:rgba(248,113,113,.8);margin-top:3px">~${analyticsSession.nightLeakLiters.toFixed(0)} L lost between 10 PM–6 AM. Check pipes &amp; valves.</div>
+      </div></div>`;
+  }
+  const hs=analyticsSession.healthScore;
+  const hcol=hs>=80?'var(--ok)':hs>=50?'var(--warn)':'var(--danger)';
+  const dayAvg=analyticsSession.dayReadings.length?Math.round(analyticsSession.dayReadings.reduce((a,b)=>a+b,0)/analyticsSession.dayReadings.length):null;
+  const ngtAvg=analyticsSession.nightReadingsPct.length?Math.round(analyticsSession.nightReadingsPct.reduce((a,b)=>a+b,0)/analyticsSession.nightReadingsPct.length):null;
+  if(dayAvg!==null||ngtAvg!==null||analyticsSession.fullTankEvents.length>0){
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-family:var(--mono);font-size:18px;color:${hcol}">${hs}</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-top:3px;font-family:var(--head)">HEALTH</div>
+        <div style="font-size:9px;color:${hcol};margin-top:2px;font-weight:700">${analyticsSession.healthLabel}</div>
+      </div>
+      <div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-family:var(--mono);font-size:18px;color:var(--pri)">${dayAvg!=null?dayAvg+'%':'--'}</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-top:3px;font-family:var(--head)">DAY AVG</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">6AM–10PM</div>
+      </div>
+      <div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-family:var(--mono);font-size:18px;color:var(--purple)">${ngtAvg!=null?ngtAvg+'%':'--'}</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-top:3px;font-family:var(--head)">NIGHT AVG</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">10PM–6AM</div>
+      </div>
+    </div>`;
+    if(analyticsSession.fullTankEvents.length>0){
+      html+=`<div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--ok);font-family:var(--head);letter-spacing:1px">FULL TANK (1000L)</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">Times tank reached capacity this session</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:28px;color:var(--ok)">${analyticsSession.fullTankEvents.length}</div>
+      </div>`;
+    }
+  }
+  el.innerHTML=html;
 }
 
 function checkAlerts(prev,cur,isFull){
@@ -2055,6 +2177,9 @@ function renderAnalytics(){
   set('asum-cur',(_displayReady&&S.m!=null)?pct+'%':'--');
   set('asum-used',totalUsed>0?totalUsed.toFixed(1):'--');
   set('asum-rate',(_displayReady&&S.usage>0)?S.usage.toFixed(1):'--');
+  set('asum-fills',analyticsSession.fullTankEvents.length>0?analyticsSession.fullTankEvents.length:'0');
+  const _hel=document.getElementById('asum-health');
+  if(_hel){_hel.textContent=analyticsSession.healthLabel;_hel.style.color=analyticsSession.healthScore>=80?'var(--ok)':analyticsSession.healthScore>=50?'var(--warn)':'var(--danger)';}
 
   // ── Donut ──
   if(donutChart){
@@ -2135,6 +2260,16 @@ function resetAnalytics(){
   analyticsSession.periodTotals={morn:0,aft:0,eve:0,ngt:0};
   analyticsSession.totalUsedL=0;
   analyticsSession.readings=[];
+  analyticsSession.fullTankEvents=[];
+  analyticsSession.nightReadings=[];
+  analyticsSession.nightLeakDetected=false;
+  analyticsSession.nightLeakLiters=0;
+  analyticsSession.dayReadings=[];
+  analyticsSession.nightReadingsPct=[];
+  analyticsSession.suddenDrops=[];
+  analyticsSession.healthScore=100;
+  analyticsSession.healthLabel='GOOD';
+  analyticsSession.sessionStart=new Date().toISOString();
   renderAnalytics();
   showToast('Usage counters reset','ok',2500);
 }
@@ -2142,72 +2277,274 @@ function resetAnalytics(){
 // ═══════════════════════════════════════════════════════
 //  DOWNLOAD REPORT — one-click CSV with correct figures
 // ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+//  3-PART HTML REPORT EXPORT — real device data only
+//  Part 1: Executive Summary
+//  Part 2: Usage Analytics (charts)
+//  Part 3: 24h History + Alert Log
+// ══════════════════════════════════════════════════════════
+function _downloadBlob(content, filename){
+  const blob=new Blob([content],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+
 function downloadReport(){
-  if(demoMode){showToast('⚠️ Report not available in Demo Mode — connect a real device first','warn',4000);return;}
-  if(!_displayReady||S.m===null){showToast('⚠️ No real device data yet — waiting for readings','warn',3500);return;}
+  if(demoMode){showToast('⚠️ Report blocked — Demo Mode active','warn',4000);return;}
+  if(!_displayReady||S.m===null){showToast('⚠️ No confirmed device data yet','warn',3500);return;}
+
   const now=new Date();
-  // At this point _displayReady is true and !demoMode (guarded above)
-  const pct=S.m;
-  const volNow=S.vol!=null?S.vol.toFixed(0):'N/A';
+  const ds=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const ts=now.toLocaleString();
+  const tankName=S.name||cfg.tankName||'Main Tank';
   const total=S.total||1000;
-  const pt=analyticsSession.periodTotals;
-  const totalUsed=analyticsSession.totalUsedL.toFixed(1);
+  const pct=S.m;
+  const vol=S.vol!=null?S.vol.toFixed(0):'N/A';
   const usageRate=S.usage>0?S.usage.toFixed(1):'N/A';
   const emptyIn=S.usage>0&&S.vol>0?fmtHrs(S.vol/S.usage):'N/A';
+  const pt=analyticsSession.periodTotals;
+  const totalUsed=analyticsSession.totalUsedL.toFixed(1);
+  const hs=analyticsSession.healthScore;
+  const hl=analyticsSession.healthLabel;
+  const hcol=hs>=80?'#34d399':hs>=50?'#fbbf24':'#f87171';
+  const nlDetected=analyticsSession.nightLeakDetected;
+  const nlLiters=analyticsSession.nightLeakLiters.toFixed(0);
+  const fullCount=analyticsSession.fullTankEvents.length;
+  const dayAvg=analyticsSession.dayReadings.length?Math.round(analyticsSession.dayReadings.reduce((a,b)=>a+b,0)/analyticsSession.dayReadings.length):null;
+  const ngtAvg=analyticsSession.nightReadingsPct.length?Math.round(analyticsSession.nightReadingsPct.reduce((a,b)=>a+b,0)/analyticsSession.nightReadingsPct.length):null;
+  const pph=S.usage>0?((S.usage/total)*100):0;
+  const fc24=pph>0?Math.max(0,pct-pph*24).toFixed(0)+'%':'N/A';
+  const fc3d=pph>0?Math.max(0,pct-pph*72).toFixed(0)+'%':'N/A';
+  const histLabels=Array.from({length:24},(_,i)=>{const h=new Date();h.setHours(h.getHours()-(23-i));return h.getHours().toString().padStart(2,'0')+':00';});
+  const histData=S.history.map(v=>v!=null?v:null);
+  const CSS=`<style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#040d1a;color:#cce7ff;padding:20px;min-height:100vh}
+    h1{font-size:22px;font-weight:900;color:#2DD4BF;letter-spacing:2px;margin-bottom:4px}
+    h2{font-size:14px;font-weight:700;letter-spacing:2px;color:#2DD4BF;border-bottom:1px solid rgba(45,212,191,.2);padding-bottom:8px;margin:24px 0 14px;text-transform:uppercase}
+    .meta{font-size:11px;color:rgba(180,220,255,.5);margin-bottom:24px}
+    .grid{display:grid;gap:12px;margin-bottom:16px}
+    .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}.g4{grid-template-columns:repeat(4,1fr)}
+    .card{background:rgba(8,22,50,.9);border:1px solid rgba(45,212,191,.15);border-radius:12px;padding:16px}
+    .kpi-val{font-size:28px;font-weight:700;font-family:monospace;color:#2DD4BF;line-height:1}
+    .kpi-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:rgba(180,220,255,.5);margin-top:6px;text-transform:uppercase}
+    .kpi-sub{font-size:11px;color:rgba(180,220,255,.6);margin-top:3px}
+    .ok{color:#34d399}.warn{color:#fbbf24}.danger{color:#f87171}.purple{color:#a78bfa}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1.5px}
+    .badge-ok{background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.3)}
+    .badge-warn{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+    .badge-danger{background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+    .alert-box{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+    .chart-wrap{position:relative;height:220px;margin-top:12px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;padding:8px 10px;font-size:10px;letter-spacing:1.5px;color:rgba(45,212,191,.7);border-bottom:1px solid rgba(45,212,191,.1);font-weight:700}
+    td{padding:8px 10px;border-bottom:1px solid rgba(45,212,191,.06);color:rgba(180,220,255,.8)}
+    tr:last-child td{border-bottom:none}
+    .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+    .fill-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:4px}
+    .fill-inner{height:100%;border-radius:3px;background:linear-gradient(90deg,#2DD4BF,#34d399)}
+    footer{margin-top:32px;padding-top:14px;border-top:1px solid rgba(45,212,191,.1);font-size:10px;color:rgba(180,220,255,.3);text-align:center}
+  </style>`;
+  const CHARTJS=`<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"><\/script>`;
+  const HEAD=(title)=>`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} — TASNI Report</title>${CSS}${CHARTJS}</head><body>
+    <h1>💧 TASNI Water Monitor</h1>
+    <div class="meta">📄 ${title} &nbsp;|&nbsp; Generated: ${ts} &nbsp;|&nbsp; Tank: ${tankName} (${total} L capacity)</div>`;
+  const FOOT=`<footer>TASNI Water Monitor — Real device data only. Report generated ${ts}.</footer></body></html>`;
 
-  const lines=[
-    'TASNI Water Monitor — Analytics Report',
-    'Generated: '+now.toLocaleString(),
-    'Tank Name: '+(S.name||cfg.tankName||'Main Tank'),
-    'Tank Capacity: '+total+' L',
-    '',
-    '=== CURRENT STATUS ===',
-    'Level: '+pct+'%',
-    'Volume in Tank: '+volNow+' L',
-    'Usage Rate: '+usageRate+' L/hr',
-    'Est. Time to Empty: '+emptyIn,
-    'Sensor Distance: '+(S.dist?S.dist.toFixed(1)+' cm':'N/A'),
-    'Device Uptime: '+fmtUp(S.up),
-    'WiFi RSSI: '+(S.rssi||'N/A')+' dBm',
-    'Boot Count: '+(S.boot||'N/A'),
-    'Last Update: '+(S.lastUpdate?S.lastUpdate.toLocaleString():'N/A'),
-    '',
-    '=== SESSION USAGE SUMMARY ===',
-    'Total Used This Session: '+totalUsed+' L',
-    'Morning (06–12h): '+pt.morn.toFixed(1)+' L',
-    'Afternoon (12–18h): '+pt.aft.toFixed(1)+' L',
-    'Evening (18–24h): '+pt.eve.toFixed(1)+' L',
-    'Night (00–06h): '+pt.ngt.toFixed(1)+' L',
-    '',
-    '=== FORECAST (at current usage rate) ===',
-    'In 24 hours: '+(S.usage>0?Math.max(0,pct-(S.usage/total*100)*24).toFixed(0)+'%':'N/A'),
-    'In 3 days: '+(S.usage>0?Math.max(0,pct-(S.usage/total*100)*72).toFixed(0)+'%':'N/A'),
-    'Tank empty in: '+emptyIn,
-    '',
-    '=== USAGE DROP EVENTS (this session) ===',
-    'Time,From%,To%,Drop(L),Period',
-    ...analyticsSession.events.map(e=>`${e.time},${e.fromPct},${e.toPct},${e.dropL},${e.period}`),
-    '',
-    '=== 24-HOUR LEVEL HISTORY ===',
-    'Hour,Level%',
-    ...S.history.map((v,i)=>{
-      const h=new Date();h.setHours(h.getHours()-(23-i));
-      return `${h.getHours().toString().padStart(2,'0')}:00,${v!=null?v:'NIL'}`;
-    }),
-    '',
-    '=== ALERT LOG (last 30) ===',
-    'Time,Type,Message',
-    ...alerts.slice(0,30).map(a=>`${new Date(a.time).toLocaleString()},${a.type},"${a.msg.replace(/"/g,"'")}"`)
-  ];
+  // ─────────────────────────────────────────────────────────
+  // PART 1 — EXECUTIVE SUMMARY
+  // ─────────────────────────────────────────────────────────
+  let p1=HEAD('Part 1 — Executive Summary');
 
-  const blob=new Blob([lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;
-  const d=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  a.download=`tasni-report-${d}.csv`;
-  document.body.appendChild(a);a.click();
-  document.body.removeChild(a);URL.revokeObjectURL(url);
-  showToast('📊 Report downloaded!','ok',2500);
+  // Night leakage warning
+  if(nlDetected){
+    p1+=`<div class="alert-box">
+      <div style="font-size:13px;font-weight:700;color:#f87171">🚨 NIGHT LEAKAGE DETECTED</div>
+      <div style="font-size:12px;color:rgba(248,113,113,.8);margin-top:4px">Approximately <strong>${nlLiters} L</strong> lost between 10 PM–6 AM. Inspect pipes, valves and stop-cocks immediately.</div>
+    </div>`;
+  }
+
+  // Tank health + current status
+  p1+=`<h2>Current Status</h2><div class="grid g4">
+    <div class="card"><div class="kpi-val" style="color:${pct<10?'#f87171':pct<30?'#fbbf24':'#2DD4BF'}">${pct}%</div><div class="kpi-lbl">Level</div><div class="fill-bar"><div class="fill-inner" style="width:${pct}%"></div></div></div>
+    <div class="card"><div class="kpi-val">${vol}</div><div class="kpi-lbl">Litres in Tank</div><div class="kpi-sub">of ${total} L</div></div>
+    <div class="card"><div class="kpi-val">${usageRate}</div><div class="kpi-lbl">Usage Rate</div><div class="kpi-sub">L / hour</div></div>
+    <div class="card"><div class="kpi-val" style="font-size:20px">${emptyIn}</div><div class="kpi-lbl">Est. Empty In</div></div>
+  </div>`;
+
+  // Tank Health
+  p1+=`<h2>Tank Health</h2><div class="grid g3">
+    <div class="card"><div class="kpi-val" style="color:${hcol}">${hs}/100</div><div class="kpi-lbl">Health Score</div><div style="margin-top:8px"><span class="badge ${hs>=80?'badge-ok':hs>=50?'badge-warn':'badge-danger'}">${hl}</span></div></div>
+    <div class="card"><div class="kpi-val ok">${fullCount}</div><div class="kpi-lbl">Full Tank Events</div><div class="kpi-sub">Times tank reached ${total}L</div></div>
+    <div class="card"><div class="kpi-val ${nlDetected?'danger':'ok'}">${nlDetected?nlLiters+' L':'None'}</div><div class="kpi-lbl">Night Leakage</div><div class="kpi-sub">${nlDetected?'⚠️ Detected 10PM–6AM':'✅ No leak detected'}</div></div>
+  </div>`;
+
+  // Full tank events table
+  if(analyticsSession.fullTankEvents.length>0){
+    p1+=`<h2>Full Tank Events (${total}L)</h2>
+    <div class="card"><table><tr><th>#</th><th>Time</th><th>Level at Event</th><th>Volume</th></tr>`;
+    analyticsSession.fullTankEvents.forEach((e,i)=>{
+      p1+=`<tr><td>${i+1}</td><td>${e.time}</td><td>${e.pct}%</td><td>${e.vol} L</td></tr>`;
+    });
+    p1+=`</table></div>`;
+  }
+
+  // Day/Night averages + Forecast
+  p1+=`<h2>Day / Night & Forecast</h2><div class="grid g2">
+    <div class="card"><div class="grid g2">
+      <div><div class="kpi-val" style="font-size:22px">${dayAvg!=null?dayAvg+'%':'N/A'}</div><div class="kpi-lbl">Day Avg</div><div class="kpi-sub">06:00–22:00</div></div>
+      <div><div class="kpi-val purple" style="font-size:22px">${ngtAvg!=null?ngtAvg+'%':'N/A'}</div><div class="kpi-lbl">Night Avg</div><div class="kpi-sub">22:00–06:00</div></div>
+    </div></div>
+    <div class="card">
+      <div style="margin-bottom:10px"><div class="kpi-val warn" style="font-size:18px">${fc24}</div><div class="kpi-lbl">Level in 24 hrs</div></div>
+      <div style="margin-bottom:10px"><div class="kpi-val danger" style="font-size:18px">${fc3d}</div><div class="kpi-lbl">Level in 3 days</div></div>
+      <div><div class="kpi-val" style="font-size:18px;color:#fbbf24">${emptyIn}</div><div class="kpi-lbl">Empty in</div></div>
+    </div>
+  </div>`;
+
+  // Device info
+  p1+=`<h2>Device Information</h2><div class="grid g4">
+    <div class="card"><div class="kpi-val" style="font-size:16px">${S.dist?S.dist.toFixed(1)+' cm':'N/A'}</div><div class="kpi-lbl">Sensor Dist</div></div>
+    <div class="card"><div class="kpi-val" style="font-size:16px">${S.rssi||'N/A'}</div><div class="kpi-lbl">WiFi RSSI (dBm)</div></div>
+    <div class="card"><div class="kpi-val" style="font-size:16px">${fmtUp(S.up)}</div><div class="kpi-lbl">Uptime</div></div>
+    <div class="card"><div class="kpi-val" style="font-size:16px">${S.boot||'N/A'}</div><div class="kpi-lbl">Boot Count</div></div>
+  </div>`;
+
+  // Sudden drops table
+  if(analyticsSession.suddenDrops.length>0){
+    p1+=`<h2>Sudden Drop Events</h2><div class="card"><table><tr><th>Time</th><th>From</th><th>To</th><th>Drop</th></tr>`;
+    analyticsSession.suddenDrops.slice(0,10).forEach(e=>{
+      p1+=`<tr><td>${e.time}</td><td>${e.fromPct}%</td><td>${e.toPct}%</td><td class="danger">${e.dropL} L</td></tr>`;
+    });
+    p1+=`</table></div>`;
+  }
+
+  p1+=FOOT;
+  _downloadBlob(p1,`tasni-p1-summary-${ds}.html`);
+
+  // ─────────────────────────────────────────────────────────
+  // PART 2 — USAGE ANALYTICS (with charts)
+  // ─────────────────────────────────────────────────────────
+  setTimeout(()=>{
+    let p2=HEAD('Part 2 — Usage Analytics');
+
+    // KPI
+    p2+=`<h2>Usage Summary</h2><div class="grid g3">
+      <div class="card"><div class="kpi-val">${totalUsed}</div><div class="kpi-lbl">Total Used (L)</div><div class="kpi-sub">This session</div></div>
+      <div class="card"><div class="kpi-val">${usageRate}</div><div class="kpi-lbl">Avg Rate L/hr</div></div>
+      <div class="card"><div class="kpi-val">${analyticsSession.events.length}</div><div class="kpi-lbl">Usage Events</div><div class="kpi-sub">Level drop events</div></div>
+    </div>`;
+
+    // Bar chart + Pie chart
+    p2+=`<h2>Usage by Time of Day</h2>
+    <div class="grid g2">
+      <div class="card"><div class="chart-wrap"><canvas id="barC"></canvas></div></div>
+      <div class="card"><div class="chart-wrap"><canvas id="pieC"></canvas></div></div>
+    </div>`;
+
+    // Day/Night donut chart
+    const dayTot=(pt.morn+pt.aft).toFixed(1);
+    const ngtTot=(pt.eve+pt.ngt).toFixed(1);
+    p2+=`<h2>Day vs Night Consumption</h2>
+    <div class="grid g2">
+      <div class="card"><div class="chart-wrap"><canvas id="dnC"></canvas></div></div>
+      <div class="card" style="display:flex;flex-direction:column;justify-content:center;gap:14px">
+        <div><div class="kpi-val ok">${dayTot} L</div><div class="kpi-lbl">Day (6AM–6PM)</div></div>
+        <div><div class="kpi-val purple">${ngtTot} L</div><div class="kpi-lbl">Night (6PM–6AM)</div></div>
+      </div>
+    </div>`;
+
+    // Usage events table (top 15)
+    if(analyticsSession.events.length>0){
+      p2+=`<h2>Usage Drop Events (Last 15)</h2><div class="card"><table>
+        <tr><th>Time</th><th>From%</th><th>To%</th><th>Drop (L)</th><th>Period</th></tr>`;
+      [...analyticsSession.events].reverse().slice(0,15).forEach(e=>{
+        p2+=`<tr><td>${e.time}</td><td>${e.fromPct}%</td><td>${e.toPct}%</td><td>${e.dropL}</td><td>${{morn:'Morning',aft:'Afternoon',eve:'Evening',ngt:'Night'}[e.period]}</td></tr>`;
+      });
+      p2+=`</table></div>`;
+    }
+
+    const chartColors=['rgba(251,191,36,.8)','rgba(45,212,191,.8)','rgba(124,58,237,.8)','rgba(56,189,248,.8)'];
+    p2+=`<script>
+    Chart.defaults.color='rgba(180,220,255,.5)';
+    Chart.defaults.borderColor='rgba(45,212,191,.07)';
+    const _pt=${JSON.stringify(pt)};
+    const _ld=[_pt.morn,_pt.aft,_pt.eve,_pt.ngt];
+    const _ll=['Morning 6–12h','Afternoon 12–18h','Evening 18–24h','Night 0–6h'];
+    const _cc=${JSON.stringify(chartColors)};
+    new Chart(document.getElementById('barC'),{type:'bar',data:{labels:_ll,datasets:[{data:_ld,backgroundColor:_cc,borderColor:_cc,borderWidth:1,borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.parsed.y.toFixed(1)+' L'}}},
+      scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:v=>v+'L'}}}}});
+    new Chart(document.getElementById('pieC'),{type:'doughnut',data:{labels:_ll,datasets:[{data:_ld.map(v=>Math.max(v,0.001)),backgroundColor:_cc,borderColor:'#040d1a',borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'45%',plugins:{legend:{position:'right',labels:{color:'rgba(200,230,255,.7)',boxWidth:12,padding:8}}}}});
+    new Chart(document.getElementById('dnC'),{type:'doughnut',
+      data:{labels:['Day (6AM–6PM)','Night (6PM–6AM)'],datasets:[{data:[Math.max(_pt.morn+_pt.aft,0.001),Math.max(_pt.eve+_pt.ngt,0.001)],backgroundColor:['rgba(45,212,191,.8)','rgba(124,58,237,.8)'],borderColor:'#040d1a',borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'50%',plugins:{legend:{position:'right',labels:{color:'rgba(200,230,255,.7)',boxWidth:12,padding:8}}}}});
+    <\/script>`;
+
+    p2+=FOOT;
+    _downloadBlob(p2,`tasni-p2-analytics-${ds}.html`);
+  },600);
+
+  // ─────────────────────────────────────────────────────────
+  // PART 3 — 24H HISTORY + ALERT LOG
+  // ─────────────────────────────────────────────────────────
+  setTimeout(()=>{
+    let p3=HEAD('Part 3 — History & Alerts');
+
+    p3+=`<h2>24-Hour Level History</h2>
+    <div class="card"><div class="chart-wrap" style="height:260px"><canvas id="histC"></canvas></div></div>`;
+
+    // Hourly table
+    p3+=`<h2>Hourly Level Table</h2><div class="card"><table>
+      <tr><th>Hour</th><th>Level %</th><th>Volume (L)</th><th>Status</th></tr>`;
+    histLabels.forEach((lbl,i)=>{
+      const v=histData[i];
+      const vl=v!=null?(v/100*(total)).toFixed(0):'--';
+      const st=v==null?'--':v>=95?'Full':v>=70?'Good':v>=30?'Normal':v>=10?'Low':'Critical';
+      const sc=v==null?'':v>=70?'ok':v>=30?'':v>=10?'warn':'danger';
+      p3+=`<tr><td>${lbl}</td><td class="${sc}">${v!=null?v+'%':'NIL'}</td><td>${vl}${v!=null?' L':''}</td><td class="${sc}">${st}</td></tr>`;
+    });
+    p3+=`</table></div>`;
+
+    // Alert log
+    if(alerts.length>0){
+      p3+=`<h2>Alert Log (Last 30)</h2><div class="card"><table>
+        <tr><th>Time</th><th>Type</th><th>Message</th></tr>`;
+      alerts.slice(0,30).forEach(a=>{
+        const tc=a.type==='ac'?'danger':a.type==='aw'?'warn':'ok';
+        const tl=a.type==='ac'?'Critical':a.type==='aw'?'Warning':'Info';
+        p3+=`<tr><td>${new Date(a.time).toLocaleString()}</td><td><span class="badge badge-${a.type==='ac'?'danger':a.type==='aw'?'warn':'ok'}">${tl}</span></td><td>${a.msg}</td></tr>`;
+      });
+      p3+=`</table></div>`;
+    } else {
+      p3+=`<h2>Alert Log</h2><div class="card" style="text-align:center;padding:24px;color:rgba(180,220,255,.4)">No alerts recorded this session.</div>`;
+    }
+
+    const _hd=JSON.stringify(histData);
+    const _hl=JSON.stringify(histLabels);
+    p3+=`<script>
+    Chart.defaults.color='rgba(180,220,255,.5)';
+    Chart.defaults.borderColor='rgba(45,212,191,.07)';
+    const _hdata=${_hd};
+    const _hlbls=${_hl};
+    const _ctx=document.getElementById('histC').getContext('2d');
+    const _grad=_ctx.createLinearGradient(0,0,0,240);
+    _grad.addColorStop(0,'rgba(45,212,191,.3)');_grad.addColorStop(1,'rgba(45,212,191,0)');
+    new Chart(_ctx,{type:'line',data:{labels:_hlbls,datasets:[{label:'Level %',data:_hdata,borderColor:'#2DD4BF',backgroundColor:_grad,borderWidth:2,fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#2DD4BF',spanGaps:false}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y!=null?' '+c.parsed.y.toFixed(0)+'% level':' No data'}}},
+        scales:{x:{ticks:{maxTicksLimit:8}},y:{min:0,max:100,ticks:{callback:v=>v+'%'}}}}});
+    <\/script>`;
+
+    p3+=FOOT;
+    _downloadBlob(p3,`tasni-p3-history-${ds}.html`);
+  },1200);
+
+  showToast('📊 3 report files downloading…','ok',4000);
 }
 
 // [initChart & renderChart — full versions defined above with all 4 charts]
@@ -2452,9 +2789,9 @@ async function saveSheets(){
   if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});push('ai','✅ Sheets saved.');}catch{push('aw','⚠️ Saved locally.');}}
 }
 function saveMQTT(){
-  const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8884,mquser=g('c-mquser'),mqpass=g('c-mqpass');
+  const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8084,mquser=g('c-mquser'),mqpass=g('c-mqpass');
   const topic=g('c-mqtopic')||'tasni-water/+/state';
-  const host2=g('c-mqb2'),port2=parseInt(g('c-mqp2'))||8884,mquser2=g('c-mquser2'),mqpass2=g('c-mqpass2');
+  const host2=g('c-mqb2'),port2=parseInt(g('c-mqp2'))||8084,mquser2=g('c-mquser2'),mqpass2=g('c-mqpass2');
   saveCfg({broker:host,port,mquser,mqpass,topic,broker2:host2,port2,mquser2,mqpass2});
   if(host){_silent=false;_connectMQTT({host,port,user:mquser,pass:mqpass,topic});}
   if(host2){_silent2=false;_connectMQTT2({host:host2,port:port2,user:mquser2,pass:mqpass2,topic});}
