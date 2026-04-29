@@ -1122,7 +1122,7 @@ function _buildMqttOpts(mc){
 
 function _makeUrl(mc){
   const raw=(mc.host||'').replace(/^wss?:\/\//,'');
-  const proto=(mc.port===8084||mc.port===443||mc.port===8083||mc.port===8880||mc.port===8081)?'ws':'wss';
+  const proto=(mc.port===8083||mc.port===8880||mc.port===8081||mc.port===1884)?'ws':'wss'; // 8084/443/8881/8885 → wss (TLS); 8083/8880 → ws (plain)
   return`${proto}://${raw}:${mc.port}/mqtt`;
 }
 
