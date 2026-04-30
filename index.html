@@ -52,6 +52,24 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .card-title{font-size:10px;font-weight:700;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:14px;font-family:var(--head)}
 
 /* ══════════════════════════════════
+   BOOT LOADING OVERLAY
+══════════════════════════════════ */
+.boot-loading{
+  position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:rgba(4,13,26,.97);backdrop-filter:blur(8px);
+  transition:opacity .5s ease,visibility .5s ease;
+}
+.boot-loading.gone{opacity:0;visibility:hidden;pointer-events:none;}
+.boot-loading-icon{font-size:48px;margin-bottom:16px;animation:bootDrop 1.2s ease-in-out infinite;}
+@keyframes bootDrop{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.boot-loading-title{font-family:var(--head);font-size:16px;font-weight:900;color:var(--pri);letter-spacing:3px;margin-bottom:6px;}
+.boot-loading-sub{font-family:var(--sans);font-size:12px;color:var(--muted);letter-spacing:2px;margin-bottom:24px;}
+.boot-loading-bar-wrap{width:200px;height:4px;background:rgba(45,212,191,.12);border-radius:2px;overflow:hidden;}
+.boot-loading-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--purple),var(--pri));border-radius:2px;transition:width .3s linear;}
+.boot-loading-count{font-family:var(--mono);font-size:11px;color:rgba(45,212,191,.5);margin-top:10px;letter-spacing:1px;}
+
+/* ══════════════════════════════════
    ULTRA REALISTIC TANK
 ══════════════════════════════════ */
 .tank-section{display:flex;align-items:center;gap:20px;padding:18px 16px 14px}
@@ -401,6 +419,15 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 </div>
 
 <div id="toast-wrap"></div>
+
+<!-- BOOT LOADING OVERLAY — shown during 10s device sync wait -->
+<div class="boot-loading" id="bootLoading">
+  <div class="boot-loading-icon">💧</div>
+  <div class="boot-loading-title">LOADING FROM SERVER</div>
+  <div class="boot-loading-sub">SYNCING DEVICE DATA</div>
+  <div class="boot-loading-bar-wrap"><div class="boot-loading-bar" id="bootBar"></div></div>
+  <div class="boot-loading-count" id="bootCount">Please wait…</div>
+</div>
 
 <!-- SETUP MODAL -->
 <div class="modal-ov hidden" id="connModal">
@@ -830,6 +857,8 @@ let unread=0,demoMode=false,pollingTimer=null,chart=null,tipIdx=0,audioCtx=null;
 // Staleness watchdog
 const STALE_MS=30000;
 let _staleTimer=null;
+// Minimum confirmed samples before report download is allowed (6 ≈ 12 min of real data)
+const MIN_SAMPLES=6;
 // Analytics — REAL session data only (never demo, never stale)
 const analyticsSession={
   events:[],
@@ -851,6 +880,10 @@ const analyticsSession={
   healthScore:100,     // 0-100
   healthLabel:'GOOD',
   sessionStart: new Date().toISOString(),
+  // Confirmed samples (incremented on every real _displayReady reading)
+  confirmedSamples:0,
+  // Computed usage rate from actual drop events (L/hr) — used in report
+  computedUsageRate:0,
 };
 
 // ── BOOT DISPLAY GUARD ──
@@ -881,6 +914,36 @@ const _bootGuardTimer=setTimeout(()=>{
   _bootGuardActive=false;
   // _displayReady stays false — will flip on next ingest() from real device
 },_BOOT_MS);
+
+// ── Boot loading overlay controller ──
+// Animates the progress bar over 10s and dismisses on first real data
+(function(){
+  const _bar=document.getElementById('bootBar');
+  const _cnt=document.getElementById('bootCount');
+  const _ov=document.getElementById('bootLoading');
+  if(!_bar||!_cnt||!_ov)return;
+  let _pct=0;
+  const _iv=setInterval(()=>{
+    _pct=Math.min(95,_pct+1.2); // fills to 95% in ~8s, waits for real data to complete
+    _bar.style.width=_pct+'%';
+    const _rem=Math.max(0,Math.ceil((_BOOT_MS-(Date.now()-_bootStart))/1000));
+    _cnt.textContent=_rem>0?'Verifying device… '+_rem+'s':'Waiting for first reading…';
+  },120);
+  // Poll every 200ms — as soon as _displayReady is true, dismiss overlay
+  const _pollReady=setInterval(()=>{
+    if(_displayReady||demoMode){
+      clearInterval(_iv);clearInterval(_pollReady);
+      _bar.style.width='100%';
+      _cnt.textContent='Device connected ✓';
+      setTimeout(()=>_ov.classList.add('gone'),400);
+    }
+  },200);
+  // Safety: always dismiss after 25s even if no data
+  setTimeout(()=>{
+    clearInterval(_iv);clearInterval(_pollReady);
+    _ov.classList.add('gone');
+  },25000);
+})();
 
 // ═══════════════════════════════════════════
 //  ALERT TOGGLE PERSISTENCE
@@ -1143,8 +1206,10 @@ function _connectPrimary(mc){
       _silent=true;
       _startHBPrimary(mc);
     });
-    mqttPrimary.on('message',(_t,pl)=>{
+    mqttPrimary.on('message',(_t,pl,pkt)=>{
       _lastAck=Date.now();
+      // Skip RETAINED messages during boot guard — they are cached old values, not live data
+      if(pkt&&pkt.retain&&!_displayReady){return;}
       try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT-P JSON:',e);}
     });
     mqttPrimary.on('reconnect',()=>{_primaryOk=false;_updateBrokerPills();});
@@ -1175,8 +1240,10 @@ function _connectBackup(mc){
       _silent2=true;
       _startHBBackup(mc);
     });
-    mqttBackup.on('message',(_t,pl)=>{
+    mqttBackup.on('message',(_t,pl,pkt)=>{
       _lastAck2=Date.now();
+      // Skip RETAINED messages during boot guard — they are cached old values, not live data
+      if(pkt&&pkt.retain&&!_displayReady){return;}
       try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT-B JSON:',e);}
     });
     mqttBackup.on('reconnect',()=>{_backupOk=false;_updateBrokerPills();});
@@ -1321,17 +1388,6 @@ function ingest(d,fromMQTT=false){
   if(d.boot  !=null)S.boot  =parseInt(d.boot);
   if(d.isFull!=null)S.isFull=parseInt(d.isFull);
   if(d.name  !=null)S.name  =d.name;
-  // History: only record REAL device data (never demo), rate-limited
-  if(!demoMode&&S.m!=null){
-    const _hn=Date.now();
-    if(_hn-_lastHistorySave>120000){ // at most once per 2 minutes
-      _lastHistorySave=_hn;
-      S.history.shift();S.history.push(S.m);
-      _saveHourly();
-    } else if(!fromMQTT){ // WiFi poll: always push (local poll is already slow)
-      S.history.shift();S.history.push(S.m);
-    }
-  }
   S.connected=true;
   S.lastUpdate=new Date();
 
@@ -1361,6 +1417,7 @@ function ingest(d,fromMQTT=false){
       clearTimeout(_bootGuardTimer);
       _bootGuardActive=false;
       if(!demoMode)setTimeout(()=>{try{playConnectSound();}catch(_){}},200);
+      // The boot loading overlay polls _displayReady every 200ms and auto-dismisses
     }
     // else: still inside 10s window — keep NIL, do nothing
   }
@@ -1379,6 +1436,19 @@ function ingest(d,fromMQTT=false){
     const _hr=_now.getHours();
     const _isNight=_hr>=22||_hr<6;
     const _isDay=_hr>=6&&_hr<22;
+
+    // History: gate behind _displayReady so stale retained MQTT never pollutes chart
+    const _hn=Date.now();
+    if(_hn-_lastHistorySave>120000){ // at most once per 2 minutes
+      _lastHistorySave=_hn;
+      S.history.shift();S.history.push(S.m);
+      _saveHourly();
+    } else if(!fromMQTT){ // WiFi poll: always push (local poll is already slow)
+      S.history.shift();S.history.push(S.m);
+    }
+
+    // Confirmed samples counter — every real reading post-boot-guard
+    analyticsSession.confirmedSamples++;
 
     // Usage drop event
     if(prev!=null&&S.m<prev){
@@ -2015,7 +2085,9 @@ function renderDash(){
   bar.style.background=pct<10?'linear-gradient(90deg,#7a0000,#f87171)':pct<30?'linear-gradient(90deg,#806600,#fbbf24)':'linear-gradient(90deg,var(--purple),var(--pri))';
 
   set('volL',S.vol.toFixed(0));set('totalVol',S.total);set('distCm',S.dist.toFixed(1));
-  set('usageRate',S.usage.toFixed(1));set('uptimeVal',fmtUp(S.up));
+  // Use computed usage rate from events if available (more accurate than device-reported value)
+  const _dispRate=analyticsSession.computedUsageRate>0?analyticsSession.computedUsageRate:S.usage;
+  set('usageRate',_dispRate.toFixed(1));set('uptimeVal',fmtUp(S.up));
   set('rssiVal',S.rssi||'--');set('bootVal',S.boot||'--');set('trendLbl',S.t);
   if(S.name)document.getElementById('tankNameLbl').textContent=S.name.toUpperCase();
 
@@ -2056,8 +2128,18 @@ function recordUsageEvent(dropL,fromPct,toPct){
   const period=h>=6&&h<12?'morn':h>=12&&h<18?'aft':h>=18?'eve':'ngt';
   analyticsSession.periodTotals[period]+=dropL;
   analyticsSession.totalUsedL+=dropL;
-  analyticsSession.events.push({time:now.toLocaleTimeString(),dropL:dropL.toFixed(1),fromPct,toPct,period});
+  analyticsSession.events.push({time:now.toLocaleTimeString(),dropL:dropL.toFixed(1),fromPct,toPct,period,ts:Date.now()});
   if(analyticsSession.events.length>60)analyticsSession.events.shift();
+  // Recompute usage rate from the last 3 hours of events
+  const _3h=Date.now()-3*3600000;
+  const _recent=analyticsSession.events.filter(e=>e.ts&&e.ts>_3h);
+  if(_recent.length>=2){
+    const _elapsed=(_recent[_recent.length-1].ts-_recent[0].ts)/3600000; // hours
+    if(_elapsed>0){
+      const _total=_recent.reduce((s,e)=>s+parseFloat(e.dropL),0);
+      analyticsSession.computedUsageRate=_total/_elapsed;
+    }
+  }
 }
 
 // Chart.js global defaults for dark theme
@@ -2272,6 +2354,8 @@ function resetAnalytics(){
   analyticsSession.healthScore=100;
   analyticsSession.healthLabel='GOOD';
   analyticsSession.sessionStart=new Date().toISOString();
+  analyticsSession.confirmedSamples=0;
+  analyticsSession.computedUsageRate=0;
   renderAnalytics();
   showToast('Usage counters reset','ok',2500);
 }
@@ -2299,8 +2383,7 @@ function downloadReport(){
   if(!_displayReady||S.m===null){showToast('⚠️ No confirmed device data yet','warn',3500);return;}
   if(analyticsSession.confirmedSamples<MIN_SAMPLES){
     const _need=MIN_SAMPLES-analyticsSession.confirmedSamples;
-    const _minLeft=_need*30;
-    showToast('⏳ Need ~'+_minLeft+' more min of data ('+_need+' samples). Report needs 3h of readings.','warn',5000);
+    showToast('⏳ Collecting data… '+analyticsSession.confirmedSamples+'/'+MIN_SAMPLES+' readings confirmed. Check back in a few minutes.','warn',4000);
     return;
   }
 
