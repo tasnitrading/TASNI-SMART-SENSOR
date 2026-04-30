@@ -249,6 +249,31 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .chip.on{border-color:var(--ok);color:var(--ok)}
 .chip.on .cd{background:var(--ok);box-shadow:0 0 6px var(--ok)}
 
+/* Chart */
+.chart-box{position:relative;height:175px}
+
+/* Usage bars */
+.ubar-row{margin:8px 0}
+.ubar-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
+.ubar{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.ubar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,rgba(45,212,191,.7),var(--ok));transition:width 1s}
+
+/* Forecast */
+.fc-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.fc-row:last-child{border-bottom:none}
+.fc-val{font-family:var(--mono);color:var(--pri)}
+
+/* Analytics enhanced */
+.analytics-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.asumm{background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center}
+.asumm-val{font-family:var(--mono);font-size:18px;color:var(--pri);line-height:1}
+.asumm-lbl{font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-top:4px;font-family:var(--head)}
+.session-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
+.session-item:last-child{border-bottom:none}
+.session-time{font-family:var(--mono);color:var(--muted);font-size:10px}
+.session-vol{font-family:var(--mono);color:var(--pri);font-size:13px}
+.download-btn-wrap{margin-top:12px}
+
 /* Alerts */
 .notif-bar{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(0,50,120,.5),rgba(0,30,80,.7));border:1px solid rgba(45,212,191,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px}
 .notif-bar .nb-i{font-size:26px}
@@ -360,6 +385,10 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 .splash-bar{width:160px;height:2px;background:rgba(45,212,191,.1);border-radius:1px;overflow:hidden;margin-top:8px}
 .splash-prog{height:100%;width:0%;background:var(--pri);border-radius:1px;transition:width .1s linear}
 @keyframes splashPulse{0%{text-shadow:0 0 20px rgba(45,212,191,.3)}100%{text-shadow:0 0 50px rgba(45,212,191,.7)}}
+
+/* Usage counter reset button */
+.reset-btn-inline{font-size:10px;font-family:var(--head);letter-spacing:1px;padding:3px 8px;border-radius:5px;border:1px solid rgba(248,113,113,.3);background:rgba(248,113,113,.07);color:var(--danger);cursor:pointer;transition:all .2s}
+.reset-btn-inline:hover{background:rgba(248,113,113,.15)}
 </style>
 </head>
 <body>
@@ -467,6 +496,8 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         </div>
       </div>
     </div>
+    <!-- Tank Health + Night Leakage + Day/Night insights -->
+    <div id="dashInsights"></div>
 
     <div class="stats-grid">
       <div class="stat"><div class="stat-lbl">Usage Rate</div><div class="stat-val"><span id="usageRate">--</span><span class="stat-unit"> L/hr</span></div></div>
@@ -533,11 +564,17 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="card">
       <div class="acc-h" onclick="toggleAcc(this)"><span>✈️ Telegram Bot</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
+        <!-- Status row -->
         <div style="display:flex;align-items:center;gap:10px;padding:10px 0 14px;border-bottom:1px solid var(--border);margin-bottom:14px">
           <div id="tg-status-dot" style="width:10px;height:10px;border-radius:50%;background:#333;flex-shrink:0;transition:all .3s"></div>
-          <div><div id="tg-status-lbl" style="font-size:12px;font-weight:700;color:var(--muted)">Not configured</div><div id="tg-status-sub" style="font-size:10px;color:var(--muted);margin-top:1px">Enter credentials below and save to device</div></div>
+          <div>
+            <div id="tg-status-lbl" style="font-size:12px;font-weight:700;color:var(--muted)">Not configured</div>
+            <div id="tg-status-sub" style="font-size:10px;color:var(--muted);margin-top:1px">Enter credentials below and save to device</div>
+          </div>
           <button class="btn btn-o btn-sm" style="margin-left:auto;font-size:10px" onclick="testTelegram()">TEST</button>
         </div>
+
+        <!-- How to setup guide -->
         <div class="info-box" style="margin-bottom:14px">
           <strong>How to set up:</strong><br>
           1. Open Telegram → search <strong>@BotFather</strong><br>
@@ -547,14 +584,25 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
           4. Copy the <strong>chat id</strong> number from the response<br>
           5. Paste both below and tap Save
         </div>
-        <div class="form-grp"><label class="form-lbl">Bot Token</label><input class="form-in" id="c-tgtoken" type="text" placeholder="1234567890:ABCDEFghijklmno..."></div>
-        <div class="form-grp"><label class="form-lbl">Chat ID <span style="font-weight:400;color:var(--muted)">(your personal or group ID)</span></label><input class="form-in" id="c-tgchat" type="text" placeholder="-1001234567890 or 987654321"></div>
+
+        <div class="form-grp">
+          <label class="form-lbl">Bot Token</label>
+          <input class="form-in" id="c-tgtoken" type="text" placeholder="1234567890:ABCDEFghijklmno...">
+        </div>
+        <div class="form-grp">
+          <label class="form-lbl">Chat ID <span style="font-weight:400;color:var(--muted)">(your personal or group ID)</span></label>
+          <input class="form-in" id="c-tgchat" type="text" placeholder="-1001234567890 or 987654321">
+        </div>
         <button class="btn btn-p btn-full" onclick="saveTelegram()">📲 Save Telegram to Device</button>
         <button class="btn btn-d btn-full" style="margin-top:8px" onclick="clearTelegram()">🗑 Remove Telegram</button>
+
+        <!-- Bot commands reference -->
         <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
           <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;font-family:var(--head)">BOT COMMANDS (send these to your bot)</div>
           <div id="tg-cmds" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
         </div>
+
+        <!-- Device auto-alerts reference -->
         <div style="margin-top:14px;padding:10px 12px;background:rgba(45,212,191,.04);border:1px solid rgba(45,212,191,.1);border-radius:8px">
           <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--pri);margin-bottom:6px;font-family:var(--head)">AUTO ALERTS FROM DEVICE</div>
           <div style="font-size:11px;color:var(--muted);line-height:1.8">
@@ -572,7 +620,10 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="acc-h" onclick="toggleAcc(this)"><span>📏 Sensor Calibration</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
         <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.55">Distance sensor reads from TOP down to water surface. Set measured distances when tank is fully empty and fully full.</p>
-        <div class="form-row"><div class="form-grp"><label class="form-lbl">Empty (cm)</label><input class="form-in" id="c-empty" type="number" placeholder="125"></div><div class="form-grp"><label class="form-lbl">Full (cm)</label><input class="form-in" id="c-full" type="number" placeholder="10"></div></div>
+        <div class="form-row">
+          <div class="form-grp"><label class="form-lbl">Empty (cm)</label><input class="form-in" id="c-empty" type="number" placeholder="125"></div>
+          <div class="form-grp"><label class="form-lbl">Full (cm)</label><input class="form-in" id="c-full" type="number" placeholder="10"></div>
+        </div>
         <div class="form-grp"><label class="form-lbl">Tank Capacity (L)</label><input class="form-in" id="c-vol" type="number" placeholder="1000"></div>
         <div class="form-grp"><label class="form-lbl">Tank Name</label><input class="form-in" id="c-tname" type="text" placeholder="Main Tank"></div>
         <button class="btn btn-o btn-full" style="margin-bottom:8px" onclick="captureEmpty()">📷 Capture Current as EMPTY</button>
@@ -592,14 +643,28 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="acc-h" onclick="toggleAcc(this)"><span>🌐 MQTT Remote Broker</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
         <div class="info-box"><strong>ESP32 topic:</strong> <code style="color:var(--ok)">tasni-water/{deviceID}/state</code><br>Port on device: <strong>8883 (TLS)</strong>. Browser connects via WebSocket.<br>Backup broker takes over automatically if primary fails for 15 seconds.</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--pri);font-family:var(--head)">PRIMARY BROKER</div><div id="pill-primary" style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:rgba(80,80,100,.2);color:var(--muted);font-family:var(--head)">OFFLINE</div></div>
+        <!-- Primary broker status -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--pri);font-family:var(--head)">PRIMARY BROKER</div>
+          <div id="pill-primary" style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:rgba(80,80,100,.2);color:var(--muted);font-family:var(--head)">OFFLINE</div>
+        </div>
         <div class="form-grp"><label class="form-lbl">Broker Host</label><input class="form-in" id="c-mqb" type="text" placeholder="your-broker-host.com"></div>
-        <div class="form-row"><div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp" type="number" placeholder="8084"></div><div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser" type="text"></div></div>
+        <div class="form-row">
+          <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp" type="number" placeholder="8084"></div>
+          <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser" type="text"></div>
+        </div>
         <div class="form-grp"><label class="form-lbl">Password</label><input class="form-in" id="c-mqpass" type="password"></div>
         <div class="form-grp"><label class="form-lbl">Topic (blank = wildcard)</label><input class="form-in" id="c-mqtopic" type="text" placeholder="tasni-water/+/state"></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px"><div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);font-family:var(--head)">BACKUP BROKER <span style="font-weight:400;color:rgba(180,220,255,.25)">(auto-failover)</span></div><div id="pill-backup" style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:rgba(80,80,100,.2);color:var(--muted);font-family:var(--head)">STANDBY</div></div>
+        <!-- Backup broker status -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);font-family:var(--head)">BACKUP BROKER <span style="font-weight:400;color:rgba(180,220,255,.25)">(auto-failover)</span></div>
+          <div id="pill-backup" style="font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:10px;background:rgba(80,80,100,.2);color:var(--muted);font-family:var(--head)">STANDBY</div>
+        </div>
         <div class="form-grp"><label class="form-lbl">Backup Host</label><input class="form-in" id="c-mqb2" type="text" placeholder="backup.broker.example.com"></div>
-        <div class="form-row"><div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp2" type="number" placeholder="8084"></div><div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser2" type="text"></div></div>
+        <div class="form-row">
+          <div class="form-grp"><label class="form-lbl">WS Port</label><input class="form-in" id="c-mqp2" type="number" placeholder="8084"></div>
+          <div class="form-grp" style="flex:2"><label class="form-lbl">Username</label><input class="form-in" id="c-mquser2" type="text"></div>
+        </div>
         <div class="form-grp"><label class="form-lbl">Backup Password</label><input class="form-in" id="c-mqpass2" type="password"></div>
         <button class="btn btn-p btn-full" onclick="saveMQTT()">⚡ Connect Both Brokers</button>
         <button class="btn btn-d btn-full" style="margin-top:8px" onclick="disconnMQTT()">Disconnect MQTT</button>
@@ -640,7 +705,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <span class="nb-lbl">Settings</span>
   </button>
   <button class="nb" id="nb-tips" onclick="goTab('tips',this)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
     <span class="nb-lbl">Tips</span>
   </button>
 </nav>
@@ -668,19 +733,86 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 const CFG_KEY='tasni_cfg';
 const ALERT_PREFS_KEY='tasni_alert_prefs';
 let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'{}');
+// S.m starts as null — NIL until first real DEVICE reading
 const S={m:null,vol:0,total:1000,s:'Offline',dist:0,t:'',usage:0,up:0,rssi:0,boot:0,isFull:0,name:'Main Tank',history:Array(24).fill(null),connected:false,lastUpdate:null,_wasFull:false};
 let alerts=JSON.parse(localStorage.getItem('tasni_alerts')||'[]');
-let unread=0,demoMode=false,pollingTimer=null,tipIdx=0,audioCtx=null;
+let unread=0,demoMode=false,pollingTimer=null,chart=null,tipIdx=0,audioCtx=null;
+// Staleness watchdog
 const STALE_MS=30000;
 let _staleTimer=null;
+// Analytics — REAL session data only (never demo, never stale)
+const analyticsSession={
+  events:[],
+  periodTotals:{morn:0,aft:0,eve:0,ngt:0},
+  totalUsedL:0,
+  readings:[],
+  fullTankEvents:[],
+  nightReadings:[],
+  nightLeakDetected:false,
+  nightLeakLiters:0,
+  dayReadings:[],
+  nightReadingsPct:[],
+  suddenDrops:[],
+  healthScore:100,
+  healthLabel:'GOOD',
+  sessionStart: new Date().toISOString(),
+};
+
+// ── BOOT DISPLAY GUARD ──
 let _displayReady=false;
+let _bootGuardActive=true;
+let _realReadingCount=0;
+const _BOOT_MS=10000;
 const _bootStart=Date.now();
 
+// Hourly history persisted in localStorage for 24h chart continuity
+const HOURLY_KEY='tasni_hourly_v1';
+let _lastHistorySave=0;
+function _saveHourly(){
+  try{localStorage.setItem(HOURLY_KEY,JSON.stringify(S.history));}catch(_){}
+}
+function _loadHourly(){
+  try{
+    const d=JSON.parse(localStorage.getItem(HOURLY_KEY)||'null');
+    if(Array.isArray(d)&&d.length===24)d.forEach((v,i)=>{if(v!=null)S.history[i]=v;});
+  }catch(_){}
+}
+
+// Boot guard timer — after 10s allow display to unlock on next real reading
+const _bootGuardTimer=setTimeout(()=>{
+  _bootGuardActive=false;
+},_BOOT_MS);
+
+// ═══════════════════════════════════════════
+//  ALERT TOGGLE PERSISTENCE
+// ═══════════════════════════════════════════
 const ALERT_TOGGLE_IDS=['t-crit','t-low','t-drop','t-fill','t-full','t-sound','t-lang-en','t-lang-te','t-lang-ur'];
-const ALERT_TOGGLE_DEFAULTS={'t-crit':true,'t-low':true,'t-drop':true,'t-fill':true,'t-full':true,'t-sound':true,'t-lang-en':true,'t-lang-te':true,'t-lang-ur':true};
-function loadAlertPrefs(){let prefs=JSON.parse(localStorage.getItem(ALERT_PREFS_KEY)||'null');if(!prefs)prefs=ALERT_TOGGLE_DEFAULTS;ALERT_TOGGLE_IDS.forEach(id=>{const el=document.getElementById(id);if(el)el.checked=!!(prefs[id]??ALERT_TOGGLE_DEFAULTS[id]);});}
-function saveAlertPrefs(){const prefs={};ALERT_TOGGLE_IDS.forEach(id=>{const el=document.getElementById(id);if(el)prefs[id]=el.checked;});localStorage.setItem(ALERT_PREFS_KEY,JSON.stringify(prefs));}
-function initAlertToggles(){ALERT_TOGGLE_IDS.forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('change',saveAlertPrefs);});}
+const ALERT_TOGGLE_DEFAULTS={
+  't-crit':true,'t-low':true,'t-drop':true,'t-fill':true,'t-full':true,'t-sound':true,
+  't-lang-en':true,'t-lang-te':true,'t-lang-ur':true
+};
+function loadAlertPrefs(){
+  let prefs=JSON.parse(localStorage.getItem(ALERT_PREFS_KEY)||'null');
+  if(!prefs)prefs=ALERT_TOGGLE_DEFAULTS;
+  ALERT_TOGGLE_IDS.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.checked=!!(prefs[id]??ALERT_TOGGLE_DEFAULTS[id]);
+  });
+}
+function saveAlertPrefs(){
+  const prefs={};
+  ALERT_TOGGLE_IDS.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)prefs[id]=el.checked;
+  });
+  localStorage.setItem(ALERT_PREFS_KEY,JSON.stringify(prefs));
+}
+function initAlertToggles(){
+  ALERT_TOGGLE_IDS.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.addEventListener('change',saveAlertPrefs);
+  });
+}
 
 // ═══════════════════════════════════════════
 //  TIPS & ACHIEVEMENTS
@@ -704,6 +836,7 @@ const TIPS=[
 ];
 const ACHIEVEMENTS=[
   {icon:'💧',name:'First Drop',desc:'Started monitoring'},
+  {icon:'📊',name:'Analyst',desc:'Viewed analytics'},
   {icon:'🔔',name:'Alert Ready',desc:'Notifications on'},
   {icon:'☁️',name:'Cloud Sync',desc:'MQTT connected'},
   {icon:'⚙️',name:'Configured',desc:'Settings saved'},
@@ -723,7 +856,35 @@ window.addEventListener('load',()=>{
   checkNotifPerm();
   _updateTgStatus();
   _renderTgCmds();
+  _loadHourly();
   renderDash();
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(async reg=>{
+      const sw=reg.installing||reg.waiting||reg.active;
+      const sendCfg=()=>{
+        const ctrl=navigator.serviceWorker.controller;
+        if(ctrl){
+          ctrl.postMessage({type:'STORE_CONFIG',config:{
+            ip:cfg.ip,broker:cfg.broker,
+            alertCrit:document.getElementById('t-crit')?.checked,
+            alertLow:document.getElementById('t-low')?.checked,
+          }});
+        }
+      };
+      if(navigator.serviceWorker.controller){sendCfg();}
+      else{navigator.serviceWorker.addEventListener('controllerchange',sendCfg,{once:true});}
+      if('periodicSync' in reg){
+        try{
+          const status=await navigator.permissions.query({name:'periodic-background-sync'});
+          if(status.state==='granted'){
+            await reg.periodicSync.register('tasni-monitor',{minInterval:15*60*1000});
+          }
+        }catch(_){}
+      }
+      if('sync' in reg){try{await reg.sync.register('tasni-check');}catch(_){}}
+    }).catch(()=>{});
+  }
+  unlockAch(0);
   if(!cfg.ip&&!cfg.broker){
     setTimeout(()=>document.getElementById('connModal').classList.remove('hidden'),2200);
   } else {
@@ -734,6 +895,9 @@ window.addEventListener('load',()=>{
   requestWakeLock();
 });
 
+// ═══════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════
 function saveCfg(u){Object.assign(cfg,u);localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
 function loadFormValues(){
   const sv=(id,v)=>{if(v!=null&&v!==''&&document.getElementById(id))document.getElementById(id).value=v;};
@@ -750,6 +914,9 @@ function loadFormValues(){
   if(cfg.tankName)document.getElementById('tankNameLbl').textContent=cfg.tankName.toUpperCase();
 }
 
+// ═══════════════════════════════════════════
+//  CONNECTIONS
+// ═══════════════════════════════════════════
 function applySetup(){
   const ip=g('s-ip'),broker=g('s-broker'),port=parseInt(g('s-port'))||8084;
   const mquser=g('s-mquser'),mqpass=g('s-mqpass'),name=g('s-name')||'Main Tank';
@@ -776,6 +943,9 @@ function startConnections(){
   _resetStaleTimer();
 }
 
+// ═══════════════════════════════════════════
+//  LOCAL WIFI POLL
+// ═══════════════════════════════════════════
 function startPoll(ip){
   if(pollingTimer)clearInterval(pollingTimer);
   fetchSensor(ip);
@@ -791,207 +961,1143 @@ async function fetchSensor(ip){
   updatePill();
 }
 
-let mqttPrimary=null,mqttBackup=null,_mqttCfg=null,_mqttCfg2=null;
-let _hbTimer=null,_hbTimer2=null,_wdTimer=null,_wdTimer2=null;
-let _lastAck=0,_lastAck2=0,_silent=false,_silent2=false;
+// ═══════════════════════════════════════════════════════
+//  DUAL MQTT ENGINE — Primary + Backup auto-failover
+// ═══════════════════════════════════════════════════════
+let mqttPrimary=null;
+let mqttBackup=null;
+let _mqttCfg=null;
+let _mqttCfg2=null;
+let _hbTimer=null,_hbTimer2=null;
+let _wdTimer=null,_wdTimer2=null;
+let _lastAck=0,_lastAck2=0;
+let _silent=false,_silent2=false;
 let _primaryOk=false,_backupOk=false;
+
+const mqttClient={get connected(){return _primaryOk||_backupOk;}};
 
 function _updateBrokerPills(){
   const p=document.getElementById('pill-primary');
   const b=document.getElementById('pill-backup');
-  if(p){p.textContent=_primaryOk?'ONLINE':'OFFLINE';p.style.background=_primaryOk?'rgba(52,211,153,.15)':'rgba(80,80,100,.2)';p.style.color=_primaryOk?'var(--ok)':'var(--muted)';}
-  if(b){const hasCfg=!!(_mqttCfg2&&_mqttCfg2.host);b.textContent=!hasCfg?'NOT SET':_backupOk?'ACTIVE':'STANDBY';b.style.background=_backupOk?'rgba(251,191,36,.12)':hasCfg?'rgba(45,212,191,.07)':'rgba(80,80,100,.12)';b.style.color=_backupOk?'var(--warn)':hasCfg?'var(--muted)':'rgba(120,120,140,.6)';}
+  if(p){
+    p.textContent=_primaryOk?'ONLINE':'OFFLINE';
+    p.style.background=_primaryOk?'rgba(52,211,153,.15)':'rgba(80,80,100,.2)';
+    p.style.color=_primaryOk?'var(--ok)':'var(--muted)';
+    p.style.border=_primaryOk?'1px solid rgba(52,211,153,.3)':'none';
+  }
+  if(b){
+    const hasCfg=!!(_mqttCfg2&&_mqttCfg2.host);
+    b.textContent=!hasCfg?'NOT SET':_backupOk?'ACTIVE':'STANDBY';
+    b.style.background=_backupOk?'rgba(251,191,36,.12)':hasCfg?'rgba(45,212,191,.07)':'rgba(80,80,100,.12)';
+    b.style.color=_backupOk?'var(--warn)':hasCfg?'var(--muted)':'rgba(120,120,140,.6)';
+    b.style.border=_backupOk?'1px solid rgba(251,191,36,.3)':hasCfg?'1px solid var(--border)':'none';
+  }
   setChip('chip-mqtt',_primaryOk||_backupOk);
   updatePill();
 }
-function _buildMqttOpts(mc){const opts={clientId:`tasni_web_${Date.now().toString(36)}`,keepalive:30,reconnectPeriod:5000,connectTimeout:15000,clean:true};if(mc.user&&mc.user.trim())opts.username=mc.user.trim();if(mc.pass&&mc.pass.trim())opts.password=mc.pass.trim();return opts;}
-function _makeUrl(mc){const raw=(mc.host||'').replace(/^wss?:\/\//,'');const proto=(mc.port===8083||mc.port===8880||mc.port===8081||mc.port===1884)?'ws':'wss';return`${proto}://${raw}:${mc.port}/mqtt`;}
-function _connectPrimary(mc){if(!mc||!mc.host)return;if(mqttPrimary){try{mqttPrimary.end(true);}catch(_){}}_primaryOk=false;_updateBrokerPills();try{mqttPrimary=mqtt.connect(_makeUrl(mc),_buildMqttOpts(mc));mqttPrimary.on('connect',()=>{_lastAck=Date.now();_primaryOk=true;_updateBrokerPills();unlockAch(2);const t=mc.topic||'tasni-water/+/state';mqttPrimary.subscribe(t,{qos:1});showToast('☁️ MQTT connected','ok',2500);});mqttPrimary.on('message',(_t,pl)=>{_lastAck=Date.now();try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){}});mqttPrimary.on('error',()=>{_primaryOk=false;_updateBrokerPills();});}catch(e){_primaryOk=false;_updateBrokerPills();setTimeout(()=>_mqttCfg&&_connectPrimary(_mqttCfg),6000);}}
-function _connectBackup(mc){if(!mc||!mc.host)return;if(mqttBackup){try{mqttBackup.end(true);}catch(_){}}_backupOk=false;_updateBrokerPills();try{mqttBackup=mqtt.connect(_makeUrl(mc),_buildMqttOpts(mc));mqttBackup.on('connect',()=>{_lastAck2=Date.now();_backupOk=true;_updateBrokerPills();const t=(mc.topic||_mqttCfg?.topic||'tasni-water/+/state');mqttBackup.subscribe(t,{qos:1});showToast('☁️ Backup MQTT connected','ok',2500);});mqttBackup.on('message',(_t,pl)=>{_lastAck2=Date.now();try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){}});mqttBackup.on('error',()=>{_backupOk=false;_updateBrokerPills();});}catch(e){_backupOk=false;_updateBrokerPills();setTimeout(()=>_mqttCfg2&&_connectBackup(_mqttCfg2),6000);}}
-function _connectMQTT(mc){_mqttCfg=mc;_connectPrimary(mc);}
-function _connectMQTT2(mc){_mqttCfg2=mc;_connectBackup(mc);}
 
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')requestWakeLock();});
-window.addEventListener('online',()=>{showToast('📶 Network restored','info',2500);if(_mqttCfg&&(!mqttPrimary||!mqttPrimary.connected))_connectPrimary(_mqttCfg);if(_mqttCfg2&&(!mqttBackup||!mqttBackup.connected))_connectBackup(_mqttCfg2);});
-window.addEventListener('offline',()=>{showToast('📡 Network lost','warn',3000);_primaryOk=false;_backupOk=false;_updateBrokerPills();});
-async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await navigator.wakeLock.request('screen');}catch(_){}}
-
-function ingestMQTT(d){ingest({m:d.level??d.m,vol:d.volume??d.vol,total:d.total,s:d.status??d.s,dist:d.dist,t:d.trend??d.t,usage:d.usage,up:d.uptime??d.up,rssi:d.rssi,boot:d.boot,isFull:d.isFull,name:d.name},true);}
-function setChip(id,on){const el=document.getElementById(id);if(el)el.classList.toggle('on',on);}
-function updatePill(){
-  const lc=document.getElementById('chip-local')?.classList.contains('on')||false;
-  const mc=document.getElementById('chip-mqtt')?.classList.contains('on')||false;
-  const pill=document.getElementById('connPill');
-  if(!pill)return;
-  if(lc&&mc){pill.className='conn-pill pill-both';document.getElementById('connLbl').textContent='BOTH';}
-  else if(lc){pill.className='conn-pill pill-local';document.getElementById('connLbl').textContent='LOCAL';}
-  else if(mc){pill.className='conn-pill pill-mqtt';document.getElementById('connLbl').textContent='MQTT';}
-  else if(demoMode){pill.className='conn-pill pill-demo';document.getElementById('connLbl').textContent='DEMO';}
-  else{document.getElementById('connLbl').textContent='OFFLINE';}
+function _buildMqttOpts(mc){
+  const opts={
+    clientId:`tasni_web_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`,
+    keepalive:30,
+    reconnectPeriod:5000,
+    connectTimeout:15000,
+    clean:true,
+  };
+  if(mc.user&&mc.user.trim())opts.username=mc.user.trim();
+  if(mc.pass&&mc.pass.trim())opts.password=mc.pass.trim();
+  return opts;
 }
 
+function _makeUrl(mc){
+  const raw=(mc.host||'').replace(/^wss?:\/\//,'');
+  const proto=(mc.port===8083||mc.port===8880||mc.port===8081||mc.port===1884)?'ws':'wss';
+  return`${proto}://${raw}:${mc.port}/mqtt`;
+}
+
+function _connectPrimary(mc){
+  if(!mc||!mc.host)return;
+  if(mqttPrimary){try{mqttPrimary.end(true);}catch(_){}mqttPrimary=null;}
+  clearInterval(_hbTimer);clearTimeout(_wdTimer);
+  _primaryOk=false;_updateBrokerPills();
+  try{
+    mqttPrimary=mqtt.connect(_makeUrl(mc),_buildMqttOpts(mc));
+    mqttPrimary.on('connect',()=>{
+      _lastAck=Date.now();_primaryOk=true;_updateBrokerPills();unlockAch(3);
+      const t=mc.topic||'tasni-water/+/state';
+      mqttPrimary.subscribe(t,{qos:1});
+      if(!_silent){showToast('☁️ Primary MQTT connected','ok',2500);push('ai','☁️ Primary broker connected');}
+      else showToast('🔄 Primary reconnected','ok',2000);
+      _silent=true;
+      _startHBPrimary(mc);
+    });
+    mqttPrimary.on('message',(_t,pl)=>{
+      _lastAck=Date.now();
+      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT-P JSON:',e);}
+    });
+    mqttPrimary.on('reconnect',()=>{_primaryOk=false;_updateBrokerPills();});
+    mqttPrimary.on('close',()=>{_primaryOk=false;_updateBrokerPills();});
+    mqttPrimary.on('offline',()=>{_primaryOk=false;_updateBrokerPills();});
+    mqttPrimary.on('error',(e)=>{console.warn('MQTT-P error:',e.message);_primaryOk=false;_updateBrokerPills();});
+  }catch(e){
+    console.warn('MQTT-P init failed:',e.message);
+    _primaryOk=false;_updateBrokerPills();
+    setTimeout(()=>_mqttCfg&&_connectPrimary(_mqttCfg),6000);
+  }
+}
+
+function _connectBackup(mc){
+  if(!mc||!mc.host)return;
+  if(mqttBackup){try{mqttBackup.end(true);}catch(_){}mqttBackup=null;}
+  clearInterval(_hbTimer2);clearTimeout(_wdTimer2);
+  _backupOk=false;_updateBrokerPills();
+  try{
+    mqttBackup=mqtt.connect(_makeUrl(mc),_buildMqttOpts(mc));
+    mqttBackup.on('connect',()=>{
+      _lastAck2=Date.now();_backupOk=true;_updateBrokerPills();
+      const t=(mc.topic||_mqttCfg?.topic||'tasni-water/+/state');
+      mqttBackup.subscribe(t,{qos:1});
+      if(!_silent2){showToast('☁️ Backup MQTT connected','ok',2500);push('ai','☁️ Backup broker connected');}
+      else showToast('🔄 Backup reconnected','ok',2000);
+      _silent2=true;
+      _startHBBackup(mc);
+    });
+    mqttBackup.on('message',(_t,pl)=>{
+      _lastAck2=Date.now();
+      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT-B JSON:',e);}
+    });
+    mqttBackup.on('reconnect',()=>{_backupOk=false;_updateBrokerPills();});
+    mqttBackup.on('close',()=>{_backupOk=false;_updateBrokerPills();});
+    mqttBackup.on('offline',()=>{_backupOk=false;_updateBrokerPills();});
+    mqttBackup.on('error',(e)=>{console.warn('MQTT-B error:',e.message);_backupOk=false;_updateBrokerPills();});
+  }catch(e){
+    console.warn('MQTT-B init failed:',e.message);
+    _backupOk=false;_updateBrokerPills();
+    setTimeout(()=>_mqttCfg2&&_connectBackup(_mqttCfg2),6000);
+  }
+}
+
+function _startHBPrimary(mc){
+  clearInterval(_hbTimer);
+  _hbTimer=setInterval(()=>{
+    if(!mqttPrimary||!mqttPrimary.connected)return;
+    mqttPrimary.publish('tasni-water/web/ping',JSON.stringify({ts:Date.now()}),{qos:0});
+    clearTimeout(_wdTimer);
+    _wdTimer=setTimeout(()=>{
+      if(Date.now()-_lastAck>45000&&_mqttCfg){
+        console.warn('TASNI: primary watchdog — reconnect');
+        _primaryOk=false;_updateBrokerPills();
+        _connectPrimary(_mqttCfg);
+      }
+    },45000);
+  },25000);
+}
+
+function _startHBBackup(mc){
+  clearInterval(_hbTimer2);
+  _hbTimer2=setInterval(()=>{
+    if(!mqttBackup||!mqttBackup.connected)return;
+    mqttBackup.publish('tasni-water/web/ping',JSON.stringify({ts:Date.now()}),{qos:0});
+    clearTimeout(_wdTimer2);
+    _wdTimer2=setTimeout(()=>{
+      if(Date.now()-_lastAck2>45000&&_mqttCfg2){
+        console.warn('TASNI: backup watchdog — reconnect');
+        _backupOk=false;_updateBrokerPills();
+        _connectBackup(_mqttCfg2);
+      }
+    },45000);
+  },25000);
+}
+
+function _connectMQTT(mc){_mqttCfg=mc;_silent=false;_connectPrimary(mc);}
+function _connectMQTT2(mc){_mqttCfg2=mc;_silent2=false;_connectBackup(mc);}
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    if(_mqttCfg&&(!mqttPrimary||!mqttPrimary.connected)){_connectPrimary(_mqttCfg);}
+    else if(_mqttCfg)_startHBPrimary(_mqttCfg);
+    if(_mqttCfg2&&(!mqttBackup||!mqttBackup.connected)){_connectBackup(_mqttCfg2);}
+    else if(_mqttCfg2)_startHBBackup(_mqttCfg2);
+    requestWakeLock();
+  }
+});
+window.addEventListener('online',()=>{
+  showToast('📶 Network restored','info',2500);
+  if(_mqttCfg&&(!mqttPrimary||!mqttPrimary.connected))_connectPrimary(_mqttCfg);
+  if(_mqttCfg2&&(!mqttBackup||!mqttBackup.connected))_connectBackup(_mqttCfg2);
+});
+window.addEventListener('offline',()=>{
+  showToast('📡 Network lost','warn',3000);
+  _primaryOk=false;_backupOk=false;_updateBrokerPills();
+  clearTimeout(_staleTimer);_staleTimer=setTimeout(_markStale,5000);
+});
+async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await navigator.wakeLock.request('screen');}catch(_){}}
+
+// ═══════════════════════════════════════════
+//  MQTT FIELD MAP
+// ═══════════════════════════════════════════
+function ingestMQTT(d){
+  ingest({
+    m:    d.level??d.m,       vol:  d.volume??d.vol,
+    total:d.total,            s:    d.status??d.s,
+    dist: d.dist,             t:    d.trend??d.t,
+    usage:d.usage,            up:   d.uptime??d.up,
+    rssi: d.rssi,             boot: d.boot,
+    isFull:d.isFull,          name: d.name,
+  },true);
+}
+function setChip(id,on){document.getElementById(id).classList.toggle('on',on);}
+function updatePill(){
+  const lc=document.getElementById('chip-local').classList.contains('on');
+  const mc=document.getElementById('chip-mqtt').classList.contains('on');
+  const pill=document.getElementById('connPill');
+  pill.className='conn-pill';
+  if(lc&&mc)    {pill.classList.add('pill-both'); document.getElementById('connLbl').textContent='BOTH';}
+  else if(lc)   {pill.classList.add('pill-local');document.getElementById('connLbl').textContent='LOCAL';}
+  else if(mc)   {pill.classList.add('pill-mqtt'); document.getElementById('connLbl').textContent='MQTT';}
+  else if(demoMode){pill.classList.add('pill-demo');document.getElementById('connLbl').textContent='DEMO';}
+  else          {document.getElementById('connLbl').textContent='OFFLINE';}
+}
+
+// ═══════════════════════════════════════════
+//  DATA INGEST
+// ═══════════════════════════════════════════
 let _animTimer=null;
+let _lastMotionDir=0;
+
 function _setTankAnim(dir){
   const fill=document.getElementById('waterFill');
   const wrap=document.getElementById('tankWrap');
+  _lastMotionDir=dir;
   if(!fill||!wrap)return;
-  if(dir===1){fill.classList.add('anim-active');wrap.classList.add('filling-active');wrap.classList.remove('emptying-active');}
-  else if(dir===-1){fill.classList.add('anim-active');wrap.classList.remove('filling-active');wrap.classList.add('emptying-active');}
-  else{fill.classList.remove('anim-active');wrap.classList.remove('filling-active');wrap.classList.remove('emptying-active');}
+  if(dir===1){
+    fill.classList.add('anim-active');
+    wrap.classList.add('filling-active');
+    wrap.classList.remove('emptying-active');
+  } else if(dir===-1){
+    fill.classList.add('anim-active');
+    wrap.classList.remove('filling-active');
+    wrap.classList.add('emptying-active');
+  } else {
+    fill.classList.remove('anim-active');
+    wrap.classList.remove('filling-active');
+    wrap.classList.remove('emptying-active');
+  }
 }
 
-function ingest(d){
+function ingest(d,fromMQTT=false){
   const prev=S.m;
-  if(d.m!=null)S.m=parseInt(d.m);
-  if(d.vol!=null)S.vol=parseFloat(d.vol);
-  if(d.total!=null)S.total=parseFloat(d.total);
-  if(d.s!=null)S.s=d.s;
-  if(d.dist!=null)S.dist=parseFloat(d.dist);
-  if(d.t!=null)S.t=d.t;
-  if(d.usage!=null)S.usage=parseFloat(d.usage);
-  if(d.up!=null)S.up=parseInt(d.up);
-  if(d.rssi!=null)S.rssi=parseInt(d.rssi);
-  if(d.boot!=null)S.boot=parseInt(d.boot);
+  if(d.m     !=null)S.m     =parseInt(d.m);
+  if(d.vol   !=null)S.vol   =parseFloat(d.vol);
+  if(d.total !=null)S.total =parseFloat(d.total);
+  if(d.s     !=null)S.s     =d.s;
+  if(d.dist  !=null)S.dist  =parseFloat(d.dist);
+  if(d.t     !=null)S.t     =d.t;
+  if(d.usage !=null)S.usage =parseFloat(d.usage);
+  if(d.up    !=null)S.up    =parseInt(d.up);
+  if(d.rssi  !=null)S.rssi  =parseInt(d.rssi);
+  if(d.boot  !=null)S.boot  =parseInt(d.boot);
   if(d.isFull!=null)S.isFull=parseInt(d.isFull);
-  if(d.name!=null)S.name=d.name;
+  if(d.name  !=null)S.name  =d.name;
+  if(!demoMode&&S.m!=null){
+    const _hn=Date.now();
+    if(_hn-_lastHistorySave>120000){
+      _lastHistorySave=_hn;
+      S.history.shift();S.history.push(S.m);
+      _saveHourly();
+    } else if(!fromMQTT){
+      S.history.shift();S.history.push(S.m);
+    }
+  }
   S.connected=true;
   S.lastUpdate=new Date();
-  if(!demoMode&&S.m!=null){S.history.shift();S.history.push(S.m);}
-  if(prev!=null&&S.m!=null&&S.m!==prev){_setTankAnim(S.m>prev?1:-1);clearTimeout(_animTimer);_animTimer=setTimeout(()=>_setTankAnim(0),10000);}
-  if(!_displayReady){if(Date.now()-_bootStart>=10000){_displayReady=true;if(!demoMode)setTimeout(()=>{try{playConnectSound();}catch(_){}},200);}}
+
+  if(prev!=null&&S.m!=null&&S.m!==prev){
+    if(S.m>prev){
+      _setTankAnim(1);
+    } else {
+      _setTankAnim(-1);
+    }
+    clearTimeout(_animTimer);
+    _animTimer=setTimeout(()=>_setTankAnim(0),10000);
+  }
+  if(!_displayReady){
+    const _elapsed=Date.now()-_bootStart;
+    if(_elapsed>=_BOOT_MS){
+      _displayReady=true;
+      clearTimeout(_bootGuardTimer);
+      _bootGuardActive=false;
+      if(!demoMode)setTimeout(()=>{try{playConnectSound();}catch(_){}},200);
+    }
+  }
+  try{
+    if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
+      navigator.serviceWorker.controller.postMessage({type:'STORE_LEVEL',level:S.m});
+    }
+  }catch(_){}
+
   _resetStaleTimer();
+
+  if(_displayReady&&!demoMode&&S.m!=null){
+    const _now=new Date();
+    const _hr=_now.getHours();
+    const _isNight=_hr>=22||_hr<6;
+    const _isDay=_hr>=6&&_hr<22;
+
+    if(prev!=null&&S.m<prev){
+      const dropL=((prev-S.m)/100)*S.total;
+      recordUsageEvent(dropL,prev,S.m);
+
+      if(prev-S.m>=5){
+        analyticsSession.suddenDrops.push({time:_now.toLocaleTimeString(),fromPct:prev,toPct:S.m,dropL:dropL.toFixed(1)});
+        if(analyticsSession.suddenDrops.length>30)analyticsSession.suddenDrops.shift();
+      }
+
+      if(_isNight&&prev-S.m>=2){
+        const ll=(prev-S.m)/100*S.total;
+        analyticsSession.nightLeakLiters+=ll;
+        if(analyticsSession.nightLeakLiters>20)analyticsSession.nightLeakDetected=true;
+      }
+    }
+
+    if(prev!=null&&S.m>=95&&prev<95){
+      analyticsSession.fullTankEvents.push({time:_now.toLocaleString(),pct:S.m,vol:S.vol.toFixed(0)});
+    }
+
+    if(_isDay) analyticsSession.dayReadings.push(S.m);
+    if(_isNight) analyticsSession.nightReadingsPct.push(S.m);
+    if(analyticsSession.dayReadings.length>500)analyticsSession.dayReadings.shift();
+    if(analyticsSession.nightReadingsPct.length>500)analyticsSession.nightReadingsPct.shift();
+
+    _updateTankHealth();
+
+    analyticsSession.readings.push({t:Date.now(),m:S.m,usage:S.usage||0});
+    if(analyticsSession.readings.length>500)analyticsSession.readings.shift();
+  }
+
   checkAlerts(prev,S.m,S.isFull);
   renderDash();
+  _renderDashInsights();
 }
+
+// ═══════════════════════════════════════════
+//  ALERT ENGINE
+// ═══════════════════════════════════════════
+let _speechBusy=false;
+let _speechTimeout=null;
 
 function _speakAlert(level,type){
   if(!('speechSynthesis' in window))return;
-  const allPhrases={
-    low:[{key:'en',text:`Water tank is running low. Level at ${level} percent. Please refill soon.`,lang:'en-IN'}],
-    critical:[{key:'en',text:`Warning! Tank is critically low at ${level} percent. Refill immediately!`,lang:'en-IN'}],
-    full:[{key:'en',text:`Tank is full. Water level is at maximum.`,lang:'en-IN'}],
-  };
-  const phrases=(allPhrases[type]||allPhrases.low).filter(p=>{if(p.key==='en')return ck('t-lang-en');return false;});
-  if(!phrases.length)return;
-  const utt=new SpeechSynthesisUtterance(phrases[0].text);
-  utt.lang=phrases[0].lang;utt.rate=0.86;
+
+  clearTimeout(_speechTimeout);
   speechSynthesis.cancel();
-  speechSynthesis.speak(utt);
+  _speechBusy=false;
+
+  const allPhrases={
+    low:[
+      {key:'en',text:`Water tank is running low. Level at ${level} percent. Please refill soon.`,lang:'en-IN'},
+      {key:'te',text:`నీటి ట్యాంకు తక్కువగా ఉంది. స్థాయి ${level} శాతం. దయచేసి నింపండి.`,lang:'te-IN'},
+      {key:'ur',text:`پانی کی ٹینکی کم ہو رہی ہے۔ سطح ${level} فیصد ہے۔ براہ کرم بھریں۔`,lang:'ur-IN'},
+    ],
+    critical:[
+      {key:'en',text:`Warning! Tank is critically low at ${level} percent. Refill immediately!`,lang:'en-IN'},
+      {key:'te',text:`హెచ్చరిక! ట్యాంకు చాలా తక్కువగా ఉంది. ${level} శాతం మాత్రమే ఉంది. వెంటనే నింపండి!`,lang:'te-IN'},
+      {key:'ur',text:`خبردار! ٹینکی بہت کم ہے۔ صرف ${level} فیصد باقی ہے۔ فوری طور پر بھریں!`,lang:'ur-IN'},
+    ],
+    full:[
+      {key:'en',text:`Tank is full. Water level is at maximum.`,lang:'en-IN'},
+      {key:'te',text:`ట్యాంకు నిండింది. నీటి స్థాయి గరిష్ఠంగా ఉంది.`,lang:'te-IN'},
+      {key:'ur',text:`ٹینکی بھر گئی ہے۔ پانی کی سطح زیادہ سے زیادہ ہے۔`,lang:'ur-IN'},
+    ],
+  };
+
+  const phrases=(allPhrases[type]||allPhrases.low).filter(p=>{
+    if(p.key==='en')return ck('t-lang-en');
+    if(p.key==='te')return ck('t-lang-te');
+    if(p.key==='ur')return ck('t-lang-ur');
+    return true;
+  });
+
+  if(!phrases.length)return;
+
+  _speechBusy=true;
+  _speechTimeout=setTimeout(()=>{_speechBusy=false;speechSynthesis.cancel();},30000);
+
+  const voices=speechSynthesis.getVoices();
+  let idx=0;
+
+  function speakNext(){
+    if(idx>=phrases.length){_speechBusy=false;clearTimeout(_speechTimeout);return;}
+    const p=phrases[idx++];
+    const utt=new SpeechSynthesisUtterance(p.text);
+    utt.lang=p.lang;utt.rate=0.86;utt.pitch=1.05;utt.volume=1.0;
+    const match=
+      voices.find(v=>v.lang===p.lang)||
+      voices.find(v=>v.lang.startsWith(p.lang.split('-')[0]))||
+      (p.lang.startsWith('en')?voices.find(v=>v.lang.startsWith('en')):null)||null;
+    if(match)utt.voice=match;
+    utt.onend=()=>setTimeout(speakNext,700);
+    utt.onerror=()=>setTimeout(speakNext,300);
+    try{speechSynthesis.speak(utt);}catch(e){setTimeout(speakNext,300);}
+  }
+
+  if(voices.length===0){
+    speechSynthesis.addEventListener('voiceschanged',()=>speakNext(),{once:true});
+    setTimeout(()=>{if(_speechBusy&&idx===0)speakNext();},800);
+  } else {
+    setTimeout(speakNext,150);
+  }
+}
+
+function _updateTankHealth(){
+  let score=100;
+  const sd=analyticsSession.suddenDrops.length;
+  const nl=analyticsSession.nightLeakLiters;
+  if(nl>50)score-=30;
+  else if(nl>20)score-=15;
+  if(sd>5)score-=20;
+  else if(sd>2)score-=10;
+  if(S.rssi&&S.rssi<-80)score-=5;
+  score=Math.max(0,Math.min(100,score));
+  analyticsSession.healthScore=score;
+  analyticsSession.healthLabel=score>=80?'GOOD':score>=50?'FAIR':'POOR';
+}
+
+function _renderDashInsights(){
+  const el=document.getElementById('dashInsights');
+  if(!el||!_displayReady||demoMode)return;
+  let html='';
+  if(analyticsSession.nightLeakDetected){
+    html+=`<div style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:18px">🚨</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#f87171;letter-spacing:1px;font-family:var(--head)">NIGHT LEAKAGE DETECTED</div>
+        <div style="font-size:11px;color:rgba(248,113,113,.8);margin-top:3px">~${analyticsSession.nightLeakLiters.toFixed(0)} L lost between 10 PM–6 AM. Check pipes &amp; valves.</div>
+      </div></div>`;
+  }
+  const hs=analyticsSession.healthScore;
+  const hcol=hs>=80?'var(--ok)':hs>=50?'var(--warn)':'var(--danger)';
+  const dayAvg=analyticsSession.dayReadings.length?Math.round(analyticsSession.dayReadings.reduce((a,b)=>a+b,0)/analyticsSession.dayReadings.length):null;
+  const ngtAvg=analyticsSession.nightReadingsPct.length?Math.round(analyticsSession.nightReadingsPct.reduce((a,b)=>a+b,0)/analyticsSession.nightReadingsPct.length):null;
+  if(dayAvg!==null||ngtAvg!==null||analyticsSession.fullTankEvents.length>0){
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-family:var(--mono);font-size:18px;color:${hcol}">${hs}</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-top:3px;font-family:var(--head)">HEALTH</div>
+        <div style="font-size:9px;color:${hcol};margin-top:2px;font-weight:700">${analyticsSession.healthLabel}</div>
+      </div>
+      <div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-family:var(--mono);font-size:18px;color:var(--pri)">${dayAvg!=null?dayAvg+'%':'--'}</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-top:3px;font-family:var(--head)">DAY AVG</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">6AM–10PM</div>
+      </div>
+      <div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-family:var(--mono);font-size:18px;color:var(--purple)">${ngtAvg!=null?ngtAvg+'%':'--'}</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-top:3px;font-family:var(--head)">NIGHT AVG</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">10PM–6AM</div>
+      </div>
+    </div>`;
+    if(analyticsSession.fullTankEvents.length>0){
+      html+=`<div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--ok);font-family:var(--head);letter-spacing:1px">FULL TANK</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">Times tank reached capacity</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:28px;color:var(--ok)">${analyticsSession.fullTankEvents.length}</div>
+      </div>`;
+    }
+  }
+  el.innerHTML=html;
+}
+
+function recordUsageEvent(dropL,fromPct,toPct){
+  const now=new Date();
+  const h=now.getHours();
+  const period=h>=6&&h<12?'morn':h>=12&&h<18?'aft':h>=18?'eve':'ngt';
+  analyticsSession.periodTotals[period]+=dropL;
+  analyticsSession.totalUsedL+=dropL;
+  analyticsSession.events.push({time:now.toLocaleTimeString(),dropL:dropL.toFixed(1),fromPct,toPct,period});
+  if(analyticsSession.events.length>60)analyticsSession.events.shift();
 }
 
 function checkAlerts(prev,cur,isFull){
-  if(prev==null||cur==null||!_displayReady)return;
-  if(prev>=10&&cur<10&&ck('t-crit')){push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);if(ck('t-sound'))playSound('critical_alarm');_speakAlert(cur,'critical');}
-  else if(prev>=30&&cur<30&&ck('t-low')){push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');if(ck('t-sound'))playSound('low_alert');_speakAlert(cur,'low');}
-  if(prev>=5&&cur<5&&ck('t-crit')&&ck('t-sound'))playSound('five_pct');
-  if(prev<90&&cur>=90&&ck('t-fill')){push('ai','✅ REFILLED: Tank is now above 90%.');if(ck('t-sound'))playSound('refill');}
-  if(!S._wasFull&&isFull===1&&ck('t-full')){push('ai','💧 FULL TANK: Water level is at maximum!');if(ck('t-sound'))playSound('full_tank');setTimeout(()=>_speakAlert(100,'full'),2200);}
+  if(prev==null||cur==null)return;
+  if(prev===cur)return;
+  if(!_displayReady)return;
+
+  if(prev>=10&&cur<10&&ck('t-crit')){
+    push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
+    if(ck('t-sound'))playSound('critical_alarm');
+    _speakAlert(cur,'critical');
+  } else if(prev>=30&&cur<30&&ck('t-low')){
+    push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
+    if(ck('t-sound'))playSound('low_alert');
+    _speakAlert(cur,'low');
+  }
+
+  if(prev>=5&&cur<5&&ck('t-crit')){
+    if(ck('t-sound'))playSound('five_pct');
+  }
+
+  const prevBand=Math.floor(prev/10);
+  const curBand =Math.floor(cur/10);
+  if(curBand<prevBand&&cur>=10&&cur<90){
+    for(let b=prevBand-1;b>=curBand&&b>=1;b--){
+      push('aw','💧 DROP: Tank crossed '+(b*10)+'% — now at '+cur+'%.');
+    }
+  }
+
+  if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
+
+  if(prev<90&&cur>=90&&ck('t-fill')){
+    push('ai','✅ REFILLED: Tank is now above 90%.');
+    if(ck('t-sound')&&cur<100)playSound('refill');
+  }
+
+  if(!S._wasFull&&isFull===1&&ck('t-full')){
+    push('ai','💧 FULL TANK: Water level is at maximum!');
+    if(ck('t-sound'))playSound('full_tank');
+    setTimeout(()=>_speakAlert(100,'full'),2200);
+  }
   S._wasFull=isFull===1;
 }
 
 function push(type,msg,critical=false){
-  const a={type,msg,time:new Date().toISOString()};
+  const _m=msg.replace(/[:\s]+\S*\.\S+\.\S+/g,'').replace(/:\s*\d{1,3}(\.\d{1,3}){3}/g,'').replace(/https?:\/\/\S+/g,'').replace(/\[.*?\]/g,'').trim().replace(/:$/,'');
+  const a={type,msg:_m,time:new Date().toISOString()};
   alerts.unshift(a);if(alerts.length>60)alerts=alerts.slice(0,60);
   localStorage.setItem('tasni_alerts',JSON.stringify(alerts));
-  unread++;const b=document.getElementById('alertBadge');if(b){b.textContent=unread;b.classList.remove('hidden');}
-  if('vibrate' in navigator)navigator.vibrate(critical?[200,80,200,80,400]:[80,40,80]);
-  if(Notification.permission==='granted'){new Notification('TASNI Water Monitor',{body:msg,icon:'icon.svg'});}
+  unread++;const b=document.getElementById('alertBadge');
+  b.textContent=unread;b.classList.remove('hidden');
+  if('vibrate' in navigator){
+    if(critical||type==='ac')navigator.vibrate([200,80,200,80,400,80,200,80,600]);
+    else if(type==='aw')    navigator.vibrate([150,60,150,60,300]);
+    else                    navigator.vibrate([80,40,80]);
+  }
+  if(Notification.permission==='granted'){
+    const icons={ac:'🚨',aw:'⚠️',ai:'💧'};
+    new Notification('TASNI Water Monitor',{body:msg,icon:'icon.svg',badge:'icon.svg',tag:'tasni-'+type,
+      vibrate:critical?[200,80,200,80,400]:[100,50,100],
+      requireInteraction:critical&&type==='ac'});
+  }
   showToast(msg,type==='ac'?'danger':type==='aw'?'warn':'info',3000);
+  if(ck('t-sound')&&type==='ac')playSound(type,critical);
 }
 function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
-function _resetStaleTimer(){if(demoMode)return;clearTimeout(_staleTimer);_staleTimer=setTimeout(()=>{if(S.connected){S.connected=false;_displayReady=false;renderDash();}},STALE_MS);}
 
-function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx;}
+// ═══════════════════════════════════════════
+//  STALENESS WATCHDOG
+// ═══════════════════════════════════════════
+function _resetStaleTimer(){
+  if(demoMode)return;
+  clearTimeout(_staleTimer);
+  _staleTimer=setTimeout(_markStale,STALE_MS);
+}
+function _markStale(){
+  if(S.connected){
+    S.connected=false;
+    _displayReady=false;
+    _realReadingCount=0;
+    _bootGuardActive=false;
+    showToast('📡 No data — device may be offline','warn',4000);
+  }
+  renderDash();
+}
+
+// ═══════════════════════════════════════════
+//  SOUND ENGINE
+// ═══════════════════════════════════════════
+function getAudioCtx(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  return audioCtx;
+}
+
 let _masterGain=null;
-function getMaster(ctx){if(!_masterGain||_masterGain.context!==ctx){_masterGain=ctx.createGain();_masterGain.gain.value=0.85;const comp=ctx.createDynamicsCompressor();comp.threshold.value=-12;comp.knee.value=6;comp.ratio.value=4;_masterGain.connect(comp);comp.connect(ctx.destination);}return _masterGain;}
-function _waterNoise(ctx,startT,dur,vol,loFreq,hiFreq,dest){const sr=ctx.sampleRate;const buf=ctx.createBuffer(1,Math.ceil(sr*dur),sr);const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*0.15;const src=ctx.createBufferSource();src.buffer=buf;const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=(loFreq+hiFreq)/2;bp.Q.value=0.8;const g=ctx.createGain();const now=ctx.currentTime;g.gain.setValueAtTime(0,now+startT);g.gain.linearRampToValueAtTime(vol,now+startT+0.015);g.gain.exponentialRampToValueAtTime(0.0001,now+startT+dur);src.connect(bp);bp.connect(g);g.connect(dest||getMaster(ctx));src.start(now+startT);src.stop(now+startT+dur+0.02);}
-function _drip(ctx,startT,baseFreq,vol,dest){const out=dest||getMaster(ctx);const now=ctx.currentTime;_waterNoise(ctx,startT,0.015,vol*0.5,600,3000,out);const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(out);o.type='sine';o.frequency.setValueAtTime(baseFreq*1.5,now+startT);o.frequency.exponentialRampToValueAtTime(baseFreq*0.5,now+startT+0.25);g.gain.setValueAtTime(0,now+startT);g.gain.linearRampToValueAtTime(vol,now+startT+0.008);g.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.45);o.start(now+startT);o.stop(now+startT+0.5);}
-function _chime(ctx,freq,startT,vol,dest){const out=dest||getMaster(ctx);const now=ctx.currentTime;const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(out);o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(0,now+startT);g.gain.linearRampToValueAtTime(vol,now+startT+0.01);g.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.8);o.start(now+startT);o.stop(now+startT+0.85);}
-function _stream(ctx,startT,dur,vol,brightness,dest){_waterNoise(ctx,startT,dur,vol,brightness*0.5,brightness*3,dest||getMaster(ctx));_waterNoise(ctx,startT,dur,vol*0.5,brightness*0.2,brightness,dest||getMaster(ctx));}
-function playSound(type){try{const ctx=getAudioCtx();if(type==='drop_10'){_drip(ctx,0,380,0.35);_drip(ctx,0.55,320,0.25);}else if(type==='five_pct'){_drip(ctx,0,980,0.32);_drip(ctx,0.3,860,0.24);_waterNoise(ctx,0,1.2,0.025,600,2000,getMaster(ctx));}else if(type==='low_alert'){_chime(ctx,196,0,0.35);_chime(ctx,246,0.65,0.28);_waterNoise(ctx,0,3.0,0.035,60,280,getMaster(ctx));}else if(type==='refill'){_stream(ctx,0,1.2,0.18,900);[0,0.15,0.3,0.45,0.6,0.75].forEach((t,i)=>{_drip(ctx,t,500-i*25,0.22-i*0.02);});[523,659,784].forEach((f,i)=>{_chime(ctx,f,1.2+i*0.18,0.25);});}else if(type==='full_tank'){_stream(ctx,0,0.6,0.10,500);_drip(ctx,0.1,220,0.30);_drip(ctx,0.45,196,0.20);[392,494,587,740,988].forEach((f,i)=>{_chime(ctx,f,1.0+i*0.14,0.22-i*0.025);});}else if(type==='critical_alarm'){[0,0.12,0.22,0.3,0.37,0.43,0.48,0.52].forEach((t,i)=>{_drip(ctx,t,1200-i*30,0.28-i*0.018);});[0,0.35,0.7].forEach(t=>{const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(getMaster(ctx));o.type='sine';o.frequency.value=55;g.gain.setValueAtTime(0,ctx.currentTime+t);g.gain.linearRampToValueAtTime(0.5,ctx.currentTime+t+0.01);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.28);o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.3);_waterNoise(ctx,t,0.018,0.4,100,600,getMaster(ctx));});}}catch(e){}}
-function playConnectSound(){try{const ctx=getAudioCtx();_drip(ctx,0,340,0.18);_chime(ctx,523,0.3,0.12);}catch(_){}}
+function getMaster(ctx){
+  if(!_masterGain||_masterGain.context!==ctx){
+    _masterGain=ctx.createGain();
+    _masterGain.gain.value=0.85;
+    const comp=ctx.createDynamicsCompressor();
+    comp.threshold.value=-12;comp.knee.value=6;
+    comp.ratio.value=4;comp.attack.value=0.003;comp.release.value=0.25;
+    _masterGain.connect(comp);comp.connect(ctx.destination);
+  }
+  return _masterGain;
+}
 
+function _waterNoise(ctx,startT,dur,vol,loFreq,hiFreq,dest){
+  const sr=ctx.sampleRate;
+  const buf=ctx.createBuffer(1,Math.ceil(sr*dur),sr);
+  const d=buf.getChannelData(0);
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+  for(let i=0;i<d.length;i++){
+    const wh=Math.random()*2-1;
+    b0=0.99886*b0+wh*0.0555179;b1=0.99332*b1+wh*0.0750759;
+    b2=0.96900*b2+wh*0.1538520;b3=0.86650*b3+wh*0.3104856;
+    b4=0.55000*b4+wh*0.5329522;b5=-0.7616*b5-wh*0.0168980;
+    d[i]=(b0+b1+b2+b3+b4+b5+b6+wh*0.5362)*0.11;b6=wh*0.115926;
+  }
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const bp=ctx.createBiquadFilter();bp.type='bandpass';
+  bp.frequency.value=(loFreq+hiFreq)/2;bp.Q.value=0.8;
+  const g=ctx.createGain();
+  const now=ctx.currentTime;
+  g.gain.setValueAtTime(0,now+startT);
+  g.gain.linearRampToValueAtTime(vol,now+startT+Math.min(0.015,dur*0.1));
+  g.gain.exponentialRampToValueAtTime(0.0001,now+startT+dur);
+  src.connect(bp);bp.connect(g);g.connect(dest||getMaster(ctx));
+  src.start(now+startT);src.stop(now+startT+dur+0.02);
+}
+
+function _drip(ctx,startT,baseFreq,vol,dest){
+  const now=ctx.currentTime;
+  const out=dest||getMaster(ctx);
+  _waterNoise(ctx,startT,0.012,vol*0.6,800,4000,out);
+  const o=ctx.createOscillator();
+  const g=ctx.createGain();
+  const filt=ctx.createBiquadFilter();
+  filt.type='lowpass';filt.frequency.value=2200;filt.Q.value=2.5;
+  o.connect(filt);filt.connect(g);g.connect(out);
+  o.type='sine';
+  o.frequency.setValueAtTime(baseFreq*1.8,now+startT);
+  o.frequency.exponentialRampToValueAtTime(baseFreq*0.6,now+startT+0.18);
+  o.frequency.exponentialRampToValueAtTime(baseFreq*0.4,now+startT+0.35);
+  g.gain.setValueAtTime(0,now+startT);
+  g.gain.linearRampToValueAtTime(vol,now+startT+0.008);
+  g.gain.exponentialRampToValueAtTime(vol*0.3,now+startT+0.08);
+  g.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.55);
+  o.start(now+startT);o.stop(now+startT+0.6);
+  const o2=ctx.createOscillator();const g2=ctx.createGain();
+  o2.connect(g2);g2.connect(out);o2.type='sine';
+  o2.frequency.setValueAtTime(baseFreq*3.2,now+startT+0.005);
+  o2.frequency.exponentialRampToValueAtTime(baseFreq*1.1,now+startT+0.12);
+  g2.gain.setValueAtTime(0,now+startT+0.005);
+  g2.gain.linearRampToValueAtTime(vol*0.25,now+startT+0.015);
+  g2.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.18);
+  o2.start(now+startT+0.005);o2.stop(now+startT+0.2);
+}
+
+function _ripple(ctx,startT,freq,vol,dest){
+  const out=dest||getMaster(ctx);
+  const now=ctx.currentTime;
+  const o=ctx.createOscillator();const g=ctx.createGain();
+  const filt=ctx.createBiquadFilter();filt.type='lowpass';filt.frequency.value=600;filt.Q.value=4;
+  o.connect(filt);filt.connect(g);g.connect(out);
+  o.type='sine';o.frequency.setValueAtTime(freq,now+startT);
+  o.frequency.linearRampToValueAtTime(freq*0.55,now+startT+0.4);
+  g.gain.setValueAtTime(0,now+startT);
+  g.gain.linearRampToValueAtTime(vol,now+startT+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.5);
+  o.start(now+startT);o.stop(now+startT+0.55);
+}
+
+function _stream(ctx,startT,dur,vol,brightness,dest){
+  _waterNoise(ctx,startT,dur,vol,brightness*0.5,brightness*3,dest||getMaster(ctx));
+  _waterNoise(ctx,startT,dur,vol*0.5,brightness*0.2,brightness,dest||getMaster(ctx));
+}
+
+function _chime(ctx,freq,startT,vol,dest){
+  const out=dest||getMaster(ctx);const now=ctx.currentTime;
+  const partials=[1,2.756,5.404,8.933,13.35];
+  const vols   =[1,0.35, 0.18, 0.09, 0.04];
+  partials.forEach((p,i)=>{
+    const o=ctx.createOscillator();const g=ctx.createGain();
+    o.connect(g);g.connect(out);
+    o.type='sine';o.frequency.value=freq*p;
+    g.gain.setValueAtTime(0,now+startT);
+    g.gain.linearRampToValueAtTime(vol*vols[i],now+startT+0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.8+i*0.4);
+    o.start(now+startT);o.stop(now+startT+1.2+i*0.4);
+  });
+}
+
+let _dripInterval=null;
+let _dripScheduled=false;
+
+function _scheduleDripSound(mode){
+  if(_dripScheduled)return;
+  _dripScheduled=true;
+  setTimeout(()=>{_dripScheduled=false;},500);
+  clearInterval(_dripInterval);
+
+  if(mode==='filling'){
+    const tick=()=>{
+      if(!ck('t-sound'))return;
+      try{
+        const ctx=getAudioCtx();
+        const f=340+Math.random()*160;
+        _drip(ctx,0,f,0.16+Math.random()*0.07);
+        _ripple(ctx,0.07,f*0.48,0.05);
+      }catch(_){}
+    };
+    tick();
+    _dripInterval=setInterval(tick,1700+Math.floor(Math.random()*800));
+
+  } else if(mode==='emptying'){
+    const tick=()=>{
+      if(!ck('t-sound'))return;
+      try{
+        const ctx=getAudioCtx();
+        const out=getMaster(ctx);
+        _waterNoise(ctx,0,0.25,0.045,200,800,out);
+        _waterNoise(ctx,0,0.25,0.025,80,300,out);
+        _drip(ctx,0.08,160+Math.random()*60,0.09);
+      }catch(_){}
+    };
+    tick();
+    _dripInterval=setInterval(tick,2800+Math.floor(Math.random()*1400));
+  }
+
+  setTimeout(()=>{clearInterval(_dripInterval);_dripInterval=null;},10000);
+}
+
+function playSound(type,critical=false){
+  try{
+    const ctx=getAudioCtx();
+
+    if(type==='drop_10'){
+      const f1=380+Math.random()*80;
+      _drip(ctx,0,f1,0.38);
+      _ripple(ctx,0.06,f1*0.5,0.12);
+      _stream(ctx,0.05,0.12,0.06,400);
+      const f2=320+Math.random()*60;
+      _drip(ctx,0.55,f2,0.28);
+      _ripple(ctx,0.62,f2*0.5,0.08);
+      return;
+    }
+
+    if(type==='five_pct'){
+      _drip(ctx,0,980,0.32);
+      _drip(ctx,0.3,860,0.24);
+      _drip(ctx,0.58,740,0.16);
+      _ripple(ctx,0.05,490,0.10);
+      _ripple(ctx,0.35,430,0.07);
+      _waterNoise(ctx,0,1.2,0.025,600,2000,getMaster(ctx));
+      return;
+    }
+
+    if(type==='low_alert'){
+      _chime(ctx,196,0,0.38);
+      _chime(ctx,246,0.65,0.30);
+      _chime(ctx,294,1.3,0.22);
+      _drip(ctx,0.3,260,0.18);
+      _ripple(ctx,0.38,130,0.07);
+      _waterNoise(ctx,0,3.0,0.035,60,280,getMaster(ctx));
+      return;
+    }
+
+    if(type==='refill'){
+      _stream(ctx,0,1.2,0.18,900);
+      _stream(ctx,0,1.2,0.10,300);
+      [0,0.15,0.3,0.45,0.6,0.75].forEach((t,i)=>{
+        _drip(ctx,t,500-i*25,0.22-i*0.02);
+      });
+      _stream(ctx,1.0,0.4,0.06,600);
+      [523,659,784].forEach((f,i)=>{_chime(ctx,f,1.2+i*0.18,0.25);});
+      return;
+    }
+
+    if(type==='full_tank'){
+      _stream(ctx,0,0.6,0.10,500);
+      _drip(ctx,0.1,220,0.30);
+      _drip(ctx,0.45,196,0.20);
+      _drip(ctx,0.82,185,0.14);
+      _ripple(ctx,0.12,110,0.10);
+      _ripple(ctx,0.48,98,0.07);
+      [392,494,587,740,988].forEach((f,i)=>{
+        _chime(ctx,f,1.0+i*0.14,0.22-i*0.025);
+      });
+      _stream(ctx,1.0,0.8,0.04,200);
+      return;
+    }
+
+    if(type==='critical_alarm'||type==='ac'){
+      const now=ctx.currentTime;
+      const out=getMaster(ctx);
+      [0,0.12,0.22,0.30,0.37,0.43,0.48,0.52,0.55,0.57].forEach((t,i)=>{
+        const f=1200-i*30+Math.random()*80;
+        _drip(ctx,t,f,0.28-i*0.018);
+      });
+      [0,0.35,0.7].forEach(t=>{
+        const o=ctx.createOscillator();const g=ctx.createGain();
+        const filt=ctx.createBiquadFilter();filt.type='lowpass';filt.frequency.value=180;filt.Q.value=8;
+        o.connect(filt);filt.connect(g);g.connect(out);
+        o.type='sine';o.frequency.setValueAtTime(55,now+t);
+        g.gain.setValueAtTime(0,now+t);
+        g.gain.linearRampToValueAtTime(0.55,now+t+0.008);
+        g.gain.exponentialRampToValueAtTime(0.001,now+t+0.28);
+        o.start(now+t);o.stop(now+t+0.3);
+        _waterNoise(ctx,t,0.018,0.4,100,600,out);
+      });
+      _waterNoise(ctx,0.1,0.22,0.06,800,3000,out);
+      _waterNoise(ctx,0.45,0.20,0.05,800,3000,out);
+      _waterNoise(ctx,0.8,0.25,0.07,800,3000,out);
+      const o2=ctx.createOscillator();const g2=ctx.createGain();
+      o2.connect(g2);g2.connect(out);
+      o2.type='sine';o2.frequency.setValueAtTime(82,now);
+      g2.gain.setValueAtTime(0,now);
+      g2.gain.linearRampToValueAtTime(0.22,now+0.01);
+      g2.gain.exponentialRampToValueAtTime(0.001,now+1.8);
+      o2.start(now);o2.stop(now+1.9);
+      return;
+    }
+
+    _drip(ctx,0,440,0.25);
+    _ripple(ctx,0.06,220,0.08);
+
+  }catch(e){console.warn('Audio:',e);}
+}
+
+function playConnectSound(){
+  try{
+    const ctx=getAudioCtx();
+    _drip(ctx,0,340,0.18);
+    _chime(ctx,523,0.3,0.12);
+  }catch(_){}
+}
+
+// ═══════════════════════════════════════════
+//  RENDER DASH
+// ═══════════════════════════════════════════
 function renderDash(){
   const fill=document.getElementById('waterFill');
   const body=document.getElementById('tankBody');
+
   if(!_displayReady||S.m===null||(!S.connected&&!demoMode)){
+    _setTankAnim(0);
     if(fill)fill.style.height='0%';
+    if(fill)fill.style.background='linear-gradient(to top,rgba(80,80,110,.3),rgba(80,80,110,.15))';
     if(body)body.className='tank-body';
     set('levelNum','<span class="pct" style="font-size:28px;color:var(--muted)">NIL</span>');
     const bar=document.getElementById('lvlBar');if(bar)bar.style.width='0%';
-    set('volL','--');set('totalVol','--');set('distCm','--');set('usageRate','--');set('uptimeVal','--');set('rssiVal','--');set('bootVal','--');set('trendLbl','');
-    const b=document.getElementById('statusBadge');if(b){b.className='badge b-off';b.textContent='WAITING';}
-    set('estEmpty','--');set('updLbl',S.lastUpdate?'Last seen '+S.lastUpdate.toLocaleTimeString():'Waiting for device…');
+    set('volL','--');set('totalVol','--');set('distCm','--');set('usageRate','--');
+    set('uptimeVal','--');set('rssiVal','--');set('bootVal','--');set('trendLbl','');
+    const b=document.getElementById('statusBadge');if(b){b.className='badge b-off';b.textContent=(!_displayReady||S.m===null)?'WAITING':'NO DATA';}
+    set('estEmpty','--');
+    set('updLbl',S.lastUpdate?'Last seen '+S.lastUpdate.toLocaleTimeString():'Waiting for device…');
     return;
   }
+
   const pct=Math.max(0,Math.min(100,S.m));
   if(fill)fill.style.height=pct+'%';
+
   if(body)body.className='tank-body';
-  if(S.isFull===1||pct>=100){if(fill)fill.style.background='linear-gradient(to top,rgba(0,180,80,.98),rgba(0,220,120,.82),rgba(52,211,153,.55))';if(body)body.classList.add('full-state');}
-  else if(pct<10){if(fill)fill.style.background='linear-gradient(to top,rgba(180,30,50,.95),rgba(248,113,113,.6))';if(body)body.classList.add('crit-state');}
-  else if(pct<30){if(fill)fill.style.background='linear-gradient(to top,rgba(160,100,0,.95),rgba(251,191,36,.6))';if(body)body.classList.add('low-state');}
-  else{if(fill)fill.style.background='linear-gradient(to top,rgba(0,80,180,.98),rgba(0,140,220,.85),rgba(30,190,220,.6))';}
-  if(S.isFull===1){set('levelNum','FULL<span class="pct" style="font-size:16px"> TANK</span>');}
-  else{set('levelNum',pct+'<span class="pct">%</span>');}
-  const bar=document.getElementById('lvlBar');if(bar)bar.style.width=pct+'%';
+  if(S.isFull===1||pct>=100){
+    if(fill)fill.style.background='linear-gradient(to top,rgba(0,180,80,.98),rgba(0,220,120,.82),rgba(52,211,153,.55))';
+    if(body)body.classList.add('full-state');
+  } else if(pct<10){
+    if(fill)fill.style.background='linear-gradient(to top,rgba(180,30,50,.95),rgba(248,113,113,.6))';
+    if(body)body.classList.add('crit-state');
+  } else if(pct<30){
+    if(fill)fill.style.background='linear-gradient(to top,rgba(160,100,0,.95),rgba(251,191,36,.6))';
+    if(body)body.classList.add('low-state');
+  } else {
+    if(fill)fill.style.background='linear-gradient(to top,rgba(0,80,180,.98),rgba(0,140,220,.85),rgba(30,190,220,.6))';
+  }
+
+  if(S.isFull===1){
+    set('levelNum','FULL<span class="pct" style="font-size:16px"> TANK</span>');
+  } else {
+    set('levelNum',pct+'<span class="pct">%</span>');
+  }
+
+  const bar=document.getElementById('lvlBar');
+  if(bar){
+    bar.style.width=pct+'%';
+    bar.style.background=pct<10?'linear-gradient(90deg,#7a0000,#f87171)':pct<30?'linear-gradient(90deg,#806600,#fbbf24)':'linear-gradient(90deg,var(--purple),var(--pri))';
+  }
+
   set('volL',S.vol.toFixed(0));set('totalVol',S.total);set('distCm',S.dist.toFixed(1));
   set('usageRate',S.usage.toFixed(1));set('uptimeVal',fmtUp(S.up));
   set('rssiVal',S.rssi||'--');set('bootVal',S.boot||'--');set('trendLbl',S.t);
   if(S.name)document.getElementById('tankNameLbl').textContent=S.name.toUpperCase();
+
   const b=document.getElementById('statusBadge');if(b){b.className='badge';
-    if(S.isFull===1){b.textContent='FULL TANK';b.classList.add('b-full');}
-    else if(pct<10){b.textContent='CRITICAL';b.classList.add('b-crit');}
-    else if(pct<30){b.textContent='LOW';b.classList.add('b-low');}
-    else{b.textContent=S.s||'NORMAL';b.classList.add('b-ok');}}
-  document.getElementById('estEmpty').innerHTML=S.usage>0?fmtHrs(S.vol/S.usage):'∞';
+    if(S.isFull===1)    {b.textContent='FULL TANK';b.classList.add('b-full');}
+    else if(pct<10)     {b.textContent='CRITICAL';  b.classList.add('b-crit');}
+    else if(pct<30)     {b.textContent='LOW';        b.classList.add('b-low');}
+    else                {b.textContent=S.s||'NORMAL';b.classList.add('b-ok');}
+  }
+
+  document.getElementById('estEmpty').textContent=S.usage>0?fmtHrs(S.vol/S.usage):'∞';
   if(S.lastUpdate)set('updLbl','Updated '+S.lastUpdate.toLocaleTimeString());
 }
 
+// ═══════════════════════════════════════════
+//  ALERT LOG RENDER
+// ═══════════════════════════════════════════
+function renderAlertLog(){
+  const el=document.getElementById('alertLog');
+  if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div>';return;}
+  el.innerHTML=alerts.slice(0,30).map(a=>`
+    <div class="alert-item ${a.type}">
+      <div class="adot"></div>
+      <div><div class="al-msg">${a.msg}</div><div class="al-time">${new Date(a.time).toLocaleString()}</div></div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+//  DEMO MODE
+// ═══════════════════════════════════════════
 function startDemo(){
+  _realReadingCount=0;
   let lvl=72,dir=-1;
   const tick=()=>{
     lvl+=dir*(Math.random()*1.5);
     if(lvl<=3)dir=1;if(lvl>=98)dir=-1;
     lvl=Math.max(0,Math.min(100,lvl));
     const pct=Math.round(lvl),vol=(pct/100*1000).toFixed(1),dist=((1-pct/100)*115+10).toFixed(1);
-    ingest({m:pct,vol:parseFloat(vol),total:1000,s:pct<=10?'Critical':pct<=30?'Low':'Good',dist:parseFloat(dist),t:dir>0?'⬆️':'⬇️',usage:(1+Math.random()*2.5).toFixed(1),up:Math.floor(Date.now()/1000%86400),rssi:-58,boot:7,isFull:parseFloat(dist)<=10?1:0,name:'Demo Tank'});
+    ingest({m:pct,vol:parseFloat(vol),total:1000,s:pct<=10?'Critical':pct<=30?'Low':pct<=75?'Good':'Full',
+      dist:parseFloat(dist),t:dir>0?'⬆️':'⬇️',usage:(1+Math.random()*2.5).toFixed(1),
+      up:Math.floor(Date.now()/1000%86400),rssi:-58,boot:7,isFull:parseFloat(dist)<=10?1:0,name:'Demo Tank'},false);
   };
   tick();setInterval(tick,2500);setChip('chip-local',true);updatePill();
-  _displayReady=true;
 }
 
-function renderAlertLog(){
-  const el=document.getElementById('alertLog');
-  if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div>';return;}
-  el.innerHTML=alerts.slice(0,30).map(a=>`<div class="alert-item ${a.type}"><div class="adot"></div><div><div class="al-msg">${a.msg}</div><div class="al-time">${new Date(a.time).toLocaleString()}</div></div></div>`).join('');
+// ═══════════════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════════════
+function askNotif(){
+  Notification.requestPermission().then(p=>{
+    if(p==='granted'){document.getElementById('notifBar').classList.add('hidden');unlockAch(2);push('ai','🔔 Notifications enabled!');}
+  });
 }
-function askNotif(){Notification.requestPermission().then(p=>{if(p==='granted')document.getElementById('notifBar').classList.add('hidden');});}
-function checkNotifPerm(){if(Notification.permission==='granted')document.getElementById('notifBar').classList.add('hidden');}
-function showToast(msg,type='info',duration=3000){const wrap=document.getElementById('toast-wrap');while(wrap.children.length>=2)wrap.removeChild(wrap.firstChild);const icons={info:'💧',warn:'⚠️',danger:'🚨',ok:'✅'};const el=document.createElement('div');el.className=`toast ${type}`;el.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span style="flex:1;font-size:11px">${msg}</span>`;el.onclick=()=>el.classList.add('out');wrap.appendChild(el);setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),280);},duration);}
-function renderTips(){document.getElementById('tipCat').textContent=TIPS[tipIdx].cat;document.getElementById('tipTxt').textContent=TIPS[tipIdx].txt;document.getElementById('allTips').innerHTML=TIPS.map(t=>`<div class="tip-card"><div class="tip-cat" style="margin-bottom:8px">${t.cat}</div><div style="font-size:13px;line-height:1.6;font-weight:500">${t.txt}</div></div>`).join('');}
+function checkNotifPerm(){
+  if(Notification.permission==='granted')document.getElementById('notifBar').classList.add('hidden');
+}
+
+// ═══════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════
+function showToast(msg,type='info',duration=3000){
+  const wrap=document.getElementById('toast-wrap');
+  while(wrap.children.length>=2){wrap.removeChild(wrap.firstChild);}
+  const icons={info:'💧',warn:'⚠️',danger:'🚨',ok:'✅'};
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span style="flex:1;font-size:11px">${msg}</span>`;
+  el.onclick=()=>el.classList.add('out');
+  wrap.appendChild(el);
+  setTimeout(()=>{el.classList.add('out');setTimeout(()=>el.remove(),280);},duration);
+}
+
+// ═══════════════════════════════════════════
+//  TIPS & ACHIEVEMENTS
+// ═══════════════════════════════════════════
+function renderTips(){
+  document.getElementById('tipCat').textContent=TIPS[tipIdx].cat;
+  document.getElementById('tipTxt').textContent=TIPS[tipIdx].txt;
+  document.getElementById('allTips').innerHTML=TIPS.map(t=>`<div class="tip-card"><div class="tip-cat" style="margin-bottom:8px">${t.cat}</div><div style="font-size:13px;line-height:1.6;font-weight:500">${t.txt}</div></div>`).join('');
+}
 function nextTip(){tipIdx=(tipIdx+1)%TIPS.length;renderTips();}
-function renderAchievements(){const earned=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');document.getElementById('achGrid').innerHTML=ACHIEVEMENTS.map((a,i)=>`<div class="ach ${earned.includes(i)?'earned':''}"><div class="ach-icon">${a.icon}</div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`).join('');}
+function renderAchievements(){
+  const earned=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');
+  document.getElementById('achGrid').innerHTML=ACHIEVEMENTS.map((a,i)=>`<div class="ach ${earned.includes(i)?'earned':''}"><div class="ach-icon">${a.icon}</div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`).join('');
+}
 function unlockAch(i){const e=JSON.parse(localStorage.getItem('tasni_ach')||'[0]');if(!e.includes(i)){e.push(i);localStorage.setItem('tasni_ach',JSON.stringify(e));renderAchievements();}}
-async function saveWifi(){const ip=g('c-ip'),ssid=g('c-ssid'),password=g('c-pass');saveCfg({ip,ssid});unlockAch(3);if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','✅ WiFi sent to device at '+ip);}catch{push('aw','⚠️ Could not reach device. Saved locally.');}}if(ip)startPoll(ip);}
-async function saveCalib(){const ip=cfg.ip,empty=g('c-empty'),full=g('c-full'),volume=g('c-vol'),name=g('c-tname')||'Main Tank';saveCfg({emptyDist:empty,fullDist:full,volume,tankName:name});S.total=parseFloat(volume)||1000;document.getElementById('tankNameLbl').textContent=name.toUpperCase();if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});push('ai','✅ Calibration saved.');}catch{push('aw','⚠️ Calibration saved locally.');}}}
-async function captureEmpty(){if(!cfg.ip){push('aw','⚠️ Enter device IP first.');return;}try{const r=await fetch(`http://${cfg.ip}/capture-empty`);const d=await r.json();if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);push('ai','📷 Empty captured: '+d.empty.toFixed(1)+' cm');}else push('aw','⚠️ '+(d.msg||'Sensor error'));}catch{push('aw','⚠️ Could not reach device at '+cfg.ip);}}
-async function saveSheets(){const ip=cfg.ip,deploymentid=g('c-shid'),sheetname=g('c-shname'),enabled=document.getElementById('c-shenable').checked;saveCfg({sheetsId:deploymentid,sheetsName:sheetname});if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});push('ai','✅ Sheets saved.');}catch{push('aw','⚠️ Saved locally.');}}}
-function saveMQTT(){const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8084,mquser=g('c-mquser'),mqpass=g('c-mqpass');const topic=g('c-mqtopic')||'tasni-water/+/state';const host2=g('c-mqb2'),port2=parseInt(g('c-mqp2'))||8084,mquser2=g('c-mquser2'),mqpass2=g('c-mqpass2');saveCfg({broker:host,port,mquser,mqpass,topic,broker2:host2,port2,mquser2,mqpass2});if(host){_connectMQTT({host,port,user:mquser,pass:mqpass,topic});}if(host2){_connectMQTT2({host:host2,port:port2,user:mquser2,pass:mqpass2,topic});}}
-function disconnMQTT(){if(mqttPrimary){try{mqttPrimary.end(true);}catch(_){}}if(mqttBackup){try{mqttBackup.end(true);}catch(_){}}_mqttCfg=null;_mqttCfg2=null;_primaryOk=false;_backupOk=false;_updateBrokerPills();push('ai','ℹ️ MQTT disconnected');}
-async function saveTelegram(){const token=g('c-tgtoken').trim(),chatid=g('c-tgchat').trim();if(!token||!chatid){showToast('Enter both token and chat ID','warn');return;}saveCfg({tgToken:token,tgChat:chatid});_updateTgStatus();if(cfg.ip){try{await fetch(`http://${cfg.ip}/save-telegram`,{method:'POST',body:new URLSearchParams({token,chatid})});push('ai','✅ Telegram saved to device');showToast('Telegram saved!','ok',3000);}catch{showToast('Device unreachable, saved locally','warn');}}}
-async function testTelegram(){const token=cfg.tgToken||g('c-tgtoken').trim(),chatid=cfg.tgChat||g('c-tgchat').trim();if(!token||!chatid){showToast('Save token and chat ID first','warn');return;}showToast('Sending test message…','info',2000);try{const pct=(_displayReady&&S.m!=null)?S.m+'%':'--';const msg=`🧪 TASNI Test\nLevel: ${pct}`;const url=`https://api.telegram.org/bot${token}/sendMessage`;const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:chatid,text:msg})});const d=await r.json();if(d.ok)showToast('✅ Test message sent!','ok',4000);else showToast('Error: '+d.description,'danger',5000);}catch(e){showToast('Could not reach Telegram API','danger',4000);}}
-async function clearTelegram(){if(!confirm('Remove Telegram credentials?'))return;saveCfg({tgToken:'',tgChat:''});if(cfg.ip){try{await fetch(`http://${cfg.ip}/save-telegram`,{method:'POST',body:new URLSearchParams({token:'',chatid:''})});}catch(_){}}document.getElementById('c-tgtoken').value='';document.getElementById('c-tgchat').value='';_updateTgStatus();showToast('Telegram removed','ok',2500);}
-function copyToClipboard(text){navigator.clipboard?.writeText(text).then(()=>showToast('Copied: '+text,'ok',1500)).catch(()=>showToast(text+' — copy manually','info',2500));}
-function resetApp(){if(!confirm('Clear all local data?'))return;localStorage.clear();alerts=[];location.reload();}
+
+// ═══════════════════════════════════════════
+//  SETTINGS HANDLERS
+// ═══════════════════════════════════════════
+async function saveWifi(){
+  const ip=g('c-ip'),ssid=g('c-ssid'),password=g('c-pass');
+  saveCfg({ip,ssid});unlockAch(4);
+  if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','✅ WiFi sent to device at '+ip);}catch{push('aw','⚠️ Could not reach device. Saved locally.');}}
+  if(ip)startPoll(ip);
+}
+
+// ══════════════════════════════════════════
+//  TELEGRAM
+// ══════════════════════════════════════════
+const TG_COMMANDS=[
+  {cmd:'/status',   desc:'Live tank level + visual meter'},
+  {cmd:'/volume',   desc:'Volume in litres remaining'},
+  {cmd:'/trend',    desc:'Level change over time'},
+  {cmd:'/tip',      desc:'Water saving tip'},
+  {cmd:'/diagnostics',desc:'WiFi, RSSI, uptime info'},
+  {cmd:'/notify_on',desc:'Unmute all alerts'},
+  {cmd:'/notify_off',desc:'Mute all alerts'},
+  {cmd:'/upload_now',desc:'Force Google Sheets upload'},
+  {cmd:'/wifi',     desc:'Show WiFi network info'},
+  {cmd:'/sheets',   desc:'Google Sheets sync status'},
+  {cmd:'/reboot',   desc:'Restart device (needs password)'},
+  {cmd:'/help',     desc:'All commands list'},
+];
+
+function _renderTgCmds(){
+  const el=document.getElementById('tg-cmds');
+  if(!el)return;
+  el.innerHTML=TG_COMMANDS.map(c=>`
+    <div style="background:var(--surf2);border:1px solid var(--border);border-radius:7px;padding:7px 9px;cursor:pointer"
+         onclick="copyToClipboard('${c.cmd}')">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--pri)">${c.cmd}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;line-height:1.3">${c.desc}</div>
+    </div>`).join('');
+}
+
+function _updateTgStatus(){
+  const dot=document.getElementById('tg-status-dot');
+  const lbl=document.getElementById('tg-status-lbl');
+  const sub=document.getElementById('tg-status-sub');
+  if(!dot)return;
+  const hasToken=!!(cfg.tgToken&&cfg.tgToken.length>10);
+  const hasChat=!!(cfg.tgChat&&cfg.tgChat.length>3);
+  if(hasToken&&hasChat){
+    dot.style.background='var(--ok)';dot.style.boxShadow='0 0 8px var(--ok)';
+    lbl.style.color='var(--ok)';lbl.textContent='Configured ✓';
+    sub.textContent='Bot active on device — send /status to test';
+  } else if(hasToken){
+    dot.style.background='var(--warn)';dot.style.boxShadow='0 0 6px var(--warn)';
+    lbl.style.color='var(--warn)';lbl.textContent='Token saved — Chat ID missing';
+    sub.textContent='Add your Chat ID and save again';
+  } else {
+    dot.style.background='#333';dot.style.boxShadow='none';
+    lbl.style.color='var(--muted)';lbl.textContent='Not configured';
+    sub.textContent='Enter credentials below and save to device';
+  }
+}
+
+async function saveTelegram(){
+  const ip=cfg.ip;
+  const token=g('c-tgtoken').trim();
+  const chatid=g('c-tgchat').trim();
+  if(!token){showToast('Enter bot token first','warn');return;}
+  if(!chatid){showToast('Enter chat ID first','warn');return;}
+  saveCfg({tgToken:token,tgChat:chatid});
+  _updateTgStatus();
+  if(ip){
+    try{
+      const r=await fetch(`http://${ip}/save-telegram`,{
+        method:'POST',
+        body:new URLSearchParams({token,chatid}),
+        signal:AbortSignal.timeout(5000)
+      });
+      if(r.ok){
+        push('ai','✅ Telegram saved to device at '+ip);
+        showToast('Telegram saved to device!','ok',3000);
+      } else {
+        push('aw','⚠️ Device responded with error. Check IP.');
+        showToast('Device returned error — check IP','warn');
+      }
+    }catch(e){
+      push('aw','⚠️ Could not reach device at '+ip+'. Credentials saved locally.');
+      showToast('Saved locally — device unreachable','warn',3000);
+    }
+  } else {
+    push('ai','ℹ️ Telegram credentials saved. Enter device IP in WiFi settings to push to device.');
+    showToast('Saved — add device IP to push to device','info',3500);
+  }
+}
+
+async function testTelegram(){
+  const token=cfg.tgToken||g('c-tgtoken').trim();
+  const chatid=cfg.tgChat||g('c-tgchat').trim();
+  if(!token||!chatid){showToast('Save token and chat ID first','warn');return;}
+  showToast('Sending test message…','info',2000);
+  try{
+    const pct=(_displayReady&&S.m!=null)?S.m+'%':'--';
+    const msg=`🧪 *TASNI Test Message*\n\nBot is working correctly!\nCurrent level: *${pct}*\nDevice: ${S.name||cfg.tankName||'TASNI Water'}\n\nSend /status for live reading.`;
+    const url=`https://api.telegram.org/bot${token}/sendMessage`;
+    const r=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:chatid,text:msg,parse_mode:'Markdown'}),
+      signal:AbortSignal.timeout(8000)
+    });
+    const d=await r.json();
+    if(d.ok){
+      showToast('✅ Test message sent! Check Telegram.','ok',4000);
+      push('ai','✅ Telegram test message delivered successfully.');
+    } else {
+      showToast('Telegram error: '+d.description,'danger',5000);
+      push('aw','⚠️ Telegram: '+d.description);
+    }
+  }catch(e){
+    showToast('Could not reach Telegram API','danger',4000);
+  }
+}
+
+async function clearTelegram(){
+  if(!confirm('Remove Telegram credentials?'))return;
+  saveCfg({tgToken:'',tgChat:''});
+  const ip=cfg.ip;
+  if(ip){
+    try{
+      await fetch(`http://${ip}/save-telegram`,{
+        method:'POST',
+        body:new URLSearchParams({token:'',chatid:''}),
+        signal:AbortSignal.timeout(4000)
+      });
+    }catch(_){}
+  }
+  document.getElementById('c-tgtoken').value='';
+  document.getElementById('c-tgchat').value='';
+  _updateTgStatus();
+  showToast('Telegram credentials removed','ok',2500);
+}
+
+function copyToClipboard(text){
+  navigator.clipboard?.writeText(text).then(()=>showToast('Copied: '+text,'ok',1500))
+    .catch(()=>showToast(text+' — copy manually','info',2500));
+}
+async function saveCalib(){
+  const ip=cfg.ip,empty=g('c-empty'),full=g('c-full'),volume=g('c-vol'),name=g('c-tname')||'Main Tank';
+  saveCfg({emptyDist:empty,fullDist:full,volume,tankName:name});
+  S.total=parseFloat(volume)||1000;
+  document.getElementById('tankNameLbl').textContent=name.toUpperCase();
+  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});push('ai','✅ Calibration saved.');}catch{push('aw','⚠️ Calibration saved locally.');}}
+}
+async function captureEmpty(){
+  if(!cfg.ip){push('aw','⚠️ Enter device IP first.');return;}
+  try{const r=await fetch(`http://${cfg.ip}/capture-empty`);const d=await r.json();
+    if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);push('ai','📷 Empty captured: '+d.empty.toFixed(1)+' cm');}
+    else push('aw','⚠️ '+(d.msg||'Sensor error'));
+  }catch{push('aw','⚠️ Could not reach device at '+cfg.ip);}
+}
+async function saveSheets(){
+  const ip=cfg.ip,deploymentid=g('c-shid'),sheetname=g('c-shname'),enabled=document.getElementById('c-shenable').checked;
+  saveCfg({sheetsId:deploymentid,sheetsName:sheetname});
+  if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});push('ai','✅ Sheets saved.');}catch{push('aw','⚠️ Saved locally.');}}
+}
+function saveMQTT(){
+  const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8084,mquser=g('c-mquser'),mqpass=g('c-mqpass');
+  const topic=g('c-mqtopic')||'tasni-water/+/state';
+  const host2=g('c-mqb2'),port2=parseInt(g('c-mqp2'))||8084,mquser2=g('c-mquser2'),mqpass2=g('c-mqpass2');
+  saveCfg({broker:host,port,mquser,mqpass,topic,broker2:host2,port2,mquser2,mqpass2});
+  if(host){_silent=false;_connectMQTT({host,port,user:mquser,pass:mqpass,topic});}
+  if(host2){_silent2=false;_connectMQTT2({host:host2,port:port2,user:mquser2,pass:mqpass2,topic});}
+  if(!host&&!host2)showToast('Enter at least one broker host','warn');
+}
+function disconnMQTT(){
+  if(mqttPrimary){try{mqttPrimary.end(true);}catch(_){}mqttPrimary=null;}
+  if(mqttBackup){try{mqttBackup.end(true);}catch(_){}mqttBackup=null;}
+  _mqttCfg=null;_mqttCfg2=null;
+  clearInterval(_hbTimer);clearInterval(_hbTimer2);
+  clearTimeout(_wdTimer);clearTimeout(_wdTimer2);
+  _primaryOk=false;_backupOk=false;
+  _updateBrokerPills();
+  push('ai','ℹ️ MQTT disconnected (both brokers).');
+}
+function resetApp(){if(!confirm('Clear all local data?'))return;localStorage.clear();alerts=[];renderAlertLog();location.reload();}
+
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
 function g(id){const e=document.getElementById(id);return e?e.value.trim():'';}
 function ck(id){const e=document.getElementById(id);return e?e.checked:false;}
 function set(id,html){const e=document.getElementById(id);if(e)e.innerHTML=html;}
 function fmtUp(s){if(!s)return'--';if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';return Math.floor(s/86400)+'d '+Math.floor((s%86400)/3600)+'h';}
 function fmtHrs(h){if(!isFinite(h)||h<=0)return'∞';if(h<1)return Math.round(h*60)+' min';if(h<24)return Math.round(h)+' hrs';return Math.floor(h/24)+'d '+Math.round(h%24)+'h';}
-function goTab(name,btn){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');if(name==='alerts'){unread=0;const b=document.getElementById('alertBadge');if(b)b.classList.add('hidden');renderAlertLog();}if(name==='tips'){unlockAch(4);renderTips();}if(name==='settings'){_updateTgStatus();_renderTgCmds();}}
-function toggleAcc(h){h.classList.toggle('open');if(h.nextElementSibling)h.nextElementSibling.classList.toggle('open');}
-function _updateTgStatus(){const dot=document.getElementById('tg-status-dot'),lbl=document.getElementById('tg-status-lbl'),sub=document.getElementById('tg-status-sub');if(!dot)return;const hasToken=!!(cfg.tgToken&&cfg.tgToken.length>10),hasChat=!!(cfg.tgChat&&cfg.tgChat.length>3);if(hasToken&&hasChat){dot.style.background='var(--ok)';lbl.style.color='var(--ok)';lbl.textContent='Configured ✓';sub.textContent='Bot active — send /status to test';}else if(hasToken){dot.style.background='var(--warn)';lbl.style.color='var(--warn)';lbl.textContent='Token saved — Chat ID missing';sub.textContent='Add your Chat ID and save again';}else{dot.style.background='#333';lbl.style.color='var(--muted)';lbl.textContent='Not configured';sub.textContent='Enter credentials below and save to device';}}
-function _renderTgCmds(){const el=document.getElementById('tg-cmds');if(!el)return;el.innerHTML='<div style="background:var(--surf2);border:1px solid var(--border);border-radius:7px;padding:7px 9px;cursor:pointer" onclick="copyToClipboard(\'/status\')"><div style="font-family:var(--mono);font-size:11px;color:var(--pri)">/status</div><div style="font-size:10px;color:var(--muted)">Live tank level + visual meter</div></div><div style="background:var(--surf2);border:1px solid var(--border);border-radius:7px;padding:7px 9px;cursor:pointer" onclick="copyToClipboard(\'/volume\')"><div style="font-family:var(--mono);font-size:11px;color:var(--pri)">/volume</div><div style="font-size:10px;color:var(--muted)">Volume in litres remaining</div></div><div style="background:var(--surf2);border:1px solid var(--border);border-radius:7px;padding:7px 9px;cursor:pointer" onclick="copyToClipboard(\'/trend\')"><div style="font-family:var(--mono);font-size:11px;color:var(--pri)">/trend</div><div style="font-size:10px;color:var(--muted)">Level change over time</div></div><div style="background:var(--surf2);border:1px solid var(--border);border-radius:7px;padding:7px 9px;cursor:pointer" onclick="copyToClipboard(\'/diagnostics\')"><div style="font-family:var(--mono);font-size:11px;color:var(--pri)">/diagnostics</div><div style="font-size:10px;color:var(--muted)">WiFi, RSSI, uptime info</div></div><div style="background:var(--surf2);border:1px solid var(--border);border-radius:7px;padding:7px 9px;cursor:pointer" onclick="copyToClipboard(\'/help\')"><div style="font-family:var(--mono);font-size:11px;color:var(--pri)">/help</div><div style="font-size:10px;color:var(--muted)">All commands list</div></div>';}
+function goTab(name,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
+  if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
+  if(name==='tips'){unlockAch(5);renderTips();}
+  if(name==='settings'){unlockAch(4);_updateTgStatus();_renderTgCmds();}
+}
+function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
 </script>
 </body>
 </html>
