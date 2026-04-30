@@ -509,6 +509,92 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     </div>
   </div>
 
+  <!-- ANALYTICS -->
+  <div class="tab" id="tab-analytics">
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        Session Analytics
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="reset-btn-inline" onclick="resetAnalytics()">↺ RESET</button>
+          <button class="btn btn-g btn-sm" style="padding:4px 10px;font-size:9px" onclick="downloadReport()">⬇ 3-PART REPORT</button>
+        </div>
+      </div>
+      <!-- KPI row — 5 cards -->
+      <div class="analytics-summary" style="grid-template-columns:repeat(5,1fr)">
+        <div class="asumm"><div class="asumm-val" id="asum-cur">--</div><div class="asumm-lbl">Level %</div></div>
+        <div class="asumm"><div class="asumm-val" id="asum-used">--</div><div class="asumm-lbl">Used L</div></div>
+        <div class="asumm"><div class="asumm-val" id="asum-rate">--</div><div class="asumm-lbl">L/hr</div></div>
+        <div class="asumm"><div class="asumm-val" id="asum-fills">--</div><div class="asumm-lbl">Full Fills</div></div>
+        <div class="asumm"><div class="asumm-val" id="asum-health" style="font-size:14px">--</div><div class="asumm-lbl">Health</div></div>
+      </div>
+      <!-- Donut + Volume side by side -->
+      <div style="display:flex;gap:12px;align-items:center;margin-top:4px">
+        <div style="position:relative;width:110px;height:110px;flex-shrink:0">
+          <canvas id="donutChart"></canvas>
+          <div id="donutLabel" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+            <div style="font-family:var(--mono);font-size:20px;color:var(--pri);line-height:1" id="donutPct">--</div>
+            <div style="font-size:9px;color:var(--muted);letter-spacing:1px;font-family:var(--head)">LEVEL</div>
+          </div>
+        </div>
+        <div style="flex:1">
+          <div style="margin-bottom:10px">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-family:var(--head);letter-spacing:1px">VOLUME IN TANK</div>
+            <div style="font-family:var(--mono);font-size:22px;color:var(--pri)" id="vol-display">-- L</div>
+            <div style="font-size:11px;color:var(--muted)">of <span id="vol-total-display">--</span> L capacity</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px;font-family:var(--head);letter-spacing:1px">EST. EMPTY IN</div>
+            <div style="font-family:var(--mono);font-size:18px;color:var(--warn)" id="vol-empty-in">--</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Line chart: 24h history -->
+    <div class="card">
+      <div class="card-title">24-Hour Level History</div>
+      <div class="chart-box"><canvas id="histChart"></canvas></div>
+    </div>
+
+    <!-- Bar chart: usage by time of day -->
+    <div class="card">
+      <div class="card-title">Water Usage by Time of Day
+        <span style="font-size:9px;color:var(--muted);font-weight:400;margin-left:4px">(this session)</span>
+      </div>
+      <div style="position:relative;height:160px">
+        <canvas id="barChart"></canvas>
+        <div id="barNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:10px;color:var(--muted);font-family:var(--head);letter-spacing:1.5px;text-align:center">NO USAGE RECORDED<br>THIS SESSION YET</div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
+        Tracks actual level drops recorded this session. Empty = no drops recorded yet in that period.
+      </div>
+    </div>
+
+    <!-- Forecast + status donut row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="card" style="padding:14px">
+        <div class="card-title" style="margin-bottom:10px">Forecast</div>
+        <div class="fc-row"><span style="font-size:11px">Now</span><span class="fc-val" id="fc-cur" style="font-size:13px">--</span></div>
+        <div class="fc-row"><span style="font-size:11px">24 hrs</span><span class="fc-val" id="fc-24" style="font-size:13px">--</span></div>
+        <div class="fc-row"><span style="font-size:11px">3 days</span><span class="fc-val" id="fc-3d" style="font-size:13px">--</span></div>
+        <div class="fc-row" style="border-bottom:none"><span style="font-size:11px">Empty in</span><span class="fc-val" id="fc-emp" style="font-size:12px;color:var(--warn)">--</span></div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div class="card-title" style="margin-bottom:10px">Usage Split</div>
+        <div style="position:relative;height:100px">
+          <canvas id="usagePieChart"></canvas>
+          <div id="pieNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:9px;color:var(--muted);font-family:var(--head);letter-spacing:1px;text-align:center">NO DATA</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent events -->
+    <div class="card">
+      <div class="card-title">Recent Usage Events</div>
+      <div id="usageEvents"><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No drops recorded yet this session</div></div>
+    </div>
+  </div>
+
   <!-- ALERTS -->
   <div class="tab" id="tab-alerts">
     <div class="notif-bar hidden" id="notifBar">
@@ -695,6 +781,10 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     <span class="nb-lbl">Tank</span>
   </button>
+  <button class="nb" id="nb-analytics" onclick="goTab('analytics',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span class="nb-lbl">Analytics</span>
+  </button>
   <button class="nb" id="nb-alerts" onclick="goTab('alerts',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
     <div class="nb-badge hidden" id="alertBadge">0</div>
@@ -746,24 +836,32 @@ const analyticsSession={
   periodTotals:{morn:0,aft:0,eve:0,ngt:0},
   totalUsedL:0,
   readings:[],
-  fullTankEvents:[],
-  nightReadings:[],
+  // Full tank events — each time level crosses >= 95% from below
+  fullTankEvents:[],   // [{time, pct}]
+  // Night leakage tracking (22:00–06:00)
+  nightReadings:[],    // [{time, pct}] during night hours
   nightLeakDetected:false,
   nightLeakLiters:0,
-  dayReadings:[],
-  nightReadingsPct:[],
-  suddenDrops:[],
-  healthScore:100,
+  // Day/night averages
+  dayReadings:[],      // pct values 06:00–22:00
+  nightReadingsPct:[], // pct values 22:00–06:00
+  // Sudden drops log
+  suddenDrops:[],      // [{time, fromPct, toPct, dropL}]
+  // Tank health
+  healthScore:100,     // 0-100
   healthLabel:'GOOD',
   sessionStart: new Date().toISOString(),
 };
 
 // ── BOOT DISPLAY GUARD ──
+// Requires 2 consecutive REAL device readings before displaying anything.
+// This prevents stale MQTT retained messages (e.g. old 79%) showing on open.
+// Demo mode sets _displayReady itself but does NOT write analytics/history.
 let _displayReady=false;
 let _bootGuardActive=true;
 let _realReadingCount=0;
-const _BOOT_MS=10000;
-const _bootStart=Date.now();
+const _BOOT_MS=10000; // hard 10-second NIL lock on every PWA open
+const _bootStart=Date.now(); // timestamp when page loaded
 
 // Hourly history persisted in localStorage for 24h chart continuity
 const HOURLY_KEY='tasni_hourly_v1';
@@ -781,10 +879,12 @@ function _loadHourly(){
 // Boot guard timer — after 10s allow display to unlock on next real reading
 const _bootGuardTimer=setTimeout(()=>{
   _bootGuardActive=false;
+  // _displayReady stays false — will flip on next ingest() from real device
 },_BOOT_MS);
 
 // ═══════════════════════════════════════════
 //  ALERT TOGGLE PERSISTENCE
+//  FIX: toggles persist across app close/open
 // ═══════════════════════════════════════════
 const ALERT_TOGGLE_IDS=['t-crit','t-low','t-drop','t-fill','t-full','t-sound','t-lang-en','t-lang-te','t-lang-ur'];
 const ALERT_TOGGLE_DEFAULTS={
@@ -807,6 +907,7 @@ function saveAlertPrefs(){
   });
   localStorage.setItem(ALERT_PREFS_KEY,JSON.stringify(prefs));
 }
+// Attach change listeners after DOM is ready
 function initAlertToggles(){
   ALERT_TOGGLE_IDS.forEach(id=>{
     const el=document.getElementById(id);
@@ -850,6 +951,7 @@ window.addEventListener('load',()=>{
   loadFormValues();
   loadAlertPrefs();
   initAlertToggles();
+  initChart();
   renderTips();
   renderAchievements();
   renderAlertLog();
@@ -860,6 +962,7 @@ window.addEventListener('load',()=>{
   renderDash();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(async reg=>{
+      // Wait for SW to become active before sending config
       const sw=reg.installing||reg.waiting||reg.active;
       const sendCfg=()=>{
         const ctrl=navigator.serviceWorker.controller;
@@ -871,8 +974,10 @@ window.addEventListener('load',()=>{
           }});
         }
       };
+      // If controller already exists send now, else wait for it
       if(navigator.serviceWorker.controller){sendCfg();}
       else{navigator.serviceWorker.addEventListener('controllerchange',sendCfg,{once:true});}
+      // Periodic Background Sync
       if('periodicSync' in reg){
         try{
           const status=await navigator.permissions.query({name:'periodic-background-sync'});
@@ -886,6 +991,7 @@ window.addEventListener('load',()=>{
   }
   unlockAch(0);
   if(!cfg.ip&&!cfg.broker){
+    // Show connect modal only after splash is done (2s)
     setTimeout(()=>document.getElementById('connModal').classList.remove('hidden'),2200);
   } else {
     startConnections();
@@ -963,17 +1069,21 @@ async function fetchSensor(ip){
 
 // ═══════════════════════════════════════════════════════
 //  DUAL MQTT ENGINE — Primary + Backup auto-failover
+//  Both run simultaneously as independent clients
+//  First one to receive data "wins" and feeds the dashboard
+//  If primary drops, backup seamlessly keeps data flowing
 // ═══════════════════════════════════════════════════════
-let mqttPrimary=null;
-let mqttBackup=null;
-let _mqttCfg=null;
-let _mqttCfg2=null;
+let mqttPrimary=null;      // primary client
+let mqttBackup=null;       // backup client
+let _mqttCfg=null;         // primary config
+let _mqttCfg2=null;        // backup config
 let _hbTimer=null,_hbTimer2=null;
 let _wdTimer=null,_wdTimer2=null;
 let _lastAck=0,_lastAck2=0;
 let _silent=false,_silent2=false;
 let _primaryOk=false,_backupOk=false;
 
+// Legacy alias so rest of code still works
 const mqttClient={get connected(){return _primaryOk||_backupOk;}};
 
 function _updateBrokerPills(){
@@ -992,6 +1102,7 @@ function _updateBrokerPills(){
     b.style.color=_backupOk?'var(--warn)':hasCfg?'var(--muted)':'rgba(120,120,140,.6)';
     b.style.border=_backupOk?'1px solid rgba(251,191,36,.3)':hasCfg?'1px solid var(--border)':'none';
   }
+  // Overall chip
   setChip('chip-mqtt',_primaryOk||_backupOk);
   updatePill();
 }
@@ -1011,10 +1122,11 @@ function _buildMqttOpts(mc){
 
 function _makeUrl(mc){
   const raw=(mc.host||'').replace(/^wss?:\/\//,'');
-  const proto=(mc.port===8083||mc.port===8880||mc.port===8081||mc.port===1884)?'ws':'wss';
+  const proto=(mc.port===8083||mc.port===8880||mc.port===8081||mc.port===1884)?'ws':'wss'; // 8084/443/8881/8885 → wss (TLS); 8083/8880 → ws (plain)
   return`${proto}://${raw}:${mc.port}/mqtt`;
 }
 
+// ── Connect PRIMARY broker ──
 function _connectPrimary(mc){
   if(!mc||!mc.host)return;
   if(mqttPrimary){try{mqttPrimary.end(true);}catch(_){}mqttPrimary=null;}
@@ -1046,6 +1158,7 @@ function _connectPrimary(mc){
   }
 }
 
+// ── Connect BACKUP broker ──
 function _connectBackup(mc){
   if(!mc||!mc.host)return;
   if(mqttBackup){try{mqttBackup.end(true);}catch(_){}mqttBackup=null;}
@@ -1109,9 +1222,11 @@ function _startHBBackup(mc){
   },25000);
 }
 
+// ── Public entry points ──
 function _connectMQTT(mc){_mqttCfg=mc;_silent=false;_connectPrimary(mc);}
 function _connectMQTT2(mc){_mqttCfg2=mc;_silent2=false;_connectBackup(mc);}
 
+// Visibility / network events
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'){
     if(_mqttCfg&&(!mqttPrimary||!mqttPrimary.connected)){_connectPrimary(_mqttCfg);}
@@ -1161,24 +1276,31 @@ function updatePill(){
 
 // ═══════════════════════════════════════════
 //  DATA INGEST
+//  S.m starts null — NIL until first real reading
+//  Animation driven by actual water movement only
 // ═══════════════════════════════════════════
+// Animation state
 let _animTimer=null;
-let _lastMotionDir=0;
+let _lastMotionDir=0; // 1=filling, -1=emptying, 0=still
 
 function _setTankAnim(dir){
+  // dir: 1=filling, -1=emptying, 0=still/offline
   const fill=document.getElementById('waterFill');
   const wrap=document.getElementById('tankWrap');
   _lastMotionDir=dir;
   if(!fill||!wrap)return;
   if(dir===1){
+    // Filling: inlet drops run, waves run, outlet stopped
     fill.classList.add('anim-active');
     wrap.classList.add('filling-active');
     wrap.classList.remove('emptying-active');
   } else if(dir===-1){
+    // Emptying: outlet drip runs, waves run, inlet drops stopped
     fill.classList.add('anim-active');
     wrap.classList.remove('filling-active');
     wrap.classList.add('emptying-active');
   } else {
+    // Still / offline / NIL — everything paused
     fill.classList.remove('anim-active');
     wrap.classList.remove('filling-active');
     wrap.classList.remove('emptying-active');
@@ -1199,37 +1321,50 @@ function ingest(d,fromMQTT=false){
   if(d.boot  !=null)S.boot  =parseInt(d.boot);
   if(d.isFull!=null)S.isFull=parseInt(d.isFull);
   if(d.name  !=null)S.name  =d.name;
+  // History: only record REAL device data (never demo), rate-limited
   if(!demoMode&&S.m!=null){
     const _hn=Date.now();
-    if(_hn-_lastHistorySave>120000){
+    if(_hn-_lastHistorySave>120000){ // at most once per 2 minutes
       _lastHistorySave=_hn;
       S.history.shift();S.history.push(S.m);
       _saveHourly();
-    } else if(!fromMQTT){
+    } else if(!fromMQTT){ // WiFi poll: always push (local poll is already slow)
       S.history.shift();S.history.push(S.m);
     }
   }
   S.connected=true;
   S.lastUpdate=new Date();
 
+  // ── Animation: only act when level actually changes ──
+  // MQTT sends repeated same-level messages — only trigger on real change
   if(prev!=null&&S.m!=null&&S.m!==prev){
     if(S.m>prev){
       _setTankAnim(1);
+      // Schedule filling drips — safely deferred, never blocks MQTT
     } else {
       _setTankAnim(-1);
+      // Emptying — nice alert sound, NOT dog/voice while draining
     }
+    // Auto-freeze animation 10s after last change
     clearTimeout(_animTimer);
     _animTimer=setTimeout(()=>_setTankAnim(0),10000);
   }
+  // ── BOOT GUARD ──
+  // HARD RULE: NIL is shown for the first 10 seconds on every PWA open, no exceptions.
+  // Demo mode also respects the 10s lock.
+  // After 10s the next ingest() from any source unlocks the display.
   if(!_displayReady){
     const _elapsed=Date.now()-_bootStart;
     if(_elapsed>=_BOOT_MS){
+      // 10 seconds have passed — allow display now
       _displayReady=true;
       clearTimeout(_bootGuardTimer);
       _bootGuardActive=false;
       if(!demoMode)setTimeout(()=>{try{playConnectSound();}catch(_){}},200);
     }
+    // else: still inside 10s window — keep NIL, do nothing
   }
+  // Tell SW the latest level (non-blocking)
   try{
     if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
       navigator.serviceWorker.controller.postMessage({type:'STORE_LEVEL',level:S.m});
@@ -1238,21 +1373,25 @@ function ingest(d,fromMQTT=false){
 
   _resetStaleTimer();
 
+  // Analytics — ONLY real device data, never demo, never stale startup values
   if(_displayReady&&!demoMode&&S.m!=null){
     const _now=new Date();
     const _hr=_now.getHours();
     const _isNight=_hr>=22||_hr<6;
     const _isDay=_hr>=6&&_hr<22;
 
+    // Usage drop event
     if(prev!=null&&S.m<prev){
       const dropL=((prev-S.m)/100)*S.total;
       recordUsageEvent(dropL,prev,S.m);
 
+      // Sudden drop detection (>5% in one reading)
       if(prev-S.m>=5){
         analyticsSession.suddenDrops.push({time:_now.toLocaleTimeString(),fromPct:prev,toPct:S.m,dropL:dropL.toFixed(1)});
         if(analyticsSession.suddenDrops.length>30)analyticsSession.suddenDrops.shift();
       }
 
+      // Night leakage: track drops during night hours
       if(_isNight&&prev-S.m>=2){
         const ll=(prev-S.m)/100*S.total;
         analyticsSession.nightLeakLiters+=ll;
@@ -1260,29 +1399,37 @@ function ingest(d,fromMQTT=false){
       }
     }
 
+    // Full tank event — level crosses 95% upward
     if(prev!=null&&S.m>=95&&prev<95){
       analyticsSession.fullTankEvents.push({time:_now.toLocaleString(),pct:S.m,vol:S.vol.toFixed(0)});
     }
 
+    // Day/Night running averages
     if(_isDay) analyticsSession.dayReadings.push(S.m);
     if(_isNight) analyticsSession.nightReadingsPct.push(S.m);
     if(analyticsSession.dayReadings.length>500)analyticsSession.dayReadings.shift();
     if(analyticsSession.nightReadingsPct.length>500)analyticsSession.nightReadingsPct.shift();
 
+    // Tank health score
     _updateTankHealth();
 
+    // Raw readings log
     analyticsSession.readings.push({t:Date.now(),m:S.m,usage:S.usage||0});
     if(analyticsSession.readings.length>500)analyticsSession.readings.shift();
   }
 
   checkAlerts(prev,S.m,S.isFull);
-  renderDash();
-  _renderDashInsights();
+  renderDash();renderChart();renderAnalytics();_renderDashInsights();
 }
 
 // ═══════════════════════════════════════════
 //  ALERT ENGINE
+//  Multilingual speech: English, Telugu, Urdu
+//  No ambulance sirens — natural water sounds + calm voice
 // ═══════════════════════════════════════════
+
+// ── Speech alert — speaks in English → Telugu → Urdu ──
+// Bulletproof: resets on any error, has safety timeout, never deadlocks
 let _speechBusy=false;
 let _speechTimeout=null;
 
@@ -1293,6 +1440,7 @@ function _speakAlert(level,type){
   speechSynthesis.cancel();
   _speechBusy=false;
 
+  // Build ALL phrases
   const allPhrases={
     low:[
       {key:'en',text:`Water tank is running low. Level at ${level} percent. Please refill soon.`,lang:'en-IN'},
@@ -1311,6 +1459,7 @@ function _speakAlert(level,type){
     ],
   };
 
+  // Filter by user's language toggles
   const phrases=(allPhrases[type]||allPhrases.low).filter(p=>{
     if(p.key==='en')return ck('t-lang-en');
     if(p.key==='te')return ck('t-lang-te');
@@ -1318,7 +1467,7 @@ function _speakAlert(level,type){
     return true;
   });
 
-  if(!phrases.length)return;
+  if(!phrases.length)return; // all languages disabled
 
   _speechBusy=true;
   _speechTimeout=setTimeout(()=>{_speechBusy=false;speechSynthesis.cancel();},30000);
@@ -1349,10 +1498,12 @@ function _speakAlert(level,type){
   }
 }
 
+// ── Tank health scorer ──
 function _updateTankHealth(){
   let score=100;
   const sd=analyticsSession.suddenDrops.length;
   const nl=analyticsSession.nightLeakLiters;
+  const fc=analyticsSession.fullTankEvents.length;
   if(nl>50)score-=30;
   else if(nl>20)score-=15;
   if(sd>5)score-=20;
@@ -1363,6 +1514,7 @@ function _updateTankHealth(){
   analyticsSession.healthLabel=score>=80?'GOOD':score>=50?'FAIR':'POOR';
 }
 
+// ── Dashboard night leakage + health cards ──
 function _renderDashInsights(){
   const el=document.getElementById('dashInsights');
   if(!el||!_displayReady||demoMode)return;
@@ -1400,8 +1552,8 @@ function _renderDashInsights(){
     if(analyticsSession.fullTankEvents.length>0){
       html+=`<div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--ok);font-family:var(--head);letter-spacing:1px">FULL TANK</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px">Times tank reached capacity</div>
+          <div style="font-size:11px;font-weight:700;color:var(--ok);font-family:var(--head);letter-spacing:1px">FULL TANK (1000L)</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">Times tank reached capacity this session</div>
         </div>
         <div style="font-family:var(--mono);font-size:28px;color:var(--ok)">${analyticsSession.fullTankEvents.length}</div>
       </div>`;
@@ -1410,21 +1562,13 @@ function _renderDashInsights(){
   el.innerHTML=html;
 }
 
-function recordUsageEvent(dropL,fromPct,toPct){
-  const now=new Date();
-  const h=now.getHours();
-  const period=h>=6&&h<12?'morn':h>=12&&h<18?'aft':h>=18?'eve':'ngt';
-  analyticsSession.periodTotals[period]+=dropL;
-  analyticsSession.totalUsedL+=dropL;
-  analyticsSession.events.push({time:now.toLocaleTimeString(),dropL:dropL.toFixed(1),fromPct,toPct,period});
-  if(analyticsSession.events.length>60)analyticsSession.events.shift();
-}
-
 function checkAlerts(prev,cur,isFull){
   if(prev==null||cur==null)return;
   if(prev===cur)return;
+  // Only fire alerts after display is ready — no stale startup triggers
   if(!_displayReady)return;
 
+  // Critical threshold crossing (<10%)
   if(prev>=10&&cur<10&&ck('t-crit')){
     push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
     if(ck('t-sound'))playSound('critical_alarm');
@@ -1435,10 +1579,12 @@ function checkAlerts(prev,cur,isFull){
     _speakAlert(cur,'low');
   }
 
+  // Special 5% chime — only plays ONCE when crossing below 5% (not every drop)
   if(prev>=5&&cur<5&&ck('t-crit')){
     if(ck('t-sound'))playSound('five_pct');
   }
 
+  // Every 10% drop — SILENT log only, no sound, no chime (was annoying)
   const prevBand=Math.floor(prev/10);
   const curBand =Math.floor(cur/10);
   if(curBand<prevBand&&cur>=10&&cur<90){
@@ -1447,13 +1593,16 @@ function checkAlerts(prev,cur,isFull){
     }
   }
 
+  // Sudden large drop — leak detection
   if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
 
+  // Refill above 90
   if(prev<90&&cur>=90&&ck('t-fill')){
     push('ai','✅ REFILLED: Tank is now above 90%.');
     if(ck('t-sound')&&cur<100)playSound('refill');
   }
 
+  // Full tank
   if(!S._wasFull&&isFull===1&&ck('t-full')){
     push('ai','💧 FULL TANK: Water level is at maximum!');
     if(ck('t-sound'))playSound('full_tank');
@@ -1463,6 +1612,7 @@ function checkAlerts(prev,cur,isFull){
 }
 
 function push(type,msg,critical=false){
+  // Scrub sensitive server info before storing any alert
   const _m=msg.replace(/[:\s]+\S*\.\S+\.\S+/g,'').replace(/:\s*\d{1,3}(\.\d{1,3}){3}/g,'').replace(/https?:\/\/\S+/g,'').replace(/\[.*?\]/g,'').trim().replace(/:$/,'');
   const a={type,msg:_m,time:new Date().toISOString()};
   alerts.unshift(a);if(alerts.length>60)alerts=alerts.slice(0,60);
@@ -1496,9 +1646,9 @@ function _resetStaleTimer(){
 function _markStale(){
   if(S.connected){
     S.connected=false;
-    _displayReady=false;
+    _displayReady=false; // force NIL display until new data arrives after reconnect
     _realReadingCount=0;
-    _bootGuardActive=false;
+    _bootGuardActive=false; // after stale, unlock immediately on next reading (no 10s re-lock)
     showToast('📡 No data — device may be offline','warn',4000);
   }
   renderDash();
@@ -1507,17 +1657,25 @@ function _markStale(){
 // ═══════════════════════════════════════════
 //  SOUND ENGINE
 // ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  NATURAL WATER SOUND ENGINE v3.0
+//  All sounds synthesized via Web Audio API — no files needed
+//  Designed to sound real, soothing, and engaging
+// ═══════════════════════════════════════════════════════════
+
 function getAudioCtx(){
   if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
   if(audioCtx.state==='suspended')audioCtx.resume();
   return audioCtx;
 }
 
+// ── Master gain (prevents clipping across layered sounds) ──
 let _masterGain=null;
 function getMaster(ctx){
   if(!_masterGain||_masterGain.context!==ctx){
     _masterGain=ctx.createGain();
     _masterGain.gain.value=0.85;
+    // Soft limiter via dynamics compressor
     const comp=ctx.createDynamicsCompressor();
     comp.threshold.value=-12;comp.knee.value=6;
     comp.ratio.value=4;comp.attack.value=0.003;comp.release.value=0.25;
@@ -1526,10 +1684,12 @@ function getMaster(ctx){
   return _masterGain;
 }
 
+// ── Bandpass-filtered noise burst — the core of water sound ──
 function _waterNoise(ctx,startT,dur,vol,loFreq,hiFreq,dest){
   const sr=ctx.sampleRate;
   const buf=ctx.createBuffer(1,Math.ceil(sr*dur),sr);
   const d=buf.getChannelData(0);
+  // Pink-ish noise (softer than white)
   let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
   for(let i=0;i<d.length;i++){
     const wh=Math.random()*2-1;
@@ -1543,6 +1703,7 @@ function _waterNoise(ctx,startT,dur,vol,loFreq,hiFreq,dest){
   bp.frequency.value=(loFreq+hiFreq)/2;bp.Q.value=0.8;
   const g=ctx.createGain();
   const now=ctx.currentTime;
+  // Natural attack + exponential decay
   g.gain.setValueAtTime(0,now+startT);
   g.gain.linearRampToValueAtTime(vol,now+startT+Math.min(0.015,dur*0.1));
   g.gain.exponentialRampToValueAtTime(0.0001,now+startT+dur);
@@ -1550,24 +1711,31 @@ function _waterNoise(ctx,startT,dur,vol,loFreq,hiFreq,dest){
   src.start(now+startT);src.stop(now+startT+dur+0.02);
 }
 
+// ── Resonant drip — the iconic water drop plop ──
+// Models the physics: air pocket forms → resonates → decays
 function _drip(ctx,startT,baseFreq,vol,dest){
   const now=ctx.currentTime;
   const out=dest||getMaster(ctx);
+  // Layer 1: initial impact click (noise transient)
   _waterNoise(ctx,startT,0.012,vol*0.6,800,4000,out);
+  // Layer 2: resonant body — frequency sweeps down as cavity fills
   const o=ctx.createOscillator();
   const g=ctx.createGain();
   const filt=ctx.createBiquadFilter();
   filt.type='lowpass';filt.frequency.value=2200;filt.Q.value=2.5;
   o.connect(filt);filt.connect(g);g.connect(out);
   o.type='sine';
+  // Pitch falls as the drop "settles" — very realistic
   o.frequency.setValueAtTime(baseFreq*1.8,now+startT);
   o.frequency.exponentialRampToValueAtTime(baseFreq*0.6,now+startT+0.18);
   o.frequency.exponentialRampToValueAtTime(baseFreq*0.4,now+startT+0.35);
+  // Amplitude: sharp attack, long tail (like a real drip in a tank)
   g.gain.setValueAtTime(0,now+startT);
   g.gain.linearRampToValueAtTime(vol,now+startT+0.008);
   g.gain.exponentialRampToValueAtTime(vol*0.3,now+startT+0.08);
   g.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.55);
   o.start(now+startT);o.stop(now+startT+0.6);
+  // Layer 3: high harmonic shimmer (overtone of the drop)
   const o2=ctx.createOscillator();const g2=ctx.createGain();
   o2.connect(g2);g2.connect(out);o2.type='sine';
   o2.frequency.setValueAtTime(baseFreq*3.2,now+startT+0.005);
@@ -1578,6 +1746,7 @@ function _drip(ctx,startT,baseFreq,vol,dest){
   o2.start(now+startT+0.005);o2.stop(now+startT+0.2);
 }
 
+// ── Ripple tail — subsurface rumble after a drop ──
 function _ripple(ctx,startT,freq,vol,dest){
   const out=dest||getMaster(ctx);
   const now=ctx.currentTime;
@@ -1592,13 +1761,16 @@ function _ripple(ctx,startT,freq,vol,dest){
   o.start(now+startT);o.stop(now+startT+0.55);
 }
 
+// ── Flowing stream — continuous rush of water ──
 function _stream(ctx,startT,dur,vol,brightness,dest){
   _waterNoise(ctx,startT,dur,vol,brightness*0.5,brightness*3,dest||getMaster(ctx));
   _waterNoise(ctx,startT,dur,vol*0.5,brightness*0.2,brightness,dest||getMaster(ctx));
 }
 
+// ── Bell-like chime (for positive events) ──
 function _chime(ctx,freq,startT,vol,dest){
   const out=dest||getMaster(ctx);const now=ctx.currentTime;
+  // Metallic partial overtones (real bell = inharmonic series)
   const partials=[1,2.756,5.404,8.933,13.35];
   const vols   =[1,0.35, 0.18, 0.09, 0.04];
   partials.forEach((p,i)=>{
@@ -1607,13 +1779,19 @@ function _chime(ctx,freq,startT,vol,dest){
     o.type='sine';o.frequency.value=freq*p;
     g.gain.setValueAtTime(0,now+startT);
     g.gain.linearRampToValueAtTime(vol*vols[i],now+startT+0.006);
+    // Each partial decays at different rate — that's what makes it bell-like
     g.gain.exponentialRampToValueAtTime(0.0001,now+startT+0.8+i*0.4);
     o.start(now+startT);o.stop(now+startT+1.2+i*0.4);
   });
 }
 
+// ══════════════════════════════════════════════
+//  MAIN PLAY FUNCTION + DRIP SCHEDULER
+// ══════════════════════════════════════════════
+
+// Continuous drip scheduler — plays periodic natural drips while water moves
 let _dripInterval=null;
-let _dripScheduled=false;
+let _dripScheduled=false; // debounce guard — prevent double-scheduling per ingest cycle
 
 function _scheduleDripSound(mode){
   if(_dripScheduled)return;
@@ -1622,6 +1800,7 @@ function _scheduleDripSound(mode){
   clearInterval(_dripInterval);
 
   if(mode==='filling'){
+    // Natural drips falling into rising water from inlet pipe
     const tick=()=>{
       if(!ck('t-sound'))return;
       try{
@@ -1635,13 +1814,17 @@ function _scheduleDripSound(mode){
     _dripInterval=setInterval(tick,1700+Math.floor(Math.random()*800));
 
   } else if(mode==='emptying'){
+    // Natural water trickle sound — like water draining from a pipe
+    // Pure water physics: bandpass noise + soft low drip. NO chimes, NO owl.
     const tick=()=>{
       if(!ck('t-sound'))return;
       try{
         const ctx=getAudioCtx();
         const out=getMaster(ctx);
+        // Short rushing trickle noise — like water running through a narrow pipe
         _waterNoise(ctx,0,0.25,0.045,200,800,out);
         _waterNoise(ctx,0,0.25,0.025,80,300,out);
+        // Single soft low-pitch drip exiting at bottom
         _drip(ctx,0.08,160+Math.random()*60,0.09);
       }catch(_){}
     };
@@ -1656,6 +1839,7 @@ function playSound(type,critical=false){
   try{
     const ctx=getAudioCtx();
 
+    // ── Natural water drip (level rising/general) ──
     if(type==='drop_10'){
       const f1=380+Math.random()*80;
       _drip(ctx,0,f1,0.38);
@@ -1667,16 +1851,22 @@ function playSound(type,critical=false){
       return;
     }
 
+    // ── 5% chime — last warning, pure water resonance ──
+    // One deep resonant drip into a nearly-empty vessel (high pitch = almost no water)
     if(type==='five_pct'){
+      // Nearly empty tank = very high-pitched resonant drip (small water volume)
       _drip(ctx,0,980,0.32);
       _drip(ctx,0.3,860,0.24);
       _drip(ctx,0.58,740,0.16);
+      // Echo of emptiness
       _ripple(ctx,0.05,490,0.10);
       _ripple(ctx,0.35,430,0.07);
+      // Thin trickle underneath
       _waterNoise(ctx,0,1.2,0.025,600,2000,getMaster(ctx));
       return;
     }
 
+    // ── LOW ALERT — warm singing bowl (temple bell) ──
     if(type==='low_alert'){
       _chime(ctx,196,0,0.38);
       _chime(ctx,246,0.65,0.30);
@@ -1687,6 +1877,7 @@ function playSound(type,critical=false){
       return;
     }
 
+    // ── REFILL — rushing water + celebratory chimes ──
     if(type==='refill'){
       _stream(ctx,0,1.2,0.18,900);
       _stream(ctx,0,1.2,0.10,300);
@@ -1698,6 +1889,7 @@ function playSound(type,critical=false){
       return;
     }
 
+    // ── FULL TANK — soothing completion ──
     if(type==='full_tank'){
       _stream(ctx,0,0.6,0.10,500);
       _drip(ctx,0.1,220,0.30);
@@ -1712,13 +1904,17 @@ function playSound(type,critical=false){
       return;
     }
 
+    // ── CRITICAL ALARM — water hammer + resonant danger (NO fire engine, NO siren) ──
+    // Sounds like pipes banging + rapidly emptying vessel — unmistakably urgent
     if(type==='critical_alarm'||type==='ac'){
       const now=ctx.currentTime;
       const out=getMaster(ctx);
+      // Rapid urgent high-pitch drips — nearly empty vessel resonance
       [0,0.12,0.22,0.30,0.37,0.43,0.48,0.52,0.55,0.57].forEach((t,i)=>{
-        const f=1200-i*30+Math.random()*80;
+        const f=1200-i*30+Math.random()*80; // pitch falls as each drop hits less water
         _drip(ctx,t,f,0.28-i*0.018);
       });
+      // Water hammer — pipe banging (sharp low thud, 3 hits)
       [0,0.35,0.7].forEach(t=>{
         const o=ctx.createOscillator();const g=ctx.createGain();
         const filt=ctx.createBiquadFilter();filt.type='lowpass';filt.frequency.value=180;filt.Q.value=8;
@@ -1728,11 +1924,14 @@ function playSound(type,critical=false){
         g.gain.linearRampToValueAtTime(0.55,now+t+0.008);
         g.gain.exponentialRampToValueAtTime(0.001,now+t+0.28);
         o.start(now+t);o.stop(now+t+0.3);
+        // Impact click
         _waterNoise(ctx,t,0.018,0.4,100,600,out);
       });
+      // Rushing empty-pipe air hiss between hits
       _waterNoise(ctx,0.1,0.22,0.06,800,3000,out);
       _waterNoise(ctx,0.45,0.20,0.05,800,3000,out);
       _waterNoise(ctx,0.8,0.25,0.07,800,3000,out);
+      // Deep resonant danger tone — not a siren, more like a large bell struck hard
       const o2=ctx.createOscillator();const g2=ctx.createGain();
       o2.connect(g2);g2.connect(out);
       o2.type='sine';o2.frequency.setValueAtTime(82,now);
@@ -1743,12 +1942,15 @@ function playSound(type,critical=false){
       return;
     }
 
+    // Default
     _drip(ctx,0,440,0.25);
     _ripple(ctx,0.06,220,0.08);
 
   }catch(e){console.warn('Audio:',e);}
 }
 
+// ── Ambient water drop sound on dashboard (plays once on connect) ──
+// Makes the app feel "alive" when data first arrives
 function playConnectSound(){
   try{
     const ctx=getAudioCtx();
@@ -1759,41 +1961,47 @@ function playConnectSound(){
 
 // ═══════════════════════════════════════════
 //  RENDER DASH
+//  FIX: shows NIL on startup and on connection lost
 // ═══════════════════════════════════════════
 function renderDash(){
   const fill=document.getElementById('waterFill');
   const body=document.getElementById('tankBody');
 
+  // ── NIL STATE ──
+  // Show NIL if: display not ready yet (boot guard) OR no data OR disconnected
   if(!_displayReady||S.m===null||(!S.connected&&!demoMode)){
     _setTankAnim(0);
-    if(fill)fill.style.height='0%';
-    if(fill)fill.style.background='linear-gradient(to top,rgba(80,80,110,.3),rgba(80,80,110,.15))';
-    if(body)body.className='tank-body';
+    fill.style.height='0%';
+    fill.style.background='linear-gradient(to top,rgba(80,80,110,.3),rgba(80,80,110,.15))';
+    body.className='tank-body';
     set('levelNum','<span class="pct" style="font-size:28px;color:var(--muted)">NIL</span>');
-    const bar=document.getElementById('lvlBar');if(bar)bar.style.width='0%';
+    const bar=document.getElementById('lvlBar');bar.style.width='0%';
     set('volL','--');set('totalVol','--');set('distCm','--');set('usageRate','--');
     set('uptimeVal','--');set('rssiVal','--');set('bootVal','--');set('trendLbl','');
-    const b=document.getElementById('statusBadge');if(b){b.className='badge b-off';b.textContent=(!_displayReady||S.m===null)?'WAITING':'NO DATA';}
+    const b=document.getElementById('statusBadge');b.className='badge b-off';
+    b.textContent=(!_displayReady||S.m===null)?'WAITING':'NO DATA';
     set('estEmpty','--');
+    ['fc-cur','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));
     set('updLbl',S.lastUpdate?'Last seen '+S.lastUpdate.toLocaleTimeString():'Waiting for device…');
     return;
   }
 
   const pct=Math.max(0,Math.min(100,S.m));
-  if(fill)fill.style.height=pct+'%';
+  fill.style.height=pct+'%';
 
-  if(body)body.className='tank-body';
+  // Tank state classes + water colours
+  body.className='tank-body';
   if(S.isFull===1||pct>=100){
-    if(fill)fill.style.background='linear-gradient(to top,rgba(0,180,80,.98),rgba(0,220,120,.82),rgba(52,211,153,.55))';
-    if(body)body.classList.add('full-state');
+    fill.style.background='linear-gradient(to top,rgba(0,180,80,.98),rgba(0,220,120,.82),rgba(52,211,153,.55))';
+    body.classList.add('full-state');
   } else if(pct<10){
-    if(fill)fill.style.background='linear-gradient(to top,rgba(180,30,50,.95),rgba(248,113,113,.6))';
-    if(body)body.classList.add('crit-state');
+    fill.style.background='linear-gradient(to top,rgba(180,30,50,.95),rgba(248,113,113,.6))';
+    body.classList.add('crit-state');
   } else if(pct<30){
-    if(fill)fill.style.background='linear-gradient(to top,rgba(160,100,0,.95),rgba(251,191,36,.6))';
-    if(body)body.classList.add('low-state');
+    fill.style.background='linear-gradient(to top,rgba(160,100,0,.95),rgba(251,191,36,.6))';
+    body.classList.add('low-state');
   } else {
-    if(fill)fill.style.background='linear-gradient(to top,rgba(0,80,180,.98),rgba(0,140,220,.85),rgba(30,190,220,.6))';
+    fill.style.background='linear-gradient(to top,rgba(0,80,180,.98),rgba(0,140,220,.85),rgba(30,190,220,.6))';
   }
 
   if(S.isFull===1){
@@ -1803,26 +2011,561 @@ function renderDash(){
   }
 
   const bar=document.getElementById('lvlBar');
-  if(bar){
-    bar.style.width=pct+'%';
-    bar.style.background=pct<10?'linear-gradient(90deg,#7a0000,#f87171)':pct<30?'linear-gradient(90deg,#806600,#fbbf24)':'linear-gradient(90deg,var(--purple),var(--pri))';
-  }
+  bar.style.width=pct+'%';
+  bar.style.background=pct<10?'linear-gradient(90deg,#7a0000,#f87171)':pct<30?'linear-gradient(90deg,#806600,#fbbf24)':'linear-gradient(90deg,var(--purple),var(--pri))';
 
   set('volL',S.vol.toFixed(0));set('totalVol',S.total);set('distCm',S.dist.toFixed(1));
   set('usageRate',S.usage.toFixed(1));set('uptimeVal',fmtUp(S.up));
   set('rssiVal',S.rssi||'--');set('bootVal',S.boot||'--');set('trendLbl',S.t);
   if(S.name)document.getElementById('tankNameLbl').textContent=S.name.toUpperCase();
 
-  const b=document.getElementById('statusBadge');if(b){b.className='badge';
-    if(S.isFull===1)    {b.textContent='FULL TANK';b.classList.add('b-full');}
-    else if(pct<10)     {b.textContent='CRITICAL';  b.classList.add('b-crit');}
-    else if(pct<30)     {b.textContent='LOW';        b.classList.add('b-low');}
-    else                {b.textContent=S.s||'NORMAL';b.classList.add('b-ok');}
-  }
+  const b=document.getElementById('statusBadge');b.className='badge';
+  if(S.isFull===1)    {b.textContent='FULL TANK';b.classList.add('b-full');}
+  else if(pct<10)     {b.textContent='CRITICAL';  b.classList.add('b-crit');}
+  else if(pct<30)     {b.textContent='LOW';        b.classList.add('b-low');}
+  else                {b.textContent=S.s||'NORMAL';b.classList.add('b-ok');}
 
   document.getElementById('estEmpty').textContent=S.usage>0?fmtHrs(S.vol/S.usage):'∞';
   if(S.lastUpdate)set('updLbl','Updated '+S.lastUpdate.toLocaleTimeString());
+
+  const pc=document.getElementById('fc-cur');
+  if(pc){
+    pc.textContent=pct+'%';
+    if(S.usage>0&&S.total>0){
+      const pph=(S.usage/S.total)*100;
+      document.getElementById('fc-24').textContent=Math.max(0,pct-pph*24).toFixed(0)+'%';
+      document.getElementById('fc-3d').textContent=Math.max(0,pct-pph*72).toFixed(0)+'%';
+      document.getElementById('fc-emp').textContent=fmtHrs(S.vol/S.usage);
+    } else {
+      document.getElementById('fc-24').textContent='--';
+      document.getElementById('fc-3d').textContent='--';
+      document.getElementById('fc-emp').textContent='∞';
+    }
+  }
 }
+
+// ═══════════════════════════════════════════════════════
+//  ANALYTICS — charts + correct real data only
+//  Charts: donut (level), line (history), bar (time of day), pie (usage split)
+// ═══════════════════════════════════════════════════════
+let donutChart=null,barChart=null,usagePieChart=null;
+
+function recordUsageEvent(dropL,fromPct,toPct){
+  const now=new Date();
+  const h=now.getHours();
+  const period=h>=6&&h<12?'morn':h>=12&&h<18?'aft':h>=18?'eve':'ngt';
+  analyticsSession.periodTotals[period]+=dropL;
+  analyticsSession.totalUsedL+=dropL;
+  analyticsSession.events.push({time:now.toLocaleTimeString(),dropL:dropL.toFixed(1),fromPct,toPct,period});
+  if(analyticsSession.events.length>60)analyticsSession.events.shift();
+}
+
+// Chart.js global defaults for dark theme
+function _chartDefaults(){
+  Chart.defaults.color='rgba(180,220,255,.45)';
+  Chart.defaults.borderColor='rgba(45,212,191,.06)';
+  Chart.defaults.font.family="'Rajdhani',sans-serif";
+}
+
+function initChart(){
+  _chartDefaults();
+  // ── Line chart: 24h history ──
+  const ctx=document.getElementById('histChart').getContext('2d');
+  const labels=Array.from({length:24},(_,i)=>{
+    const h=new Date();h.setHours(h.getHours()-(23-i));
+    return h.getHours().toString().padStart(2,'0')+':00';
+  });
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:'Level %',data:Array(24).fill(null),
+      borderColor:'#2DD4BF',
+      backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,'rgba(45,212,191,.28)');g.addColorStop(1,'rgba(45,212,191,0)');return g;},
+      borderWidth:2,fill:true,tension:.4,pointRadius:2,
+      pointBackgroundColor:'#2DD4BF',pointHoverRadius:5,spanGaps:false,
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,
+        titleColor:'#2DD4BF',bodyColor:'#cce7ff',
+        callbacks:{label:c=>c.parsed.y!=null?` ${c.parsed.y.toFixed(0)}% level`:' No data'}
+      }},
+      scales:{
+        x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},maxTicksLimit:6}},
+        y:{min:0,max:100,grid:{color:'rgba(45,212,191,.04)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},callback:v=>v+'%'}}
+      }
+    }
+  });
+
+  // ── Donut chart: current level ──
+  const dc=document.getElementById('donutChart').getContext('2d');
+  donutChart=new Chart(dc,{
+    type:'doughnut',
+    data:{datasets:[{
+      data:[0,100],
+      backgroundColor:['rgba(45,212,191,.85)','rgba(45,212,191,.07)'],
+      borderColor:['rgba(45,212,191,.4)','rgba(45,212,191,.04)'],
+      borderWidth:1,hoverOffset:4
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      animation:{duration:800,easing:'easeInOutQuart'}
+    }
+  });
+
+  // ── Bar chart: usage by time of day ──
+  const bc=document.getElementById('barChart').getContext('2d');
+  barChart=new Chart(bc,{
+    type:'bar',
+    data:{
+      labels:['🌅 Morning\n6–12h','☀️ Afternoon\n12–18h','🌆 Evening\n18–24h','🌙 Night\n0–6h'],
+      datasets:[{
+        label:'Usage (L)',data:[0,0,0,0],
+        backgroundColor:['rgba(251,191,36,.55)','rgba(45,212,191,.55)','rgba(124,58,237,.55)','rgba(56,189,248,.55)'],
+        borderColor:['rgba(251,191,36,.8)','rgba(45,212,191,.8)','rgba(124,58,237,.8)','rgba(56,189,248,.8)'],
+        borderWidth:1,borderRadius:5,
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,
+        titleColor:'#2DD4BF',bodyColor:'#cce7ff',
+        callbacks:{label:c=>` ${c.parsed.y.toFixed(1)} L used`}
+      }},
+      scales:{
+        x:{grid:{display:false},ticks:{color:'rgba(200,230,255,.45)',font:{size:9}}},
+        y:{grid:{color:'rgba(45,212,191,.05)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},callback:v=>v+'L'},beginAtZero:true}
+      }
+    }
+  });
+
+  // ── Pie chart: usage split ──
+  const pc=document.getElementById('usagePieChart').getContext('2d');
+  usagePieChart=new Chart(pc,{
+    type:'doughnut',
+    data:{
+      labels:['Morning','Afternoon','Evening','Night'],
+      datasets:[{
+        data:[1,1,1,1],
+        backgroundColor:['rgba(251,191,36,.7)','rgba(45,212,191,.7)','rgba(124,58,237,.7)','rgba(56,189,248,.7)'],
+        borderColor:'rgba(4,13,26,.8)',borderWidth:2,hoverOffset:4
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'40%',
+      plugins:{
+        legend:{display:true,position:'right',labels:{color:'rgba(180,220,255,.6)',font:{size:9},boxWidth:10,padding:6}},
+        tooltip:{backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,
+          titleColor:'#2DD4BF',bodyColor:'#cce7ff',
+          callbacks:{label:c=>` ${c.parsed.toFixed(1)} L`}}
+      }
+    }
+  });
+}
+
+function renderChart(){
+  if(!chart)return;
+  chart.data.datasets[0].data=S.history.map(v=>v!=null?v:null);
+  chart.update('none');
+}
+
+function renderAnalytics(){
+  const pt=analyticsSession.periodTotals;
+  const totalUsed=analyticsSession.totalUsedL;
+  const pct=(_displayReady&&S.m!=null)?S.m:0;
+  const volNow=(_displayReady&&S.m!=null)?S.vol:0;
+  const total=S.total||1000;
+
+  // ── KPI cards ──
+  set('asum-cur',(_displayReady&&S.m!=null)?pct+'%':'--');
+  set('asum-used',totalUsed>0?totalUsed.toFixed(1):'--');
+  set('asum-rate',(_displayReady&&S.usage>0)?S.usage.toFixed(1):'--');
+  set('asum-fills',analyticsSession.fullTankEvents.length>0?analyticsSession.fullTankEvents.length:'0');
+  const _hel=document.getElementById('asum-health');
+  if(_hel){_hel.textContent=analyticsSession.healthLabel;_hel.style.color=analyticsSession.healthScore>=80?'var(--ok)':analyticsSession.healthScore>=50?'var(--warn)':'var(--danger)';}
+
+  // ── Donut ──
+  if(donutChart){
+    const filled=Math.max(0,Math.min(100,pct));
+    const empty=100-filled;
+    // Colour by level
+    const col=filled>=50?'rgba(45,212,191,.85)':filled>=20?'rgba(251,191,36,.85)':'rgba(248,113,113,.85)';
+    const colBg=filled>=50?'rgba(45,212,191,.07)':filled>=20?'rgba(251,191,36,.06)':'rgba(248,113,113,.06)';
+    donutChart.data.datasets[0].data=[filled,empty];
+    donutChart.data.datasets[0].backgroundColor=[col,colBg];
+    donutChart.data.datasets[0].borderColor=[col.replace('.85',',.35'),colBg];
+    donutChart.update('none');
+  }
+  set('donutPct',(_displayReady&&!demoMode&&S.m!=null)?pct+'%':(_displayReady&&S.m!=null)?pct+'%':'--');
+  if(donutChart&&!_displayReady){donutChart.data.datasets[0].data=[0,100];donutChart.update('none');}
+  set('vol-display',(_displayReady&&S.m!=null)?volNow.toFixed(0)+' L':'-- L');
+  set('vol-total-display',total);
+  const emptyIn=(_displayReady&&S.usage>0&&volNow>0)?fmtHrs(volNow/S.usage):'∞';
+  set('vol-empty-in',emptyIn);
+
+  // ── Bar chart: time of day usage ──
+  if(barChart){
+    const _hasBar=pt.morn+pt.aft+pt.eve+pt.ngt>0;
+    barChart.data.datasets[0].data=[pt.morn,pt.aft,pt.eve,pt.ngt];
+    barChart.update('none');
+    const _bnd=document.getElementById('barNoData');
+    if(_bnd)_bnd.style.display=_hasBar?'none':'flex';
+  }
+
+  // ── Usage pie: only show if we have any data ──
+  if(usagePieChart){
+    const _hasPie=pt.morn+pt.aft+pt.eve+pt.ngt>0;
+    usagePieChart.data.datasets[0].data=_hasPie
+      ?[Math.max(pt.morn,0.001),Math.max(pt.aft,0.001),Math.max(pt.eve,0.001),Math.max(pt.ngt,0.001)]
+      :[0.001,0.001,0.001,0.001];
+    usagePieChart.update('none');
+    const _pnd=document.getElementById('pieNoData');
+    if(_pnd)_pnd.style.display=_hasPie?'none':'flex';
+  }
+
+  // ── Forecast ──
+  if(_displayReady&&S.m!=null){
+    set('fc-cur',pct+'%');
+    if(S.usage>0&&total>0){
+      const pph=(S.usage/total)*100; // percent drop per hour
+      set('fc-24',Math.max(0,pct-pph*24).toFixed(0)+'%');
+      set('fc-3d',Math.max(0,pct-pph*72).toFixed(0)+'%');
+      set('fc-emp',fmtHrs(volNow/S.usage));
+    } else {
+      set('fc-24','--');set('fc-3d','--');set('fc-emp','∞');
+    }
+  } else {
+    ['fc-cur','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));
+  }
+
+  // ── Usage events ──
+  const evEl=document.getElementById('usageEvents');
+  if(analyticsSession.events.length===0){
+    evEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No usage drops recorded yet this session</div>';
+  } else {
+    evEl.innerHTML=[...analyticsSession.events].reverse().slice(0,12).map(e=>`
+      <div class="session-item">
+        <div>
+          <div style="font-size:13px;font-weight:600">💧 ${e.fromPct}% → ${e.toPct}%</div>
+          <div class="session-time">${e.time}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="session-vol">−${e.dropL} L</div>
+          <div class="session-time" style="color:var(--muted)">${({morn:'Morning',aft:'Afternoon',eve:'Evening',ngt:'Night'})[e.period]}</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+function resetAnalytics(){
+  if(!confirm('Reset usage counters for this session?'))return;
+  analyticsSession.events=[];
+  analyticsSession.periodTotals={morn:0,aft:0,eve:0,ngt:0};
+  analyticsSession.totalUsedL=0;
+  analyticsSession.readings=[];
+  analyticsSession.fullTankEvents=[];
+  analyticsSession.nightReadings=[];
+  analyticsSession.nightLeakDetected=false;
+  analyticsSession.nightLeakLiters=0;
+  analyticsSession.dayReadings=[];
+  analyticsSession.nightReadingsPct=[];
+  analyticsSession.suddenDrops=[];
+  analyticsSession.healthScore=100;
+  analyticsSession.healthLabel='GOOD';
+  analyticsSession.sessionStart=new Date().toISOString();
+  renderAnalytics();
+  showToast('Usage counters reset','ok',2500);
+}
+
+// ═══════════════════════════════════════════════════════
+//  DOWNLOAD REPORT — one-click CSV with correct figures
+// ═══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+//  3-PART HTML REPORT EXPORT — real device data only
+//  Part 1: Executive Summary
+//  Part 2: Usage Analytics (charts)
+//  Part 3: 24h History + Alert Log
+// ══════════════════════════════════════════════════════════
+function _downloadBlob(content, filename){
+  const blob=new Blob([content],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+
+function downloadReport(){
+  if(demoMode){showToast('⚠️ Report blocked — Demo Mode active','warn',4000);return;}
+  if(!_displayReady||S.m===null){showToast('⚠️ No confirmed device data yet','warn',3500);return;}
+  if(analyticsSession.confirmedSamples<MIN_SAMPLES){
+    const _need=MIN_SAMPLES-analyticsSession.confirmedSamples;
+    const _minLeft=_need*30;
+    showToast('⏳ Need ~'+_minLeft+' more min of data ('+_need+' samples). Report needs 3h of readings.','warn',5000);
+    return;
+  }
+
+  const now=new Date();
+  const ds=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const ts=now.toLocaleString();
+  const tankName=S.name||cfg.tankName||'Main Tank';
+  const total=S.total||1000;
+  const pct=S.m;
+  const vol=S.vol!=null?S.vol.toFixed(0):'N/A';
+  const _rur=analyticsSession.computedUsageRate>0?analyticsSession.computedUsageRate:(S.usage>0&&S.usage<500?S.usage:0);
+  const usageRate=_rur>0?_rur.toFixed(1):'N/A';
+  const emptyIn=_rur>0&&S.vol>0?fmtHrs(S.vol/_rur):'N/A';
+  const pt=analyticsSession.periodTotals;
+  const totalUsed=analyticsSession.totalUsedL.toFixed(1);
+  const hs=analyticsSession.healthScore;
+  const hl=analyticsSession.healthLabel;
+  const hcol=hs>=80?'#34d399':hs>=50?'#fbbf24':'#f87171';
+  const nlDetected=analyticsSession.nightLeakDetected;
+  const nlLiters=analyticsSession.nightLeakLiters.toFixed(0);
+  const fullCount=analyticsSession.fullTankEvents.length;
+  const dayAvg=analyticsSession.dayReadings.length?Math.round(analyticsSession.dayReadings.reduce((a,b)=>a+b,0)/analyticsSession.dayReadings.length):null;
+  const ngtAvg=analyticsSession.nightReadingsPct.length?Math.round(analyticsSession.nightReadingsPct.reduce((a,b)=>a+b,0)/analyticsSession.nightReadingsPct.length):null;
+  const pph=S.usage>0?((S.usage/total)*100):0;
+  const fc24=pph>0?Math.max(0,pct-pph*24).toFixed(0)+'%':'N/A';
+  const fc3d=pph>0?Math.max(0,pct-pph*72).toFixed(0)+'%':'N/A';
+  const histLabels=Array.from({length:24},(_,i)=>{const h=new Date();h.setHours(h.getHours()-(23-i));return h.getHours().toString().padStart(2,'0')+':00';});
+  const histData=S.history.map(v=>v!=null?v:null);
+  const CSS=`<style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#040d1a;color:#cce7ff;padding:20px;min-height:100vh}
+    h1{font-size:22px;font-weight:900;color:#2DD4BF;letter-spacing:2px;margin-bottom:4px}
+    h2{font-size:14px;font-weight:700;letter-spacing:2px;color:#2DD4BF;border-bottom:1px solid rgba(45,212,191,.2);padding-bottom:8px;margin:24px 0 14px;text-transform:uppercase}
+    .meta{font-size:11px;color:rgba(180,220,255,.5);margin-bottom:24px}
+    .grid{display:grid;gap:12px;margin-bottom:16px}
+    .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}.g4{grid-template-columns:repeat(4,1fr)}
+    .card{background:rgba(8,22,50,.9);border:1px solid rgba(45,212,191,.15);border-radius:12px;padding:16px}
+    .kpi-val{font-size:28px;font-weight:700;font-family:monospace;color:#2DD4BF;line-height:1}
+    .kpi-lbl{font-size:10px;font-weight:700;letter-spacing:2px;color:rgba(180,220,255,.5);margin-top:6px;text-transform:uppercase}
+    .kpi-sub{font-size:11px;color:rgba(180,220,255,.6);margin-top:3px}
+    .ok{color:#34d399}.warn{color:#fbbf24}.danger{color:#f87171}.purple{color:#a78bfa}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1.5px}
+    .badge-ok{background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.3)}
+    .badge-warn{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+    .badge-danger{background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+    .alert-box{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+    .chart-wrap{position:relative;height:220px;margin-top:12px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;padding:8px 10px;font-size:10px;letter-spacing:1.5px;color:rgba(45,212,191,.7);border-bottom:1px solid rgba(45,212,191,.1);font-weight:700}
+    td{padding:8px 10px;border-bottom:1px solid rgba(45,212,191,.06);color:rgba(180,220,255,.8)}
+    tr:last-child td{border-bottom:none}
+    .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+    .fill-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:4px}
+    .fill-inner{height:100%;border-radius:3px;background:linear-gradient(90deg,#2DD4BF,#34d399)}
+    footer{margin-top:32px;padding-top:14px;border-top:1px solid rgba(45,212,191,.1);font-size:10px;color:rgba(180,220,255,.3);text-align:center}
+  </style>`;
+  const CHARTJS=`<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"><\/script>`;
+  const HEAD=(title)=>`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} — TASNI Report</title>${CSS}${CHARTJS}</head><body>
+    <h1>💧 TASNI Water Monitor</h1>
+    <div class="meta">📄 ${title} &nbsp;|&nbsp; Generated: ${ts} &nbsp;|&nbsp; Tank: ${tankName} (${total} L capacity)</div>`;
+  const FOOT=`<footer>TASNI Water Monitor — Real device data only. Report generated ${ts}.</footer></body></html>`;
+
+  // ─────────────────────────────────────────────────────────
+  // PART 1 — EXECUTIVE SUMMARY
+  // ─────────────────────────────────────────────────────────
+  let p1=HEAD('Part 1 — Executive Summary');
+
+  // Night leakage warning
+  if(nlDetected){
+    p1+=`<div class="alert-box">
+      <div style="font-size:13px;font-weight:700;color:#f87171">🚨 NIGHT LEAKAGE DETECTED</div>
+      <div style="font-size:12px;color:rgba(248,113,113,.8);margin-top:4px">Approximately <strong>${nlLiters} L</strong> lost between 10 PM–6 AM. Inspect pipes, valves and stop-cocks immediately.</div>
+    </div>`;
+  }
+
+  // Tank health + current status
+  p1+=`<h2>Current Status</h2><div class="grid g4">
+    <div class="card"><div class="kpi-val" style="color:${pct<10?'#f87171':pct<30?'#fbbf24':'#2DD4BF'}">${pct}%</div><div class="kpi-lbl">Level</div><div class="fill-bar"><div class="fill-inner" style="width:${pct}%"></div></div></div>
+    <div class="card"><div class="kpi-val">${vol}</div><div class="kpi-lbl">Litres in Tank</div><div class="kpi-sub">of ${total} L</div></div>
+    <div class="card"><div class="kpi-val">${usageRate}</div><div class="kpi-lbl">Usage Rate</div><div class="kpi-sub">L / hour</div></div>
+    <div class="card"><div class="kpi-val" style="font-size:20px">${emptyIn}</div><div class="kpi-lbl">Est. Empty In</div></div>
+  </div>`;
+
+  // Tank Health
+  p1+=`<h2>Tank Health</h2><div class="grid g3">
+    <div class="card"><div class="kpi-val" style="color:${hcol}">${hs}/100</div><div class="kpi-lbl">Health Score</div><div style="margin-top:8px"><span class="badge ${hs>=80?'badge-ok':hs>=50?'badge-warn':'badge-danger'}">${hl}</span></div></div>
+    <div class="card"><div class="kpi-val ok">${fullCount}</div><div class="kpi-lbl">Full Tank Events</div><div class="kpi-sub">Times tank reached ${total}L</div></div>
+    <div class="card"><div class="kpi-val ${nlDetected?'danger':'ok'}">${nlDetected?nlLiters+' L':'None'}</div><div class="kpi-lbl">Night Leakage</div><div class="kpi-sub">${nlDetected?'⚠️ Detected 10PM–6AM':'✅ No leak detected'}</div></div>
+  </div>`;
+
+  // Full tank events table
+  if(analyticsSession.fullTankEvents.length>0){
+    p1+=`<h2>Full Tank Events (${total}L)</h2>
+    <div class="card"><table><tr><th>#</th><th>Time</th><th>Level at Event</th><th>Volume</th></tr>`;
+    analyticsSession.fullTankEvents.forEach((e,i)=>{
+      p1+=`<tr><td>${i+1}</td><td>${e.time}</td><td>${e.pct}%</td><td>${e.vol} L</td></tr>`;
+    });
+    p1+=`</table></div>`;
+  }
+
+  // Day/Night averages + Forecast
+  p1+=`<h2>Day / Night & Forecast</h2><div class="grid g2">
+    <div class="card"><div class="grid g2">
+      <div><div class="kpi-val" style="font-size:22px">${dayAvg!=null?dayAvg+'%':'N/A'}</div><div class="kpi-lbl">Day Avg</div><div class="kpi-sub">06:00–22:00</div></div>
+      <div><div class="kpi-val purple" style="font-size:22px">${ngtAvg!=null?ngtAvg+'%':'N/A'}</div><div class="kpi-lbl">Night Avg</div><div class="kpi-sub">22:00–06:00</div></div>
+    </div></div>
+    <div class="card">
+      <div style="margin-bottom:10px"><div class="kpi-val warn" style="font-size:18px">${fc24}</div><div class="kpi-lbl">Level in 24 hrs</div></div>
+      <div style="margin-bottom:10px"><div class="kpi-val danger" style="font-size:18px">${fc3d}</div><div class="kpi-lbl">Level in 3 days</div></div>
+      <div><div class="kpi-val" style="font-size:18px;color:#fbbf24">${emptyIn}</div><div class="kpi-lbl">Empty in</div></div>
+    </div>
+  </div>`;
+
+  // Device info
+  p1+=`<h2>Device Information</h2><div class="grid g4">
+    <div class="card"><div class="kpi-val" style="font-size:16px">${S.dist?S.dist.toFixed(1)+' cm':'N/A'}</div><div class="kpi-lbl">Sensor Dist</div></div>
+    <div class="card"><div class="kpi-val" style="font-size:16px">${S.rssi||'N/A'}</div><div class="kpi-lbl">WiFi RSSI (dBm)</div></div>
+    <div class="card"><div class="kpi-val" style="font-size:16px">${fmtUp(S.up)}</div><div class="kpi-lbl">Uptime</div></div>
+    <div class="card"><div class="kpi-val" style="font-size:16px">${S.boot||'N/A'}</div><div class="kpi-lbl">Boot Count</div></div>
+  </div>`;
+
+  // Sudden drops table
+  if(analyticsSession.suddenDrops.length>0){
+    p1+=`<h2>Sudden Drop Events</h2><div class="card"><table><tr><th>Time</th><th>From</th><th>To</th><th>Drop</th></tr>`;
+    analyticsSession.suddenDrops.slice(0,10).forEach(e=>{
+      p1+=`<tr><td>${e.time}</td><td>${e.fromPct}%</td><td>${e.toPct}%</td><td class="danger">${e.dropL} L</td></tr>`;
+    });
+    p1+=`</table></div>`;
+  }
+
+  p1+=FOOT;
+  _downloadBlob(p1,`tasni-p1-summary-${ds}.html`);
+
+  // ─────────────────────────────────────────────────────────
+  // PART 2 — USAGE ANALYTICS (with charts)
+  // ─────────────────────────────────────────────────────────
+  setTimeout(()=>{
+    let p2=HEAD('Part 2 — Usage Analytics');
+
+    // KPI
+    p2+=`<h2>Usage Summary</h2><div class="grid g3">
+      <div class="card"><div class="kpi-val">${totalUsed}</div><div class="kpi-lbl">Total Used (L)</div><div class="kpi-sub">This session</div></div>
+      <div class="card"><div class="kpi-val">${usageRate}</div><div class="kpi-lbl">Avg Rate L/hr</div></div>
+      <div class="card"><div class="kpi-val">${analyticsSession.events.length}</div><div class="kpi-lbl">Usage Events</div><div class="kpi-sub">Level drop events</div></div>
+    </div>`;
+
+    // Bar chart + Pie chart
+    p2+=`<h2>Usage by Time of Day</h2>
+    <div class="grid g2">
+      <div class="card"><div class="chart-wrap"><canvas id="barC"></canvas></div></div>
+      <div class="card"><div class="chart-wrap"><canvas id="pieC"></canvas></div></div>
+    </div>`;
+
+    // Day/Night donut chart
+    const dayTot=(pt.morn+pt.aft).toFixed(1);
+    const ngtTot=(pt.eve+pt.ngt).toFixed(1);
+    p2+=`<h2>Day vs Night Consumption</h2>
+    <div class="grid g2">
+      <div class="card"><div class="chart-wrap"><canvas id="dnC"></canvas></div></div>
+      <div class="card" style="display:flex;flex-direction:column;justify-content:center;gap:14px">
+        <div><div class="kpi-val ok">${dayTot} L</div><div class="kpi-lbl">Day (6AM–6PM)</div></div>
+        <div><div class="kpi-val purple">${ngtTot} L</div><div class="kpi-lbl">Night (6PM–6AM)</div></div>
+      </div>
+    </div>`;
+
+    // Usage events table (top 15)
+    if(analyticsSession.events.length>0){
+      p2+=`<h2>Usage Drop Events (Last 15)</h2><div class="card"><table>
+        <tr><th>Time</th><th>From%</th><th>To%</th><th>Drop (L)</th><th>Period</th></tr>`;
+      [...analyticsSession.events].reverse().slice(0,15).forEach(e=>{
+        p2+=`<tr><td>${e.time}</td><td>${e.fromPct}%</td><td>${e.toPct}%</td><td>${e.dropL}</td><td>${{morn:'Morning',aft:'Afternoon',eve:'Evening',ngt:'Night'}[e.period]}</td></tr>`;
+      });
+      p2+=`</table></div>`;
+    }
+
+    const chartColors=['rgba(251,191,36,.8)','rgba(45,212,191,.8)','rgba(124,58,237,.8)','rgba(56,189,248,.8)'];
+    p2+=`<script>
+    Chart.defaults.color='rgba(180,220,255,.5)';
+    Chart.defaults.borderColor='rgba(45,212,191,.07)';
+    const _pt=${JSON.stringify(pt)};
+    const _ld=[_pt.morn,_pt.aft,_pt.eve,_pt.ngt];
+    const _ll=['Morning 6–12h','Afternoon 12–18h','Evening 18–24h','Night 0–6h'];
+    const _cc=${JSON.stringify(chartColors)};
+    new Chart(document.getElementById('barC'),{type:'bar',data:{labels:_ll,datasets:[{data:_ld,backgroundColor:_cc,borderColor:_cc,borderWidth:1,borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.parsed.y.toFixed(1)+' L'}}},
+      scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:v=>v+'L'}}}}});
+    new Chart(document.getElementById('pieC'),{type:'doughnut',data:{labels:_ll,datasets:[{data:_ld.map(v=>Math.max(v,0.001)),backgroundColor:_cc,borderColor:'#040d1a',borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'45%',plugins:{legend:{position:'right',labels:{color:'rgba(200,230,255,.7)',boxWidth:12,padding:8}}}}});
+    new Chart(document.getElementById('dnC'),{type:'doughnut',
+      data:{labels:['Day (6AM–6PM)','Night (6PM–6AM)'],datasets:[{data:[Math.max(_pt.morn+_pt.aft,0.001),Math.max(_pt.eve+_pt.ngt,0.001)],backgroundColor:['rgba(45,212,191,.8)','rgba(124,58,237,.8)'],borderColor:'#040d1a',borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'50%',plugins:{legend:{position:'right',labels:{color:'rgba(200,230,255,.7)',boxWidth:12,padding:8}}}}});
+    <\/script>`;
+
+    p2+=FOOT;
+    _downloadBlob(p2,`tasni-p2-analytics-${ds}.html`);
+  },600);
+
+  // ─────────────────────────────────────────────────────────
+  // PART 3 — 24H HISTORY + ALERT LOG
+  // ─────────────────────────────────────────────────────────
+  setTimeout(()=>{
+    let p3=HEAD('Part 3 — History & Alerts');
+
+    p3+=`<h2>24-Hour Level History</h2>
+    <div class="card"><div class="chart-wrap" style="height:260px"><canvas id="histC"></canvas></div></div>`;
+
+    // Hourly table
+    p3+=`<h2>Hourly Level Table</h2><div class="card"><table>
+      <tr><th>Hour</th><th>Level %</th><th>Volume (L)</th><th>Status</th></tr>`;
+    histLabels.forEach((lbl,i)=>{
+      const v=histData[i];
+      const vl=v!=null?(v/100*(total)).toFixed(0):'--';
+      const st=v==null?'--':v>=95?'Full':v>=70?'Good':v>=30?'Normal':v>=10?'Low':'Critical';
+      const sc=v==null?'':v>=70?'ok':v>=30?'':v>=10?'warn':'danger';
+      p3+=`<tr><td>${lbl}</td><td class="${sc}">${v!=null?v+'%':'NIL'}</td><td>${vl}${v!=null?' L':''}</td><td class="${sc}">${st}</td></tr>`;
+    });
+    p3+=`</table></div>`;
+
+    // Alert log
+    if(alerts.length>0){
+      p3+=`<h2>Alert Log (Last 30)</h2><div class="card"><table>
+        <tr><th>Time</th><th>Type</th><th>Message</th></tr>`;
+      // Sanitize: strip server hostnames/IPs from alert messages before export
+      function _sanitizeMsg(msg){
+        return msg
+          .replace(/:\s*\S+\.\S+\.\S+/g,'')   // remove :hostname.domain.tld
+          .replace(/:\s*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/g,'') // remove :IP
+          .replace(/\[.*?\]/g,'')                  // remove [any link]
+          .replace(/https?:\/\/\S+/g,'')          // remove URLs
+          .trim().replace(/:\s*$/,'');              // clean trailing colon
+      }
+      alerts.slice(0,30).forEach(a=>{a={...a,msg:_sanitizeMsg(a.msg)};
+        const tc=a.type==='ac'?'danger':a.type==='aw'?'warn':'ok';
+        const tl=a.type==='ac'?'Critical':a.type==='aw'?'Warning':'Info';
+        p3+=`<tr><td>${new Date(a.time).toLocaleString()}</td><td><span class="badge badge-${a.type==='ac'?'danger':a.type==='aw'?'warn':'ok'}">${tl}</span></td><td>${a.msg}</td></tr>`;
+      });
+      p3+=`</table></div>`;
+    } else {
+      p3+=`<h2>Alert Log</h2><div class="card" style="text-align:center;padding:24px;color:rgba(180,220,255,.4)">No alerts recorded this session.</div>`;
+    }
+
+    const _hd=JSON.stringify(histData);
+    const _hl=JSON.stringify(histLabels);
+    p3+=`<script>
+    Chart.defaults.color='rgba(180,220,255,.5)';
+    Chart.defaults.borderColor='rgba(45,212,191,.07)';
+    const _hdata=${_hd};
+    const _hlbls=${_hl};
+    const _ctx=document.getElementById('histC').getContext('2d');
+    const _grad=_ctx.createLinearGradient(0,0,0,240);
+    _grad.addColorStop(0,'rgba(45,212,191,.3)');_grad.addColorStop(1,'rgba(45,212,191,0)');
+    new Chart(_ctx,{type:'line',data:{labels:_hlbls,datasets:[{label:'Level %',data:_hdata,borderColor:'#2DD4BF',backgroundColor:_grad,borderWidth:2,fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#2DD4BF',spanGaps:false}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y!=null?' '+c.parsed.y.toFixed(0)+'% level':' No data'}}},
+        scales:{x:{ticks:{maxTicksLimit:8}},y:{min:0,max:100,ticks:{callback:v=>v+'%'}}}}});
+    <\/script>`;
+
+    p3+=FOOT;
+    _downloadBlob(p3,`tasni-p3-history-${ds}.html`);
+  },1200);
+
+  showToast('📊 3 report files downloading…','ok',4000);
+}
+
+// [initChart & renderChart — full versions defined above with all 4 charts]
 
 // ═══════════════════════════════════════════
 //  ALERT LOG RENDER
@@ -1841,7 +2584,10 @@ function renderAlertLog(){
 //  DEMO MODE
 // ═══════════════════════════════════════════
 function startDemo(){
+  // Demo mode: analytics/history/report are all blocked
+  // Reset real-reading counter so switching back to device requires 2 fresh readings
   _realReadingCount=0;
+  // Demo respects the 10s boot lock — NIL shown until 10s has elapsed
   let lvl=72,dir=-1;
   const tick=()=>{
     lvl+=dir*(Math.random()*1.5);
@@ -1868,10 +2614,11 @@ function checkNotifPerm(){
 }
 
 // ═══════════════════════════════════════════
-//  TOAST
+//  TOAST — compact, max 3 toasts visible
 // ═══════════════════════════════════════════
 function showToast(msg,type='info',duration=3000){
   const wrap=document.getElementById('toast-wrap');
+  // Keep max 2 toasts — remove oldest if over limit
   while(wrap.children.length>=2){wrap.removeChild(wrap.firstChild);}
   const icons={info:'💧',warn:'⚠️',danger:'🚨',ok:'✅'};
   const el=document.createElement('div');
@@ -1906,7 +2653,6 @@ async function saveWifi(){
   if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','✅ WiFi sent to device at '+ip);}catch{push('aw','⚠️ Could not reach device. Saved locally.');}}
   if(ip)startPoll(ip);
 }
-
 // ══════════════════════════════════════════
 //  TELEGRAM
 // ══════════════════════════════════════════
@@ -2094,6 +2840,7 @@ function goTab(name,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
+  if(name==='analytics'){unlockAch(1);renderAnalytics();}
   if(name==='tips'){unlockAch(5);renderTips();}
   if(name==='settings'){unlockAch(4);_updateTgStatus();_renderTgCmds();}
 }
