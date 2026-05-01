@@ -588,13 +588,30 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="card-title">Water Usage by Time of Day
         <span style="font-size:9px;color:var(--muted);font-weight:400;margin-left:4px">(this session)</span>
       </div>
-      <div style="position:relative;height:160px">
+      <!-- Period KPI cards — always visible with actual values -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
+        <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:8px 6px;text-align:center">
+          <div style="font-family:var(--mono);font-size:16px;color:#fbbf24;line-height:1" id="prd-morn">0</div>
+          <div style="font-size:8px;color:rgba(251,191,36,.6);letter-spacing:1px;margin-top:3px;font-family:var(--head)">MORNING<br>6–12h · L</div>
+        </div>
+        <div style="background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.2);border-radius:8px;padding:8px 6px;text-align:center">
+          <div style="font-family:var(--mono);font-size:16px;color:var(--pri);line-height:1" id="prd-aft">0</div>
+          <div style="font-size:8px;color:rgba(45,212,191,.6);letter-spacing:1px;margin-top:3px;font-family:var(--head)">AFTERNOON<br>12–18h · L</div>
+        </div>
+        <div style="background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.2);border-radius:8px;padding:8px 6px;text-align:center">
+          <div style="font-family:var(--mono);font-size:16px;color:#a78bfa;line-height:1" id="prd-eve">0</div>
+          <div style="font-size:8px;color:rgba(167,139,250,.6);letter-spacing:1px;margin-top:3px;font-family:var(--head)">EVENING<br>18–24h · L</div>
+        </div>
+        <div style="background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.2);border-radius:8px;padding:8px 6px;text-align:center">
+          <div style="font-family:var(--mono);font-size:16px;color:#38bdf8;line-height:1" id="prd-ngt">0</div>
+          <div style="font-size:8px;color:rgba(56,189,248,.6);letter-spacing:1px;margin-top:3px;font-family:var(--head)">NIGHT<br>0–6h · L</div>
+        </div>
+      </div>
+      <div style="position:relative;height:150px">
         <canvas id="barChart"></canvas>
-        <div id="barNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:10px;color:var(--muted);font-family:var(--head);letter-spacing:1.5px;text-align:center">NO USAGE RECORDED<br>THIS SESSION YET</div>
+        <div id="barNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:10px;color:var(--muted);font-family:var(--head);letter-spacing:1.5px;text-align:center">NO USAGE DROPS<br>RECORDED YET</div>
       </div>
-      <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
-        Tracks actual level drops recorded this session. Empty = no drops recorded yet in that period.
-      </div>
+      <div id="prd-peak" style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5;text-align:center"></div>
     </div>
 
     <!-- Forecast + status donut row -->
@@ -2324,9 +2341,22 @@ function renderAnalytics(){
   const emptyIn=(_displayReady&&S.usage>0&&volNow>0)?fmtHrs(volNow/S.usage):'∞';
   set('vol-empty-in',emptyIn);
 
+  // ── Period KPI cards (always visible) ──
+  const _hasBar=pt.morn+pt.aft+pt.eve+pt.ngt>0;
+  set('prd-morn',pt.morn.toFixed(1));
+  set('prd-aft', pt.aft.toFixed(1));
+  set('prd-eve', pt.eve.toFixed(1));
+  set('prd-ngt', pt.ngt.toFixed(1));
+  if(_hasBar){
+    const _peakVal=Math.max(pt.morn,pt.aft,pt.eve,pt.ngt);
+    const _peakName=_peakVal===pt.morn?'🌅 Morning (6–12h)':_peakVal===pt.aft?'☀️ Afternoon (12–18h)':_peakVal===pt.eve?'🌆 Evening (18–24h)':'🌙 Night (0–6h)';
+    set('prd-peak','📊 Peak period: <strong style="color:var(--pri)">'+_peakName+'</strong> — '+_peakVal.toFixed(1)+' L used');
+  } else {
+    set('prd-peak','No usage drops recorded yet — keep monitoring');
+  }
+
   // ── Bar chart: time of day usage ──
   if(barChart){
-    const _hasBar=pt.morn+pt.aft+pt.eve+pt.ngt>0;
     barChart.data.datasets[0].data=[pt.morn,pt.aft,pt.eve,pt.ngt];
     barChart.update('none');
     const _bnd=document.getElementById('barNoData');
@@ -2465,12 +2495,22 @@ function downloadReport(){
   const monthlyLProj=rateRaw>0?(rateRaw*24*30).toFixed(0):'--';
   const monthlyCostProj=rateRaw>0?(rateRaw*24*30/1000*COST_PER_KL).toFixed(2):'--';
 
-  // Efficiency scoring
-  // Benchmark: ~150L/person/day typical Indian household; office ~50L/person/day
-  // We score based on usage rate relative to capacity
-  const dayUsagePct=rateRaw>0?Math.min(100,(rateRaw*24/total)*100):null;
+  // Efficiency scoring — based on ACTUAL measured session consumption
+  // Method: totalUsedL / session_hours → project to 24h → compare vs tank capacity
+  // This uses real drop events, not estimated device rate, so it reflects true usage
+  const sessionStart=new Date(analyticsSession.sessionStart);
+  const sessionHours=Math.max(0.5,(Date.now()-sessionStart.getTime())/3600000);
+  const dailyLActual=volUsedSession>0?(volUsedSession/sessionHours*24):null;
+  // Fallback to rate projection if session too short (<30 min) or no drop events
+  const dailyLForEff=dailyLActual!==null&&sessionHours>=0.5&&volUsedSession>0
+    ? dailyLActual
+    : (rateRaw>0?rateRaw*24:null);
+  const dayUsagePct=dailyLForEff!==null?Math.min(200,(dailyLForEff/total)*100):null;
+  const effBasis=dailyLActual!==null&&volUsedSession>0
+    ? 'Actual session consumption: '+volUsedSession.toFixed(0)+'L over '+sessionHours.toFixed(1)+'h → '+dailyLForEff.toFixed(0)+'L/day projected'
+    : 'Based on real-time device usage rate: '+rateDisplay+' L/hr';
   let effScore, effLabel, effColor, effAdvice;
-  if(dayUsagePct===null){effScore='--';effLabel='Insufficient data';effColor='#8a9bb0';effAdvice='Keep monitoring to build efficiency baseline.';}
+  if(dayUsagePct===null){effScore='--';effLabel='Insufficient data';effColor='#8a9bb0';effAdvice='Keep monitoring to build efficiency baseline. Need at least one usage drop event to score.';}
   else if(dayUsagePct<30){effScore='A+';effLabel='Excellent — Very Efficient';effColor='#34d399';effAdvice='Water consumption is well managed. Maintain current practices.';}
   else if(dayUsagePct<50){effScore='A';effLabel='Good Efficiency';effColor='#2DD4BF';effAdvice='Good control. Minor tweaks to peak-hour usage could save more.';}
   else if(dayUsagePct<70){effScore='B';effLabel='Moderate Usage';effColor='#fbbf24';effAdvice='Consider scheduling heavy water use (laundry, gardening) to off-peak hours.';}
@@ -2766,12 +2806,18 @@ function downloadReport(){
     </div>
   </div>
   <div class="card">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:14px">COST BREAKDOWN (ESTIMATE @ ₹6 / 1000L)</div>
-    <div class="cost-row"><span class="cost-label">Water used this session</span><span class="cost-val">${volUsedSession>0?volUsedSession.toFixed(0):'0'} L &nbsp;≈&nbsp; ₹${sessionCostEst}</span></div>
-    <div class="cost-row"><span class="cost-label">Projected daily consumption</span><span class="cost-val">${dailyLProj} L &nbsp;≈&nbsp; ₹${dailyCostProj}</span></div>
-    <div class="cost-row"><span class="cost-label">Projected monthly consumption</span><span class="cost-val">${monthlyLProj} L &nbsp;≈&nbsp; ₹${monthlyCostProj}</span></div>
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">COST BREAKDOWN — HOW IT IS CALCULATED</div>
+    <div style="background:rgba(45,212,191,.05);border:1px solid rgba(45,212,191,.12);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:rgba(180,220,255,.6);line-height:1.7">
+      <strong style="color:#2DD4BF">Formula:</strong> Litres used ÷ 1000 × ₹${COST_PER_KL} (municipal tariff) = estimated cost<br>
+      <strong style="color:#2DD4BF">Session cost</strong> = ${volUsedSession>0?volUsedSession.toFixed(0):'0'} L ÷ 1000 × ₹${COST_PER_KL} = ₹${sessionCostEst}<br>
+      <strong style="color:#2DD4BF">Daily projection</strong> = usage rate ${rateDisplay} L/hr × 24h = ${dailyLProj} L → ₹${dailyCostProj}<br>
+      <strong style="color:#2DD4BF">Monthly</strong> = daily ${dailyLProj} L × 30 days = ${monthlyLProj} L → ₹${monthlyCostProj}
+    </div>
+    <div class="cost-row"><span class="cost-label">💧 This session — actual measured</span><span class="cost-val">${volUsedSession>0?volUsedSession.toFixed(0):'0'} L &nbsp;≈&nbsp; ₹${sessionCostEst}</span></div>
+    <div class="cost-row"><span class="cost-label">📅 Projected daily</span><span class="cost-val">${dailyLProj} L &nbsp;≈&nbsp; ₹${dailyCostProj}</span></div>
+    <div class="cost-row"><span class="cost-label">🗓️ Projected monthly</span><span class="cost-val">${monthlyLProj} L &nbsp;≈&nbsp; ₹${monthlyCostProj}</span></div>
     ${nlDetected?`<div class="cost-row" style="border-top:1px solid rgba(248,113,113,.2);margin-top:8px;padding-top:16px"><span class="cost-label" style="color:#f87171">⚠ Night leakage waste (monthly est.)</span><span class="cost-val" style="color:#f87171">${(parseFloat(nlLiters)*30).toFixed(0)} L &nbsp;≈&nbsp; ₹${(parseFloat(nlLiters)*30/1000*COST_PER_KL).toFixed(2)}</span></div>`:''}
-    <div style="font-size:10px;color:rgba(180,220,255,.25);margin-top:12px">* Cost estimates based on ₹6/KL average municipal water tariff. Adjust for your local rate.</div>
+    <div style="font-size:10px;color:rgba(180,220,255,.2);margin-top:12px">* Based on ₹${COST_PER_KL}/KL average municipal water tariff. Contact your local body for exact rate. 1 KL = 1000 L.</div>
   </div></div>`;
 
   // ── SECTION 4: EFFICIENCY ──
@@ -2786,8 +2832,11 @@ function downloadReport(){
         <div style="font-size:12px;color:rgba(180,220,255,.6);line-height:1.6">${effAdvice}</div>
         ${dayUsagePct!==null?`<div style="margin-top:10px">
           <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:rgba(180,220,255,.4)">Daily tank draw</span><span style="color:${effColor};font-weight:700">${dayUsagePct.toFixed(0)}%</span></div>
-          <div class="fill-bar"><div class="fill-inner" style="width:${dayUsagePct.toFixed(0)}%;background:${effColor}"></div></div>
+          <div class="fill-bar"><div class="fill-inner" style="width:${Math.min(100,dayUsagePct).toFixed(0)}%;background:${effColor}"></div></div>
         </div>`:''}
+        <div style="margin-top:10px;font-size:10px;color:rgba(180,220,255,.35);background:rgba(255,255,255,.03);border-radius:6px;padding:7px 9px;line-height:1.5">
+          📐 <strong style="color:rgba(180,220,255,.5)">Data source:</strong> ${effBasis}
+        </div>
       </div>
     </div>
     <div class="card">
@@ -2854,22 +2903,43 @@ function downloadReport(){
   </div>`;
 
   // ── SECTION 7: 24H HISTORY ──
+  // Open the section and the chart card in one template literal
   html+=`<div class="sec" id="history"><div class="sec-title">7 — 24-Hour Level History</div>
   <div class="card" style="margin-bottom:12px">
     <div class="chart-wrap-lg"><canvas id="histC"></canvas></div>
-  </div>
-  <div class="card">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">HOURLY LEVEL TABLE</div>
-    <table><tr><th>Hour</th><th>Level %</th><th>Volume (L)</th><th>Status</th></tr>
-    ${histLabels.map((lbl,i)=>{
-      const v=histData[i];
-      const vl=v!=null?(v/100*total).toFixed(0):'--';
-      const st=v==null?'--':v>=95?'Full':v>=70?'Good':v>=30?'Normal':v>=10?'Low':'Critical';
-      const sc=v==null?'':v>=70?'tc-ok':v>=30?'':v>=10?'tc-warn':'tc-danger';
-      return`<tr><td>${lbl}</td><td class="${sc}">${v!=null?v+'%':'NIL'}</td><td>${vl}${v!=null?' L':''}</td><td class="${sc}">${st}</td></tr>`;
-    }).join('')}
-    </table>
-  </div></div>`;
+  </div>`;
+  // Build reading table rows using REAL timestamps from analyticsSession.readings
+  // If no readings yet, fall back to S.history with approximate hour labels
+  (function(){
+    const _rdgs=analyticsSession.readings;
+    const _hasRdgs=_rdgs.length>0;
+    const _readRows=_hasRdgs
+      ? [..._rdgs].reverse().slice(0,50).map(r=>{
+          const _rt=new Date(r.t);
+          const _lbl=_rt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+          const _v=r.m;
+          const _vl=(_v/100*total).toFixed(0);
+          const _st=_v>=95?'Full':_v>=70?'Good':_v>=30?'Normal':_v>=10?'Low':'Critical';
+          const _sc=_v>=70?'tc-ok':_v>=30?'':_v>=10?'tc-warn':'tc-danger';
+          return'<tr><td>'+_lbl+'</td><td class="'+_sc+'">'+_v+'%</td><td>'+_vl+' L</td><td class="'+_sc+'">'+_st+'</td></tr>';
+        }).join('')
+      : histLabels.map((lbl,i)=>{
+          const v=histData[i];
+          const vl=v!=null?(v/100*total).toFixed(0):'--';
+          const st=v==null?'NIL':v>=95?'Full':v>=70?'Good':v>=30?'Normal':v>=10?'Low':'Critical';
+          const sc=v==null?'':v>=70?'tc-ok':v>=30?'':v>=10?'tc-warn':'tc-danger';
+          return'<tr><td>'+lbl+'</td><td class="'+sc+'">'+( v!=null?v+'%':'NIL')+'</td><td>'+vl+(v!=null?' L':'')+'</td><td class="'+sc+'">'+st+'</td></tr>';
+        }).join('')
+    const _hdg=_hasRdgs
+      ?'READING LOG — ACTUAL DEVICE TIMESTAMPS (latest '+Math.min(_rdgs.length,50)+' readings)'
+      :'24H HISTORY — APPROXIMATE HOURLY SLOTS';
+    const _note=_hasRdgs?'':
+      '<div style="font-size:10px;color:rgba(180,220,255,.25);margin-top:8px">No real-time readings in this session — times are approximate hourly slots from local storage</div>';
+    html+='<div class="card"><div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">'+_hdg+'</div>'
+      +'<table><tr><th>Time</th><th>Level %</th><th>Volume</th><th>Status</th></tr>'+_readRows+'</table>'
+      +_note+'</div></div>';
+  })();
+
 
   // ── SECTION 8: ALERT LOG ──
   if(alerts.length>0){
@@ -2877,7 +2947,7 @@ function downloadReport(){
     html+=`<div class="sec" id="alerts"><div class="sec-title">8 — Alert Log</div>
     <div class="card">
       <table><tr><th>Time</th><th>Priority</th><th>Message</th></tr>
-      ${alerts.slice(0,40).map(a=>{
+      ${alerts.slice(0,10).map(a=>{
         const m=_san(a.msg);
         const tc=a.type==='ac'?'tc-danger':a.type==='aw'?'tc-warn':'tc-ok';
         const tl=a.type==='ac'?'🚨 Critical':a.type==='aw'?'⚠️ Warning':'ℹ️ Info';
@@ -2951,7 +3021,7 @@ function downloadReport(){
 function renderAlertLog(){
   const el=document.getElementById('alertLog');
   if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div>';return;}
-  el.innerHTML=alerts.slice(0,30).map(a=>`
+  el.innerHTML=alerts.slice(0,10).map(a=>`
     <div class="alert-item ${a.type}">
       <div class="adot"></div>
       <div><div class="al-msg">${a.msg}</div><div class="al-time">${new Date(a.time).toLocaleString()}</div></div>
@@ -3218,7 +3288,13 @@ function goTab(name,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
-  if(name==='analytics'){unlockAch(1);renderAnalytics();}
+  if(name==='analytics'){
+    unlockAch(1);
+    // Charts initialized in a hidden tab have zero canvas dimensions — resize forces recalculation
+    // Must resize BEFORE renderAnalytics so Chart.js draws at correct dimensions
+    [chart,donutChart,barChart,usagePieChart].forEach(c=>{try{if(c)c.resize();}catch(_){}});
+    renderAnalytics();
+  }
   if(name==='tips'){unlockAch(5);renderTips();}
   if(name==='settings'){unlockAch(4);_updateTgStatus();_renderTgCmds();}
 }
