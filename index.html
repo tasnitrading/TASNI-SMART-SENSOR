@@ -670,7 +670,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
           <button class="btn btn-o btn-sm" onclick="playSound('low_alert')">🔔 Low Alert</button>
           <button class="btn btn-o btn-sm" onclick="playSound('five_pct')">⚠️ 5% Warning</button>
           <button class="btn btn-d btn-sm" onclick="playSound('critical_alarm')">🚨 Critical</button>
-          <button class="btn btn-g btn-sm" onclick="_speakAlert(28,'low')" style="grid-column:span 2;background:linear-gradient(135deg,rgba(45,212,191,.12),rgba(124,58,237,.12));border-color:var(--pri);color:var(--pri)">🗣 TEST VOICE (selected languages)</button>
+          <button class="btn btn-g btn-sm" onclick="_unlockSpeech();_speakAlert(28,'low');showToast('🗣 Speaking in selected languages…','info',2500);" style="grid-column:span 2;background:linear-gradient(135deg,rgba(45,212,191,.12),rgba(124,58,237,.12));border-color:var(--pri);color:var(--pri)">🗣 TEST VOICE (selected languages)</button>
         </div>
       </div>
     </div>
@@ -1032,6 +1032,8 @@ window.addEventListener('load',()=>{
   loadAlertPrefs();
   initAlertToggles();
   initChart();
+  // Pre-warm voice list as early as possible
+  if('speechSynthesis' in window){speechSynthesis.getVoices();}
   renderTips();
   renderAchievements();
   renderAlertLog();
@@ -1555,74 +1557,183 @@ function ingest(d,fromMQTT=false){
 //  No ambulance sirens — natural water sounds + calm voice
 // ═══════════════════════════════════════════
 
-// ── Speech alert — speaks in English → Telugu → Urdu ──
-// Bulletproof: resets on any error, has safety timeout, never deadlocks
+// ════════════════════════════════════════════════════════
+//  VOICE ENGINE v4.0 — Fully Rewritten, Production-Grade
+//  Fixes: stale voices closure, cancel→speak race condition,
+//         autoplay policy unlock, Android Chrome silent fail
+//  Languages: English → Telugu → Urdu (sequential)
+// ════════════════════════════════════════════════════════
+
+// Track whether the browser has unlocked speech via a user gesture.
+// Chrome silently blocks speechSynthesis.speak() before first user tap.
+let _speechUnlocked=false;
 let _speechBusy=false;
 let _speechTimeout=null;
+let _speechQueue=[];        // phrases waiting to be spoken
+let _speechQueueTimer=null; // timer for sequential playback
+
+// Unlock speech synthesis on any user interaction — must happen before
+// any automated alert can play. We silently utter an empty string to
+// satisfy Chrome's autoplay policy without making a sound.
+function _unlockSpeech(){
+  if(_speechUnlocked)return;
+  if(!('speechSynthesis' in window))return;
+  try{
+    const _u=new SpeechSynthesisUtterance('');
+    _u.volume=0;_u.rate=10;// inaudible
+    speechSynthesis.speak(_u);
+    _speechUnlocked=true;
+  }catch(_){}
+}
+
+// Pre-load voices as early as possible — voices are async in all browsers
+let _cachedVoices=[];
+function _getVoices(){
+  // Always attempt refresh — voices list can change after page load
+  const fresh=speechSynthesis.getVoices();
+  if(fresh.length>0)_cachedVoices=fresh;
+  return _cachedVoices;
+}
+if('speechSynthesis' in window){
+  // Try eagerly
+  _cachedVoices=speechSynthesis.getVoices();
+  // Also catch the async load event
+  speechSynthesis.addEventListener('voiceschanged',()=>{
+    _cachedVoices=speechSynthesis.getVoices();
+  });
+}
+
+// Find best available voice for a given lang code
+function _pickVoice(lang){
+  const vv=_getVoices();
+  if(!vv.length)return null;
+  // Exact match
+  let v=vv.find(x=>x.lang===lang);
+  if(v)return v;
+  // Prefix match (e.g. 'te' matches 'te-IN')
+  const base=lang.split('-')[0];
+  v=vv.find(x=>x.lang.startsWith(base));
+  if(v)return v;
+  // For non-English langs with no match, return null (browser default)
+  // For English, always fall back to any English voice — guaranteed to exist
+  if(base==='en'){
+    v=vv.find(x=>x.lang.startsWith('en'));
+    return v||null;
+  }
+  return null;
+}
+
+// Core speak function — speaks ONE phrase, calls callback when done or on error
+function _speakPhrase(phrase,onDone){
+  if(!('speechSynthesis' in window)){onDone();return;}
+  try{
+    const utt=new SpeechSynthesisUtterance(phrase.text);
+    utt.lang=phrase.lang;
+    utt.rate=0.88;        // slightly slower for clarity
+    utt.pitch=1.0;
+    utt.volume=1.0;
+    const voice=_pickVoice(phrase.lang);
+    if(voice)utt.voice=voice;
+    let _done=false;
+    const _finish=()=>{if(!_done){_done=true;onDone();}};
+    utt.onend=()=>setTimeout(_finish,650);   // gap between phrases
+    utt.onerror=(e)=>{
+      console.warn('TASNI speech error:',e.error,'lang:',phrase.lang);
+      setTimeout(_finish,300);               // skip to next on error
+    };
+    // Chrome workaround: occasional stall fix — resume if paused
+    const _guard=setTimeout(()=>{
+      if(!_done){
+        try{if(speechSynthesis.paused)speechSynthesis.resume();}catch(_){}
+        // If still not done after 12s, force-advance
+        setTimeout(()=>{if(!_done){_done=true;onDone();}},3000);
+      }
+    },9000);
+    utt.onstart=()=>clearTimeout(_guard);
+    speechSynthesis.speak(utt);
+  }catch(e){
+    console.warn('TASNI speak() threw:',e);
+    setTimeout(onDone,300);
+  }
+}
+
+// Sequential phrase queue runner
+function _runQueue(phrases){
+  if(!phrases.length){_speechBusy=false;clearTimeout(_speechTimeout);return;}
+  const phrase=phrases[0];
+  const rest=phrases.slice(1);
+  _speakPhrase(phrase,()=>_runQueue(rest));
+}
 
 function _speakAlert(level,type){
   if(!('speechSynthesis' in window))return;
 
-  clearTimeout(_speechTimeout);
-  speechSynthesis.cancel();
-  _speechBusy=false;
-
-  // Build ALL phrases
+  // Build phrases for this alert type
   const allPhrases={
     low:[
-      {key:'en',text:`Water tank is running low. Level at ${level} percent. Please refill soon.`,lang:'en-IN'},
-      {key:'te',text:`నీటి ట్యాంకు తక్కువగా ఉంది. స్థాయి ${level} శాతం. దయచేసి నింపండి.`,lang:'te-IN'},
-      {key:'ur',text:`پانی کی ٹینکی کم ہو رہی ہے۔ سطح ${level} فیصد ہے۔ براہ کرم بھریں۔`,lang:'ur-IN'},
+      {key:'en',text:'Water tank is running low. Level at '+level+' percent. Please refill soon.',lang:'en-IN'},
+      {key:'te',text:'నీటి ట్యాంకు తక్కువగా ఉంది. స్థాయి '+level+' శాతం. దయచేసి నింపండి.',lang:'te-IN'},
+      {key:'ur',text:'پانی کی ٹینکی کم ہو رہی ہے۔ سطح '+level+' فیصد ہے۔ براہ کرم بھریں۔',lang:'ur-IN'},
     ],
     critical:[
-      {key:'en',text:`Warning! Tank is critically low at ${level} percent. Refill immediately!`,lang:'en-IN'},
-      {key:'te',text:`హెచ్చరిక! ట్యాంకు చాలా తక్కువగా ఉంది. ${level} శాతం మాత్రమే ఉంది. వెంటనే నింపండి!`,lang:'te-IN'},
-      {key:'ur',text:`خبردار! ٹینکی بہت کم ہے۔ صرف ${level} فیصد باقی ہے۔ فوری طور پر بھریں!`,lang:'ur-IN'},
+      {key:'en',text:'Warning! Tank is critically low at '+level+' percent. Refill immediately!',lang:'en-IN'},
+      {key:'te',text:'హెచ్చరిక! ట్యాంకు చాలా తక్కువగా ఉంది. '+level+' శాతం మాత్రమే ఉంది. వెంటనే నింపండి!',lang:'te-IN'},
+      {key:'ur',text:'خبردار! ٹینکی بہت کم ہے۔ صرف '+level+' فیصد باقی ہے۔ فوری طور پر بھریں!',lang:'ur-IN'},
     ],
     full:[
-      {key:'en',text:`Tank is full. Water level is at maximum.`,lang:'en-IN'},
-      {key:'te',text:`ట్యాంకు నిండింది. నీటి స్థాయి గరిష్ఠంగా ఉంది.`,lang:'te-IN'},
-      {key:'ur',text:`ٹینکی بھر گئی ہے۔ پانی کی سطح زیادہ سے زیادہ ہے۔`,lang:'ur-IN'},
+      {key:'en',text:'Tank is now full. Water level is at maximum.',lang:'en-IN'},
+      {key:'te',text:'ట్యాంకు నిండింది. నీటి స్థాయి గరిష్ఠంగా ఉంది.',lang:'te-IN'},
+      {key:'ur',text:'ٹینکی بھر گئی ہے۔ پانی کی سطح زیادہ سے زیادہ ہے۔',lang:'ur-IN'},
     ],
   };
 
-  // Filter by user's language toggles
+  // Filter to only user-selected languages
   const phrases=(allPhrases[type]||allPhrases.low).filter(p=>{
-    if(p.key==='en')return ck('t-lang-en');
-    if(p.key==='te')return ck('t-lang-te');
-    if(p.key==='ur')return ck('t-lang-ur');
+    if(p.key==='en')return ck('t-lang-en')!==false;  // default true
+    if(p.key==='te')return ck('t-lang-te')!==false;
+    if(p.key==='ur')return ck('t-lang-ur')!==false;
     return true;
   });
 
-  if(!phrases.length)return; // all languages disabled
+  if(!phrases.length)return; // all languages disabled — silent
 
-  _speechBusy=true;
-  _speechTimeout=setTimeout(()=>{_speechBusy=false;speechSynthesis.cancel();},30000);
+  // Hard-stop any current speech before starting new alert
+  // CRITICAL: Must use setTimeout after cancel() — Chrome corrupts queue
+  // if speak() is called in same synchronous tick as cancel()
+  clearTimeout(_speechTimeout);
+  _speechBusy=false;
+  try{speechSynthesis.cancel();}catch(_){}
 
-  const voices=speechSynthesis.getVoices();
-  let idx=0;
+  const _start=()=>{
+    // Voices might not be loaded yet — wait if needed
+    const _vv=_getVoices();
+    if(_vv.length===0){
+      // No voices yet — wait for voiceschanged then retry once
+      const _onVC=()=>{_cachedVoices=speechSynthesis.getVoices();_doSpeak();};
+      speechSynthesis.addEventListener('voiceschanged',_onVC,{once:true});
+      // Safety: if voiceschanged never fires, speak anyway after 1s (uses default voice)
+      setTimeout(()=>{
+        speechSynthesis.removeEventListener('voiceschanged',_onVC);
+        _doSpeak();
+      },1000);
+    } else {
+      _doSpeak();
+    }
+  };
 
-  function speakNext(){
-    if(idx>=phrases.length){_speechBusy=false;clearTimeout(_speechTimeout);return;}
-    const p=phrases[idx++];
-    const utt=new SpeechSynthesisUtterance(p.text);
-    utt.lang=p.lang;utt.rate=0.86;utt.pitch=1.05;utt.volume=1.0;
-    const match=
-      voices.find(v=>v.lang===p.lang)||
-      voices.find(v=>v.lang.startsWith(p.lang.split('-')[0]))||
-      (p.lang.startsWith('en')?voices.find(v=>v.lang.startsWith('en')):null)||null;
-    if(match)utt.voice=match;
-    utt.onend=()=>setTimeout(speakNext,700);
-    utt.onerror=()=>setTimeout(speakNext,300);
-    try{speechSynthesis.speak(utt);}catch(e){setTimeout(speakNext,300);}
-  }
+  const _doSpeak=()=>{
+    if(_speechBusy)return; // already speaking a newer alert
+    _speechBusy=true;
+    // Safety timeout: force-reset if speech hangs for > 45s
+    _speechTimeout=setTimeout(()=>{
+      _speechBusy=false;
+      try{speechSynthesis.cancel();}catch(_){}
+    },45000);
+    _runQueue(phrases);
+  };
 
-  if(voices.length===0){
-    speechSynthesis.addEventListener('voiceschanged',()=>speakNext(),{once:true});
-    setTimeout(()=>{if(_speechBusy&&idx===0)speakNext();},800);
-  } else {
-    setTimeout(speakNext,150);
-  }
+  // The 120ms delay after cancel() is the critical fix for Chrome's queue corruption
+  setTimeout(_start,120);
 }
 
 // ── Tank health scorer ──
@@ -1789,6 +1900,10 @@ function _markStale(){
 //  All sounds synthesized via Web Audio API — no files needed
 //  Designed to sound real, soothing, and engaging
 // ═══════════════════════════════════════════════════════════
+
+// Unlock speech on any touch/click anywhere in the app — belt & suspenders
+document.addEventListener('click',_unlockSpeech,{once:true});
+document.addEventListener('touchstart',_unlockSpeech,{once:true,passive:true});
 
 function getAudioCtx(){
   if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
@@ -3284,6 +3399,7 @@ function set(id,html){const e=document.getElementById(id);if(e)e.innerHTML=html;
 function fmtUp(s){if(!s)return'--';if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';return Math.floor(s/86400)+'d '+Math.floor((s%86400)/3600)+'h';}
 function fmtHrs(h){if(!isFinite(h)||h<=0)return'∞';if(h<1)return Math.round(h*60)+' min';if(h<24)return Math.round(h)+' hrs';return Math.floor(h/24)+'d '+Math.round(h%24)+'h';}
 function goTab(name,btn){
+  _unlockSpeech(); // any tab tap is a user gesture — unlock speech synthesis for Chrome
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
