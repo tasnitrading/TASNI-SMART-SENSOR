@@ -914,16 +914,69 @@ const _BOOT_MS=10000; // hard 10-second NIL lock on every PWA open
 const _bootStart=Date.now(); // timestamp when page loaded
 
 // Hourly history persisted in localStorage for 24h chart continuity
-const HOURLY_KEY='tasni_hourly_v1';
+// ── Real clock-keyed hourly store ──────────────────────────────────────────
+// Key format: "YYYY-MM-DD-HH" (one reading per clock-hour, latest wins)
+// This is the only correct way to maintain a 24h history — a rotating buffer
+// fills up in minutes, not hours, and labels drift immediately.
+const HOURLY_KEY='tasni_hourly_v3'; // v3 = new format (old keys ignored)
+let _hourlyStore={};  // { "2025-06-10-14": 68, ... }
 let _lastHistorySave=0;
-function _saveHourly(){
-  try{localStorage.setItem(HOURLY_KEY,JSON.stringify(S.history));}catch(_){}
+
+function _hourKey(d=new Date()){
+  // Returns "YYYY-MM-DD-HH" for the given date
+  return d.getFullYear()+'-'+
+    String(d.getMonth()+1).padStart(2,'0')+'-'+
+    String(d.getDate()).padStart(2,'0')+'-'+
+    String(d.getHours()).padStart(2,'0');
 }
+
+function _saveHourly(){
+  // Prune keys older than 25 hours to prevent unbounded growth
+  const cutoff=new Date(Date.now()-25*3600000);
+  const cutKey=_hourKey(cutoff);
+  Object.keys(_hourlyStore).forEach(k=>{if(k<cutKey)delete _hourlyStore[k];});
+  try{localStorage.setItem(HOURLY_KEY,JSON.stringify(_hourlyStore));}catch(_){}
+  // Keep S.history in sync for report/fallback compatibility
+  _syncHistoryArray();
+}
+
 function _loadHourly(){
   try{
-    const d=JSON.parse(localStorage.getItem(HOURLY_KEY)||'null');
-    if(Array.isArray(d)&&d.length===24)d.forEach((v,i)=>{if(v!=null)S.history[i]=v;});
-  }catch(_){}
+    const raw=localStorage.getItem(HOURLY_KEY);
+    if(raw){const d=JSON.parse(raw);if(d&&typeof d==='object'&&!Array.isArray(d))_hourlyStore=d;}
+  }catch(_){_hourlyStore={};}
+  _syncHistoryArray();
+}
+
+// Sync S.history (24-slot array, newest last) from _hourlyStore for compatibility
+function _syncHistoryArray(){
+  const now=new Date();
+  for(let i=0;i<24;i++){
+    const d=new Date(now.getTime()-(23-i)*3600000);
+    const k=_hourKey(d);
+    S.history[i]=(_hourlyStore[k]!=null)?_hourlyStore[k]:null;
+  }
+}
+
+// Record current reading into hourly store (called on every confirmed reading)
+function _recordHourlyReading(pct){
+  if(pct==null||isNaN(pct))return;
+  const key=_hourKey();
+  _hourlyStore[key]=pct; // latest reading wins for this hour
+}
+
+// Build current 24h labels + data arrays — ALWAYS called fresh from renderChart()
+function _buildChartArrays(){
+  const now=new Date();
+  const labels=[];
+  const data=[];
+  for(let i=0;i<24;i++){
+    const d=new Date(now.getTime()-(23-i)*3600000);
+    labels.push(d.getHours().toString().padStart(2,'0')+':00');
+    const k=_hourKey(d);
+    data.push(_hourlyStore[k]!=null?_hourlyStore[k]:null);
+  }
+  return{labels,data};
 }
 
 // Boot guard timer — after 10s allow display to unlock on next real reading
@@ -931,6 +984,13 @@ const _bootGuardTimer=setTimeout(()=>{
   _bootGuardActive=false;
   // _displayReady stays false — will flip on next ingest() from real device
 },_BOOT_MS);
+
+// ── Chart label refresh timer ──────────────────────────────────────────────
+// Every 5 minutes, rebuild 24h chart labels so the window slides with real time.
+// Without this, labels computed at page load become stale after ~1 hour.
+setInterval(()=>{
+  if(chart)renderChart();
+},5*60*1000);
 
 // ── Boot loading overlay controller ──
 // Animates the progress bar over 10s and dismisses on first real data
@@ -1032,6 +1092,7 @@ window.addEventListener('load',()=>{
   loadAlertPrefs();
   initAlertToggles();
   initChart();
+  renderChart(); // draw any previously-persisted hourly history immediately
   // Pre-warm voice list as early as possible
   if('speechSynthesis' in window){speechSynthesis.getVoices();}
   renderTips();
@@ -1041,6 +1102,7 @@ window.addEventListener('load',()=>{
   _updateTgStatus();
   _renderTgCmds();
   _loadHourly();
+  // Immediately render chart with any persisted hourly history after loading
   renderDash();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(async reg=>{
@@ -1496,14 +1558,14 @@ function ingest(d,fromMQTT=false){
     const _isNight=_hr>=22||_hr<6;
     const _isDay=_hr>=6&&_hr<22;
 
-    // History: gate behind _displayReady so stale retained MQTT never pollutes chart
+    // History: record into clock-keyed hourly store (one value per clock-hour)
+    // _recordHourlyReading always updates the current hour slot immediately
+    // _saveHourly persists to localStorage (rate-limited to once per minute)
+    _recordHourlyReading(S.m);
     const _hn=Date.now();
-    if(_hn-_lastHistorySave>120000){ // at most once per 2 minutes
+    if(_hn-_lastHistorySave>60000){ // persist at most once per minute
       _lastHistorySave=_hn;
-      S.history.shift();S.history.push(S.m);
       _saveHourly();
-    } else if(!fromMQTT){ // WiFi poll: always push (local poll is already slow)
-      S.history.shift();S.history.push(S.m);
     }
 
     // Confirmed samples counter — every real reading post-boot-guard
@@ -2324,15 +2386,13 @@ function _chartDefaults(){
 function initChart(){
   _chartDefaults();
   // ── Line chart: 24h history ──
+  // Labels and data are generated fresh in renderChart() — never static
   const ctx=document.getElementById('histChart').getContext('2d');
-  const labels=Array.from({length:24},(_,i)=>{
-    const h=new Date();h.setHours(h.getHours()-(23-i));
-    return h.getHours().toString().padStart(2,'0')+':00';
-  });
+  const {labels:initLabels,data:initData}=_buildChartArrays();
   chart=new Chart(ctx,{
     type:'line',
-    data:{labels,datasets:[{
-      label:'Level %',data:Array(24).fill(null),
+    data:{labels:initLabels,datasets:[{
+      label:'Level %',data:initData,
       borderColor:'#2DD4BF',
       backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,'rgba(45,212,191,.28)');g.addColorStop(1,'rgba(45,212,191,0)');return g;},
       borderWidth:2,fill:true,tension:.4,pointRadius:2,
@@ -2418,7 +2478,17 @@ function initChart(){
 
 function renderChart(){
   if(!chart)return;
-  chart.data.datasets[0].data=S.history.map(v=>v!=null?v:null);
+  // Always rebuild labels AND data from the clock-keyed store so both stay accurate
+  const {labels,data}=_buildChartArrays();
+  chart.data.labels=labels;
+  chart.data.datasets[0].data=data;
+  // Add a "current" marker dot on the last non-null point
+  const lastNonNull=data.slice().reverse().findIndex(v=>v!=null);
+  chart.data.datasets[0].pointRadius=data.map((v,i,a)=>{
+    if(v==null)return 0;
+    // Slightly bigger dot on the most recent reading
+    return i===a.length-1-([...a].reverse().findIndex(x=>x!=null))?4:2;
+  });
   chart.update('none');
 }
 
@@ -2662,8 +2732,8 @@ function downloadReport(){
   const sCl=pct<10?'#f87171':pct<30?'#fbbf24':'#2DD4BF';
 
   // 24h history
-  const histLabels=Array.from({length:24},(_,i)=>{const h=new Date();h.setHours(h.getHours()-(23-i));return h.getHours().toString().padStart(2,'0')+':00';});
-  const histData=S.history.map(v=>v!=null?v:null);
+  // Always build from the authoritative clock-keyed store — never from S.history
+  const {labels:histLabels,data:histData}=_buildChartArrays();
   const histHasData=histData.some(v=>v!=null);
 
   // ── Smart recommendations ──
@@ -3406,9 +3476,10 @@ function goTab(name,btn){
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
   if(name==='analytics'){
     unlockAch(1);
-    // Charts initialized in a hidden tab have zero canvas dimensions — resize forces recalculation
-    // Must resize BEFORE renderAnalytics so Chart.js draws at correct dimensions
+    // Resize all charts first (hidden tab = 0×0 canvas → must resize before drawing)
     [chart,donutChart,barChart,usagePieChart].forEach(c=>{try{if(c)c.resize();}catch(_){}});
+    // renderChart() refreshes 24h line chart with current labels+data
+    renderChart();
     renderAnalytics();
   }
   if(name==='tips'){unlockAch(5);renderTips();}
