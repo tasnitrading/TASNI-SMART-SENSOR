@@ -586,32 +586,37 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <!-- Bar chart: usage by time of day -->
     <div class="card">
       <div class="card-title">Water Usage by Time of Day
+      </div>
+      <!-- Period numeric KPIs — always visible -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
+        <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:8px 4px;text-align:center">
+          <div id="prd-morn" style="font-family:var(--mono);font-size:18px;color:#fbbf24;line-height:1">0.0</div>
+          <div style="font-size:8px;color:rgba(251,191,36,.6);letter-spacing:1px;margin-top:3px">MORNING<br>6–12h · L</div>
+        </div>
+        <div style="background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.2);border-radius:8px;padding:8px 4px;text-align:center">
+          <div id="prd-aft" style="font-family:var(--mono);font-size:18px;color:var(--pri);line-height:1">0.0</div>
+          <div style="font-size:8px;color:rgba(45,212,191,.6);letter-spacing:1px;margin-top:3px">AFTERNOON<br>12–18h · L</div>
+        </div>
+        <div style="background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.2);border-radius:8px;padding:8px 4px;text-align:center">
+          <div id="prd-eve" style="font-family:var(--mono);font-size:18px;color:#a78bfa;line-height:1">0.0</div>
+          <div style="font-size:8px;color:rgba(167,139,250,.6);letter-spacing:1px;margin-top:3px">EVENING<br>18–24h · L</div>
+        </div>
+        <div style="background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.2);border-radius:8px;padding:8px 4px;text-align:center">
+          <div id="prd-ngt" style="font-family:var(--mono);font-size:18px;color:#38bdf8;line-height:1">0.0</div>
+          <div style="font-size:8px;color:rgba(56,189,248,.6);letter-spacing:1px;margin-top:3px">NIGHT<br>0–6h · L</div>
+        </div>
+      </div>
+      <div id="prd-peak" style="font-size:10px;color:var(--muted);margin-bottom:8px;text-align:center">Usage events appear here after water is consumed</div>
+      <div class="card-title" style="margin-top:0">Water Usage by Time of Day
         <span style="font-size:9px;color:var(--muted);font-weight:400;margin-left:4px">(this session)</span>
       </div>
-      <!-- Period KPI cards — always visible with actual values -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
-        <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:8px 6px;text-align:center">
-          <div style="font-family:var(--mono);font-size:16px;color:#fbbf24;line-height:1" id="prd-morn">0</div>
-          <div style="font-size:8px;color:rgba(251,191,36,.6);letter-spacing:1px;margin-top:3px;font-family:var(--head)">MORNING<br>6–12h · L</div>
-        </div>
-        <div style="background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.2);border-radius:8px;padding:8px 6px;text-align:center">
-          <div style="font-family:var(--mono);font-size:16px;color:var(--pri);line-height:1" id="prd-aft">0</div>
-          <div style="font-size:8px;color:rgba(45,212,191,.6);letter-spacing:1px;margin-top:3px;font-family:var(--head)">AFTERNOON<br>12–18h · L</div>
-        </div>
-        <div style="background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.2);border-radius:8px;padding:8px 6px;text-align:center">
-          <div style="font-family:var(--mono);font-size:16px;color:#a78bfa;line-height:1" id="prd-eve">0</div>
-          <div style="font-size:8px;color:rgba(167,139,250,.6);letter-spacing:1px;margin-top:3px;font-family:var(--head)">EVENING<br>18–24h · L</div>
-        </div>
-        <div style="background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.2);border-radius:8px;padding:8px 6px;text-align:center">
-          <div style="font-family:var(--mono);font-size:16px;color:#38bdf8;line-height:1" id="prd-ngt">0</div>
-          <div style="font-size:8px;color:rgba(56,189,248,.6);letter-spacing:1px;margin-top:3px;font-family:var(--head)">NIGHT<br>0–6h · L</div>
-        </div>
-      </div>
-      <div style="position:relative;height:150px">
+      <div style="position:relative;height:160px">
         <canvas id="barChart"></canvas>
-        <div id="barNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:10px;color:var(--muted);font-family:var(--head);letter-spacing:1.5px;text-align:center">NO USAGE DROPS<br>RECORDED YET</div>
+        <div id="barNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:10px;color:var(--muted);font-family:var(--head);letter-spacing:1.5px;text-align:center">NO USAGE RECORDED<br>THIS SESSION YET</div>
       </div>
-      <div id="prd-peak" style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5;text-align:center"></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
+        Tracks actual level drops recorded this session. Empty = no drops recorded yet in that period.
+      </div>
     </div>
 
     <!-- Forecast + status donut row -->
@@ -670,7 +675,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
           <button class="btn btn-o btn-sm" onclick="playSound('low_alert')">🔔 Low Alert</button>
           <button class="btn btn-o btn-sm" onclick="playSound('five_pct')">⚠️ 5% Warning</button>
           <button class="btn btn-d btn-sm" onclick="playSound('critical_alarm')">🚨 Critical</button>
-          <button class="btn btn-g btn-sm" onclick="_unlockSpeech();_speakAlert(28,'low');showToast('🗣 Speaking in selected languages…','info',2500);" style="grid-column:span 2;background:linear-gradient(135deg,rgba(45,212,191,.12),rgba(124,58,237,.12));border-color:var(--pri);color:var(--pri)">🗣 TEST VOICE (selected languages)</button>
+          <button class="btn btn-g btn-sm" onclick="_speakAlert(28,'low')" style="grid-column:span 2;background:linear-gradient(135deg,rgba(45,212,191,.12),rgba(124,58,237,.12));border-color:var(--pri);color:var(--pri)">🗣 TEST VOICE (selected languages)</button>
         </div>
       </div>
     </div>
@@ -881,26 +886,24 @@ const analyticsSession={
   events:[],
   periodTotals:{morn:0,aft:0,eve:0,ngt:0},
   totalUsedL:0,
-  readings:[],
-  // Full tank events — each time level crosses >= 95% from below
-  fullTankEvents:[],   // [{time, pct}]
-  // Night leakage tracking (22:00–06:00)
-  nightReadings:[],    // [{time, pct}] during night hours
+  readings:[],                // raw confirmed readings [{t,m,stable}]
+  fullTankEvents:[],          // [{ts,time,pct,vol,refillNum,period}]
+  nightReadings:[],
   nightLeakDetected:false,
   nightLeakLiters:0,
-  // Day/night averages
-  dayReadings:[],      // pct values 06:00–22:00
-  nightReadingsPct:[], // pct values 22:00–06:00
-  // Sudden drops log
-  suddenDrops:[],      // [{time, fromPct, toPct, dropL}]
-  // Tank health
-  healthScore:100,     // 0-100
+  dayReadings:[],
+  nightReadingsPct:[],
+  suddenDrops:[],
+  healthScore:100,
   healthLabel:'GOOD',
-  sessionStart: new Date().toISOString(),
-  // Confirmed samples (incremented on every real _displayReady reading)
+  sessionStart:new Date().toISOString(),
   confirmedSamples:0,
-  // Computed usage rate from actual drop events (L/hr) — used in report
   computedUsageRate:0,
+  // ── Refill counter (resets to 0 when tank depletes to <10%) ──
+  refillCount:0,              // current cycle count (Refill 1, 2, 3…)
+  refillEvents:[],            // [{ts,time,period,refillNum,fromPct,toPct}]
+  _tankWasFull:false,         // tracks if tank was >= 95% (full) last reading
+  _tankDepleted:false,        // true once tank drops to < 10% after a fill
 };
 
 // ── BOOT DISPLAY GUARD ──
@@ -913,68 +916,55 @@ let _realReadingCount=0;
 const _BOOT_MS=10000; // hard 10-second NIL lock on every PWA open
 const _bootStart=Date.now(); // timestamp when page loaded
 
-// Hourly history persisted in localStorage for 24h chart continuity
-// ── Real clock-keyed hourly store ──────────────────────────────────────────
-// Key format: "YYYY-MM-DD-HH" (one reading per clock-hour, latest wins)
-// This is the only correct way to maintain a 24h history — a rotating buffer
-// fills up in minutes, not hours, and labels drift immediately.
-const HOURLY_KEY='tasni_hourly_v3'; // v3 = new format (old keys ignored)
+// ── Real clock-keyed hourly history ─────────────────────────────────────────
+// Key: "YYYY-MM-DD-HH" → stores the STABLE median value for that clock-hour.
+// This correctly handles 24h spanning midnight, DST, etc.
+// Old array-based HOURLY_KEY is no longer used.
+const HOURLY_KEY_V4='tasni_hourly_v4';
 let _hourlyStore={};  // { "2025-06-10-14": 68, ... }
 let _lastHistorySave=0;
 
-function _hourKey(d=new Date()){
-  // Returns "YYYY-MM-DD-HH" for the given date
-  return d.getFullYear()+'-'+
-    String(d.getMonth()+1).padStart(2,'0')+'-'+
-    String(d.getDate()).padStart(2,'0')+'-'+
-    String(d.getHours()).padStart(2,'0');
+function _hourKey(d){ // "YYYY-MM-DD-HH"
+  d=d||new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+
+    String(d.getDate()).padStart(2,'0')+'-'+String(d.getHours()).padStart(2,'0');
 }
-
+function _recordHourly(pct){
+  if(pct==null||isNaN(pct))return;
+  _hourlyStore[_hourKey()]=pct; // latest stable reading wins for this clock-hour
+}
 function _saveHourly(){
-  // Prune keys older than 25 hours to prevent unbounded growth
-  const cutoff=new Date(Date.now()-25*3600000);
-  const cutKey=_hourKey(cutoff);
-  Object.keys(_hourlyStore).forEach(k=>{if(k<cutKey)delete _hourlyStore[k];});
-  try{localStorage.setItem(HOURLY_KEY,JSON.stringify(_hourlyStore));}catch(_){}
-  // Keep S.history in sync for report/fallback compatibility
-  _syncHistoryArray();
+  // Prune >25h old keys
+  const cut=new Date(Date.now()-25*3600000);
+  const cutK=_hourKey(cut);
+  Object.keys(_hourlyStore).forEach(k=>{if(k<cutK)delete _hourlyStore[k];});
+  try{localStorage.setItem(HOURLY_KEY_V4,JSON.stringify(_hourlyStore));}catch(_){}
+  _syncHistArray();
 }
-
 function _loadHourly(){
   try{
-    const raw=localStorage.getItem(HOURLY_KEY);
-    if(raw){const d=JSON.parse(raw);if(d&&typeof d==='object'&&!Array.isArray(d))_hourlyStore=d;}
+    const raw=localStorage.getItem(HOURLY_KEY_V4);
+    if(raw){const p=JSON.parse(raw);if(p&&typeof p==='object'&&!Array.isArray(p))_hourlyStore=p;}
   }catch(_){_hourlyStore={};}
-  _syncHistoryArray();
+  _syncHistArray();
 }
-
-// Sync S.history (24-slot array, newest last) from _hourlyStore for compatibility
-function _syncHistoryArray(){
+// Keep S.history (24-slot) in sync for legacy report compatibility
+function _syncHistArray(){
   const now=new Date();
   for(let i=0;i<24;i++){
     const d=new Date(now.getTime()-(23-i)*3600000);
-    const k=_hourKey(d);
-    S.history[i]=(_hourlyStore[k]!=null)?_hourlyStore[k]:null;
+    S.history[i]=(_hourlyStore[_hourKey(d)]!=null)?_hourlyStore[_hourKey(d)]:null;
   }
 }
-
-// Record current reading into hourly store (called on every confirmed reading)
-function _recordHourlyReading(pct){
-  if(pct==null||isNaN(pct))return;
-  const key=_hourKey();
-  _hourlyStore[key]=pct; // latest reading wins for this hour
-}
-
-// Build current 24h labels + data arrays — ALWAYS called fresh from renderChart()
+// Build fresh labels + data for charts — always called at render time
 function _buildChartArrays(){
   const now=new Date();
-  const labels=[];
-  const data=[];
+  const labels=[],data=[];
   for(let i=0;i<24;i++){
     const d=new Date(now.getTime()-(23-i)*3600000);
     labels.push(d.getHours().toString().padStart(2,'0')+':00');
-    const k=_hourKey(d);
-    data.push(_hourlyStore[k]!=null?_hourlyStore[k]:null);
+    const v=_hourlyStore[_hourKey(d)];
+    data.push(v!=null?v:null);
   }
   return{labels,data};
 }
@@ -982,15 +972,10 @@ function _buildChartArrays(){
 // Boot guard timer — after 10s allow display to unlock on next real reading
 const _bootGuardTimer=setTimeout(()=>{
   _bootGuardActive=false;
-  // _displayReady stays false — will flip on next ingest() from real device
 },_BOOT_MS);
 
-// ── Chart label refresh timer ──────────────────────────────────────────────
-// Every 5 minutes, rebuild 24h chart labels so the window slides with real time.
-// Without this, labels computed at page load become stale after ~1 hour.
-setInterval(()=>{
-  if(chart)renderChart();
-},5*60*1000);
+// Refresh 24h chart labels every 5 min so the window slides correctly over time
+setInterval(()=>{if(chart)renderChart();},5*60*1000);
 
 // ── Boot loading overlay controller ──
 // Animates the progress bar over 10s and dismisses on first real data
@@ -1092,9 +1077,6 @@ window.addEventListener('load',()=>{
   loadAlertPrefs();
   initAlertToggles();
   initChart();
-  renderChart(); // draw any previously-persisted hourly history immediately
-  // Pre-warm voice list as early as possible
-  if('speechSynthesis' in window){speechSynthesis.getVoices();}
   renderTips();
   renderAchievements();
   renderAlertLog();
@@ -1102,7 +1084,8 @@ window.addEventListener('load',()=>{
   _updateTgStatus();
   _renderTgCmds();
   _loadHourly();
-  // Immediately render chart with any persisted hourly history after loading
+  // Re-render chart immediately with any persisted hourly data
+  setTimeout(()=>{if(chart)renderChart();},100);
   renderDash();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(async reg=>{
@@ -1457,6 +1440,144 @@ function _setTankAnim(dir){
 
 // Pending buffer — holds the latest ingest payload during boot guard
 // Never touches S.m until the guard expires, preventing any stale/retained spike
+// ══════════════════════════════════════════════════════════════════════════════
+//  WATER ENGINE v5 — 5-sample median filter + refill counter + 10% voice
+// ══════════════════════════════════════════════════════════════════════════════
+//
+//  KEY BEHAVIOURS:
+//  1. Every raw reading from device enters _rawBuffer (max 5 slots)
+//  2. Once 5 samples collected → compute median → that is the "stable" value
+//  3. Atmospheric fluctuations (±2–5% at night) are filtered OUT — the median
+//     of 5 closely-spaced readings cancels them automatically
+//  4. Only stable→stable changes trigger usage events / history updates
+//  5. Refill counter: increments when level crosses ≥95% (upward). Resets
+//     to 0 once tank depletes below 10% after a fill.
+//  6. Voice announces every 10% band crossing (both fill and drain directions)
+//
+//  TIMING: device sends every ~10s, so 5 samples ≈ 50 seconds of data.
+//          That is fast enough for real alerts while filtering transient noise.
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _rawBuffer=[];           // rolling 5 raw readings from device
+const _SAMPLE_SIZE=5;        // number of samples before committing stable value
+let _stableLevel=null;       // last committed stable level (%)
+let _lastVoiceBand=null;     // last 10% band announced by voice (-1 = none yet)
+let _lastUsageEventLevel=null; // level when last usage event was committed
+
+// Compute median of array
+function _median(arr){
+  if(!arr.length)return null;
+  const s=[...arr].sort((a,b)=>a-b);
+  const m=Math.floor(s.length/2);
+  return s.length%2?s[m]:(s[m-1]+s[m])/2;
+}
+
+// Returns true if the buffer is stable (max spread ≤ 5%) — noise filter
+function _isBufferStable(buf){
+  if(buf.length<2)return true;
+  return Math.max(...buf)-Math.min(...buf)<=5;
+}
+
+// Core: process one raw reading through the 5-sample engine
+// Returns the new stable level if a commit happened, else null
+function _processRaw(rawPct){
+  if(rawPct==null||isNaN(rawPct))return null;
+  rawPct=Math.max(0,Math.min(100,rawPct));
+
+  _rawBuffer.push(rawPct);
+  if(_rawBuffer.length>_SAMPLE_SIZE)_rawBuffer.shift();
+  if(_rawBuffer.length<_SAMPLE_SIZE)return null; // not enough samples yet
+
+  // Check stability — if readings are wildly oscillating (>5% spread) keep buffering
+  if(!_isBufferStable(_rawBuffer)){
+    // Special case: if ALL 5 samples are consistently rising, it's a refill → commit
+    const _rising=_rawBuffer.every((v,i,a)=>i===0||v>=a[i-1]-1);
+    const _falling=_rawBuffer.every((v,i,a)=>i===0||v<=a[i-1]+1);
+    if(!_rising&&!_falling){
+      // Pure oscillation (e.g. atmospheric pressure bounce) — emit nothing
+      return null;
+    }
+  }
+
+  const stable=Math.round(_median(_rawBuffer));
+
+  // If stable level hasn't changed, skip (de-duplicate)
+  if(_stableLevel!==null&&stable===_stableLevel)return null;
+
+  const prev=_stableLevel;
+  _stableLevel=stable;
+  return{stable,prev}; // caller gets {stable: new level, prev: old level}
+}
+
+// ── 10% band voice announcer ──────────────────────────────────────────────
+// Speaks every time the water level crosses a 10% boundary (both directions)
+// e.g. 100→90, 90→80 (draining) or 40→50, 50→60 (filling)
+function _check10PctVoice(prev,cur){
+  if(prev==null||cur==null)return;
+  const prevBand=Math.floor(prev/10);
+  const curBand =Math.floor(cur/10);
+  if(prevBand===curBand)return; // no band crossing
+
+  const filling=cur>prev;
+  // Announce each crossed band boundary
+  const lo=Math.min(prevBand,curBand);
+  const hi=Math.max(prevBand,curBand);
+  for(let b=lo;b<hi;b++){
+    const pct=filling?(b+1)*10:b*10;
+    if(pct<=0||pct>100)continue;
+    if(filling){
+      _speakAlert(pct,'filling');  // new type: filling
+    } else {
+      // Use existing alert types for drain direction
+      if(pct<=10)_speakAlert(pct,'critical');
+      else if(pct<=30)_speakAlert(pct,'low');
+      else _speakAlert(pct,'draining'); // new type
+    }
+    break; // one announcement per ingest call to avoid speech pile-up
+  }
+}
+
+// ── Refill counter ────────────────────────────────────────────────────────
+function _checkRefill(prev,cur){
+  if(prev==null||cur==null)return;
+  const now=new Date();
+  const h=now.getHours();
+  const period=h>=6&&h<12?'Morning':h>=12&&h<18?'Afternoon':h>=18?'Evening':'Night';
+
+  // Tank depleted to < 10% → enable next refill count increment
+  if(cur<10&&!analyticsSession._tankDepleted&&analyticsSession.refillCount>0){
+    analyticsSession._tankDepleted=true;
+  }
+
+  // Tank crossed 95% upward = refill complete
+  if(cur>=95&&prev<95){
+    // Only increment if tank was previously depleted or this is the first fill
+    if(analyticsSession._tankDepleted||analyticsSession.refillCount===0){
+      analyticsSession.refillCount++;
+      analyticsSession._tankDepleted=false;
+    }
+    const evt={
+      ts:Date.now(),
+      time:now.toLocaleString(),
+      period,
+      refillNum:analyticsSession.refillCount,
+      fromPct:prev,
+      toPct:cur,
+      vol:(S.vol||0).toFixed(0),
+      label:'Refill '+analyticsSession.refillCount
+    };
+    analyticsSession.refillEvents.push(evt);
+    analyticsSession.fullTankEvents.push({
+      ts:evt.ts,time:evt.time,pct:cur,
+      vol:evt.vol,refillNum:analyticsSession.refillCount,period
+    });
+    // Alert
+    push('ai','💧 '+evt.label+' COMPLETE ('+period+'): Tank at '+cur+'% — '+evt.vol+' L');
+    if(ck('t-sound'))playSound('full_tank');
+    setTimeout(()=>_speakAlert(analyticsSession.refillCount,'refill'),1500);
+  }
+}
+
 let _pendingIngest=null;
 
 function _commitPending(){
@@ -1551,62 +1672,77 @@ function ingest(d,fromMQTT=false){
 
   _resetStaleTimer();
 
-  // Analytics — ONLY real device data, never demo, never stale startup values
+  // ── WATER ENGINE v5: 5-sample processing ────────────────────────────────
+  // Feed raw reading into buffer. Nothing updates until 5 stable samples arrive.
+  // This eliminates 2–5% atmospheric fluctuations and sensor transients.
   if(_displayReady&&!demoMode&&S.m!=null){
-    const _now=new Date();
-    const _hr=_now.getHours();
-    const _isNight=_hr>=22||_hr<6;
-    const _isDay=_hr>=6&&_hr<22;
-
-    // History: record into clock-keyed hourly store (one value per clock-hour)
-    // _recordHourlyReading always updates the current hour slot immediately
-    // _saveHourly persists to localStorage (rate-limited to once per minute)
-    _recordHourlyReading(S.m);
-    const _hn=Date.now();
-    if(_hn-_lastHistorySave>60000){ // persist at most once per minute
-      _lastHistorySave=_hn;
-      _saveHourly();
-    }
-
-    // Confirmed samples counter — every real reading post-boot-guard
     analyticsSession.confirmedSamples++;
 
-    // Usage drop event
-    if(prev!=null&&S.m<prev){
-      const dropL=((prev-S.m)/100)*S.total;
-      recordUsageEvent(dropL,prev,S.m);
-
-      // Sudden drop detection (>5% in one reading)
-      if(prev-S.m>=5){
-        analyticsSession.suddenDrops.push({time:_now.toLocaleTimeString(),fromPct:prev,toPct:S.m,dropL:dropL.toFixed(1)});
-        if(analyticsSession.suddenDrops.length>30)analyticsSession.suddenDrops.shift();
-      }
-
-      // Night leakage: track drops during night hours
-      if(_isNight&&prev-S.m>=2){
-        const ll=(prev-S.m)/100*S.total;
-        analyticsSession.nightLeakLiters+=ll;
-        if(analyticsSession.nightLeakLiters>20)analyticsSession.nightLeakDetected=true;
-      }
-    }
-
-    // Full tank event — level crosses 95% upward
-    if(prev!=null&&S.m>=95&&prev<95){
-      analyticsSession.fullTankEvents.push({time:_now.toLocaleString(),pct:S.m,vol:S.vol.toFixed(0)});
-    }
-
-    // Day/Night running averages
-    if(_isDay) analyticsSession.dayReadings.push(S.m);
-    if(_isNight) analyticsSession.nightReadingsPct.push(S.m);
-    if(analyticsSession.dayReadings.length>500)analyticsSession.dayReadings.shift();
-    if(analyticsSession.nightReadingsPct.length>500)analyticsSession.nightReadingsPct.shift();
-
-    // Tank health score
-    _updateTankHealth();
-
-    // Raw readings log
+    // Always log raw readings for report timestamp table
     analyticsSession.readings.push({t:Date.now(),m:S.m,usage:S.usage||0});
-    if(analyticsSession.readings.length>500)analyticsSession.readings.shift();
+    if(analyticsSession.readings.length>1000)analyticsSession.readings.shift();
+
+    const _result=_processRaw(S.m);
+    if(_result!==null){
+      // A new stable value has been committed
+      const {stable,prev:stablePrev}=_result;
+      const _now=new Date();
+      const _hr=_now.getHours();
+      const _isNight=_hr>=22||_hr<6;
+      const _isDay=!_isNight;
+
+      // Update hourly store with stable value
+      _recordHourly(stable);
+      const _hn=Date.now();
+      if(_hn-_lastHistorySave>60000){ // persist max once per minute
+        _lastHistorySave=_hn;
+        _saveHourly();
+      } else {
+        _syncHistArray(); // keep S.history in sync without full persist
+      }
+
+      // 10% band voice announcement (fill and drain directions)
+      _check10PctVoice(stablePrev,stable);
+
+      // Refill counter (crosses 95% upward)
+      _checkRefill(stablePrev,stable);
+
+      // ── Usage drop event (stable level decreased) ──
+      if(stablePrev!=null&&stable<stablePrev){
+        const dropL=((stablePrev-stable)/100)*(S.total||1000);
+
+        // Only record if drop is meaningful (>= 1% = ~10L on 1000L tank)
+        // This filters micro-oscillations that slipped through the median
+        if(stablePrev-stable>=1){
+          recordUsageEvent(dropL,stablePrev,stable);
+
+          // Sudden drop (>10% stable-to-stable = real event, not noise)
+          if(stablePrev-stable>=10){
+            analyticsSession.suddenDrops.push({
+              time:_now.toLocaleTimeString(),
+              fromPct:stablePrev,toPct:stable,
+              dropL:dropL.toFixed(1),ts:_now.toISOString()
+            });
+            if(analyticsSession.suddenDrops.length>30)analyticsSession.suddenDrops.shift();
+          }
+
+          // Night leakage (22:00–06:00)
+          if(_isNight&&stablePrev-stable>=2){
+            const ll=(stablePrev-stable)/100*(S.total||1000);
+            analyticsSession.nightLeakLiters+=ll;
+            if(analyticsSession.nightLeakLiters>20)analyticsSession.nightLeakDetected=true;
+          }
+        }
+      }
+
+      // Day/night running averages (use stable value)
+      if(_isDay) analyticsSession.dayReadings.push(stable);
+      if(_isNight) analyticsSession.nightReadingsPct.push(stable);
+      if(analyticsSession.dayReadings.length>500)analyticsSession.dayReadings.shift();
+      if(analyticsSession.nightReadingsPct.length>500)analyticsSession.nightReadingsPct.shift();
+
+      _updateTankHealth();
+    }
   }
 
   checkAlerts(prev,S.m,S.isFull);
@@ -1619,118 +1755,19 @@ function ingest(d,fromMQTT=false){
 //  No ambulance sirens — natural water sounds + calm voice
 // ═══════════════════════════════════════════
 
-// ════════════════════════════════════════════════════════
-//  VOICE ENGINE v4.0 — Fully Rewritten, Production-Grade
-//  Fixes: stale voices closure, cancel→speak race condition,
-//         autoplay policy unlock, Android Chrome silent fail
-//  Languages: English → Telugu → Urdu (sequential)
-// ════════════════════════════════════════════════════════
-
-// Track whether the browser has unlocked speech via a user gesture.
-// Chrome silently blocks speechSynthesis.speak() before first user tap.
-let _speechUnlocked=false;
+// ── Speech alert — speaks in English → Telugu → Urdu ──
+// Bulletproof: resets on any error, has safety timeout, never deadlocks
 let _speechBusy=false;
 let _speechTimeout=null;
-let _speechQueue=[];        // phrases waiting to be spoken
-let _speechQueueTimer=null; // timer for sequential playback
-
-// Unlock speech synthesis on any user interaction — must happen before
-// any automated alert can play. We silently utter an empty string to
-// satisfy Chrome's autoplay policy without making a sound.
-function _unlockSpeech(){
-  if(_speechUnlocked)return;
-  if(!('speechSynthesis' in window))return;
-  try{
-    const _u=new SpeechSynthesisUtterance('');
-    _u.volume=0;_u.rate=10;// inaudible
-    speechSynthesis.speak(_u);
-    _speechUnlocked=true;
-  }catch(_){}
-}
-
-// Pre-load voices as early as possible — voices are async in all browsers
-let _cachedVoices=[];
-function _getVoices(){
-  // Always attempt refresh — voices list can change after page load
-  const fresh=speechSynthesis.getVoices();
-  if(fresh.length>0)_cachedVoices=fresh;
-  return _cachedVoices;
-}
-if('speechSynthesis' in window){
-  // Try eagerly
-  _cachedVoices=speechSynthesis.getVoices();
-  // Also catch the async load event
-  speechSynthesis.addEventListener('voiceschanged',()=>{
-    _cachedVoices=speechSynthesis.getVoices();
-  });
-}
-
-// Find best available voice for a given lang code
-function _pickVoice(lang){
-  const vv=_getVoices();
-  if(!vv.length)return null;
-  // Exact match
-  let v=vv.find(x=>x.lang===lang);
-  if(v)return v;
-  // Prefix match (e.g. 'te' matches 'te-IN')
-  const base=lang.split('-')[0];
-  v=vv.find(x=>x.lang.startsWith(base));
-  if(v)return v;
-  // For non-English langs with no match, return null (browser default)
-  // For English, always fall back to any English voice — guaranteed to exist
-  if(base==='en'){
-    v=vv.find(x=>x.lang.startsWith('en'));
-    return v||null;
-  }
-  return null;
-}
-
-// Core speak function — speaks ONE phrase, calls callback when done or on error
-function _speakPhrase(phrase,onDone){
-  if(!('speechSynthesis' in window)){onDone();return;}
-  try{
-    const utt=new SpeechSynthesisUtterance(phrase.text);
-    utt.lang=phrase.lang;
-    utt.rate=0.88;        // slightly slower for clarity
-    utt.pitch=1.0;
-    utt.volume=1.0;
-    const voice=_pickVoice(phrase.lang);
-    if(voice)utt.voice=voice;
-    let _done=false;
-    const _finish=()=>{if(!_done){_done=true;onDone();}};
-    utt.onend=()=>setTimeout(_finish,650);   // gap between phrases
-    utt.onerror=(e)=>{
-      console.warn('TASNI speech error:',e.error,'lang:',phrase.lang);
-      setTimeout(_finish,300);               // skip to next on error
-    };
-    // Chrome workaround: occasional stall fix — resume if paused
-    const _guard=setTimeout(()=>{
-      if(!_done){
-        try{if(speechSynthesis.paused)speechSynthesis.resume();}catch(_){}
-        // If still not done after 12s, force-advance
-        setTimeout(()=>{if(!_done){_done=true;onDone();}},3000);
-      }
-    },9000);
-    utt.onstart=()=>clearTimeout(_guard);
-    speechSynthesis.speak(utt);
-  }catch(e){
-    console.warn('TASNI speak() threw:',e);
-    setTimeout(onDone,300);
-  }
-}
-
-// Sequential phrase queue runner
-function _runQueue(phrases){
-  if(!phrases.length){_speechBusy=false;clearTimeout(_speechTimeout);return;}
-  const phrase=phrases[0];
-  const rest=phrases.slice(1);
-  _speakPhrase(phrase,()=>_runQueue(rest));
-}
 
 function _speakAlert(level,type){
   if(!('speechSynthesis' in window))return;
 
-  // Build phrases for this alert type
+  clearTimeout(_speechTimeout);
+  speechSynthesis.cancel();
+  _speechBusy=false;
+
+  // Build ALL phrases
   const allPhrases={
     low:[
       {key:'en',text:'Water tank is running low. Level at '+level+' percent. Please refill soon.',lang:'en-IN'},
@@ -1743,59 +1780,64 @@ function _speakAlert(level,type){
       {key:'ur',text:'خبردار! ٹینکی بہت کم ہے۔ صرف '+level+' فیصد باقی ہے۔ فوری طور پر بھریں!',lang:'ur-IN'},
     ],
     full:[
-      {key:'en',text:'Tank is now full. Water level is at maximum.',lang:'en-IN'},
+      {key:'en',text:'Tank is now full. Water level is at maximum capacity.',lang:'en-IN'},
       {key:'te',text:'ట్యాంకు నిండింది. నీటి స్థాయి గరిష్ఠంగా ఉంది.',lang:'te-IN'},
       {key:'ur',text:'ٹینکی بھر گئی ہے۔ پانی کی سطح زیادہ سے زیادہ ہے۔',lang:'ur-IN'},
     ],
+    draining:[
+      {key:'en',text:'Water level is now at '+level+' percent and still falling.',lang:'en-IN'},
+      {key:'te',text:'నీటి స్థాయి ఇప్పుడు '+level+' శాతానికి తగ్గింది.',lang:'te-IN'},
+      {key:'ur',text:'پانی کی سطح اب '+level+' فیصد ہو گئی ہے۔',lang:'ur-IN'},
+    ],
+    filling:[
+      {key:'en',text:'Tank is filling. Level now at '+level+' percent.',lang:'en-IN'},
+      {key:'te',text:'ట్యాంకు నింపబడుతోంది. స్థాయి ఇప్పుడు '+level+' శాతం.',lang:'te-IN'},
+      {key:'ur',text:'ٹینکی بھر رہی ہے۔ سطح اب '+level+' فیصد ہے۔',lang:'ur-IN'},
+    ],
+    refill:[
+      {key:'en',text:'Refill number '+level+' complete. Tank is full.',lang:'en-IN'},
+      {key:'te',text:'రీఫిల్ నంబర్ '+level+' పూర్తయింది. ట్యాంకు నిండింది.',lang:'te-IN'},
+      {key:'ur',text:'ری فل نمبر '+level+' مکمل ہوئی۔ ٹینکی بھر گئی۔',lang:'ur-IN'},
+    ],
   };
 
-  // Filter to only user-selected languages
+  // Filter by user's language toggles
   const phrases=(allPhrases[type]||allPhrases.low).filter(p=>{
-    if(p.key==='en')return ck('t-lang-en')!==false;  // default true
-    if(p.key==='te')return ck('t-lang-te')!==false;
-    if(p.key==='ur')return ck('t-lang-ur')!==false;
+    if(p.key==='en')return ck('t-lang-en');
+    if(p.key==='te')return ck('t-lang-te');
+    if(p.key==='ur')return ck('t-lang-ur');
     return true;
   });
 
-  if(!phrases.length)return; // all languages disabled — silent
+  if(!phrases.length)return; // all languages disabled
 
-  // Hard-stop any current speech before starting new alert
-  // CRITICAL: Must use setTimeout after cancel() — Chrome corrupts queue
-  // if speak() is called in same synchronous tick as cancel()
-  clearTimeout(_speechTimeout);
-  _speechBusy=false;
-  try{speechSynthesis.cancel();}catch(_){}
+  _speechBusy=true;
+  _speechTimeout=setTimeout(()=>{_speechBusy=false;speechSynthesis.cancel();},30000);
 
-  const _start=()=>{
-    // Voices might not be loaded yet — wait if needed
-    const _vv=_getVoices();
-    if(_vv.length===0){
-      // No voices yet — wait for voiceschanged then retry once
-      const _onVC=()=>{_cachedVoices=speechSynthesis.getVoices();_doSpeak();};
-      speechSynthesis.addEventListener('voiceschanged',_onVC,{once:true});
-      // Safety: if voiceschanged never fires, speak anyway after 1s (uses default voice)
-      setTimeout(()=>{
-        speechSynthesis.removeEventListener('voiceschanged',_onVC);
-        _doSpeak();
-      },1000);
-    } else {
-      _doSpeak();
-    }
-  };
+  const voices=speechSynthesis.getVoices();
+  let idx=0;
 
-  const _doSpeak=()=>{
-    if(_speechBusy)return; // already speaking a newer alert
-    _speechBusy=true;
-    // Safety timeout: force-reset if speech hangs for > 45s
-    _speechTimeout=setTimeout(()=>{
-      _speechBusy=false;
-      try{speechSynthesis.cancel();}catch(_){}
-    },45000);
-    _runQueue(phrases);
-  };
+  function speakNext(){
+    if(idx>=phrases.length){_speechBusy=false;clearTimeout(_speechTimeout);return;}
+    const p=phrases[idx++];
+    const utt=new SpeechSynthesisUtterance(p.text);
+    utt.lang=p.lang;utt.rate=0.86;utt.pitch=1.05;utt.volume=1.0;
+    const match=
+      voices.find(v=>v.lang===p.lang)||
+      voices.find(v=>v.lang.startsWith(p.lang.split('-')[0]))||
+      (p.lang.startsWith('en')?voices.find(v=>v.lang.startsWith('en')):null)||null;
+    if(match)utt.voice=match;
+    utt.onend=()=>setTimeout(speakNext,700);
+    utt.onerror=()=>setTimeout(speakNext,300);
+    try{speechSynthesis.speak(utt);}catch(e){setTimeout(speakNext,300);}
+  }
 
-  // The 120ms delay after cancel() is the critical fix for Chrome's queue corruption
-  setTimeout(_start,120);
+  if(voices.length===0){
+    speechSynthesis.addEventListener('voiceschanged',()=>speakNext(),{once:true});
+    setTimeout(()=>{if(_speechBusy&&idx===0)speakNext();},800);
+  } else {
+    setTimeout(speakNext,150);
+  }
 }
 
 // ── Tank health scorer ──
@@ -1865,50 +1907,34 @@ function _renderDashInsights(){
 function checkAlerts(prev,cur,isFull){
   if(prev==null||cur==null)return;
   if(prev===cur)return;
-  // Only fire alerts after display is ready — no stale startup triggers
   if(!_displayReady)return;
 
-  // Critical threshold crossing (<10%)
+  // ── Critical / Low threshold alerts (raw readings — fast response) ──
   if(prev>=10&&cur<10&&ck('t-crit')){
     push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
     if(ck('t-sound'))playSound('critical_alarm');
-    _speakAlert(cur,'critical');
   } else if(prev>=30&&cur<30&&ck('t-low')){
     push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
     if(ck('t-sound'))playSound('low_alert');
-    _speakAlert(cur,'low');
   }
 
-  // Special 5% chime — only plays ONCE when crossing below 5% (not every drop)
+  // 5% chime
   if(prev>=5&&cur<5&&ck('t-crit')){
     if(ck('t-sound'))playSound('five_pct');
   }
 
-  // Every 10% drop — SILENT log only, no sound, no chime (was annoying)
-  const prevBand=Math.floor(prev/10);
-  const curBand =Math.floor(cur/10);
-  if(curBand<prevBand&&cur>=10&&cur<90){
-    for(let b=prevBand-1;b>=curBand&&b>=1;b--){
-      push('aw','💧 DROP: Tank crossed '+(b*10)+'% — now at '+cur+'%.');
-    }
+  // Sudden large raw drop → possible burst pipe
+  if(prev-cur>=10&&ck('t-drop')){
+    push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% in one reading — check for leaks!');
   }
 
-  // Sudden large drop — leak detection
-  if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
-
-  // Refill above 90
-  if(prev<90&&cur>=90&&ck('t-fill')){
-    push('ai','✅ REFILLED: Tank is now above 90%.');
-    if(ck('t-sound')&&cur<100)playSound('refill');
-  }
-
-  // Full tank
+  // isFull sensor flag
   if(!S._wasFull&&isFull===1&&ck('t-full')){
-    push('ai','💧 FULL TANK: Water level is at maximum!');
     if(ck('t-sound'))playSound('full_tank');
-    setTimeout(()=>_speakAlert(100,'full'),2200);
   }
   S._wasFull=isFull===1;
+  // NOTE: Refill counter + voice + full-tank alert are handled in _checkRefill()
+  //       which operates on STABLE values (5-sample median), not raw readings.
 }
 
 function push(type,msg,critical=false){
@@ -1962,10 +1988,6 @@ function _markStale(){
 //  All sounds synthesized via Web Audio API — no files needed
 //  Designed to sound real, soothing, and engaging
 // ═══════════════════════════════════════════════════════════
-
-// Unlock speech on any touch/click anywhere in the app — belt & suspenders
-document.addEventListener('click',_unlockSpeech,{once:true});
-document.addEventListener('touchstart',_unlockSpeech,{once:true,passive:true});
 
 function getAudioCtx(){
   if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
@@ -2385,14 +2407,13 @@ function _chartDefaults(){
 
 function initChart(){
   _chartDefaults();
-  // ── Line chart: 24h history ──
-  // Labels and data are generated fresh in renderChart() — never static
+  // ── Line chart: 24h history — labels built from real clock hours ──
   const ctx=document.getElementById('histChart').getContext('2d');
-  const {labels:initLabels,data:initData}=_buildChartArrays();
+  const {labels:_initLabels,data:_initData}=_buildChartArrays();
   chart=new Chart(ctx,{
     type:'line',
-    data:{labels:initLabels,datasets:[{
-      label:'Level %',data:initData,
+    data:{labels:_initLabels,datasets:[{
+      label:'Level %',data:_initData,
       borderColor:'#2DD4BF',
       backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,'rgba(45,212,191,.28)');g.addColorStop(1,'rgba(45,212,191,0)');return g;},
       borderWidth:2,fill:true,tension:.4,pointRadius:2,
@@ -2478,17 +2499,9 @@ function initChart(){
 
 function renderChart(){
   if(!chart)return;
-  // Always rebuild labels AND data from the clock-keyed store so both stay accurate
   const {labels,data}=_buildChartArrays();
   chart.data.labels=labels;
   chart.data.datasets[0].data=data;
-  // Add a "current" marker dot on the last non-null point
-  const lastNonNull=data.slice().reverse().findIndex(v=>v!=null);
-  chart.data.datasets[0].pointRadius=data.map((v,i,a)=>{
-    if(v==null)return 0;
-    // Slightly bigger dot on the most recent reading
-    return i===a.length-1-([...a].reverse().findIndex(x=>x!=null))?4:2;
-  });
   chart.update('none');
 }
 
@@ -2503,7 +2516,9 @@ function renderAnalytics(){
   set('asum-cur',(_displayReady&&S.m!=null)?pct+'%':'--');
   set('asum-used',totalUsed>0?totalUsed.toFixed(1):'--');
   set('asum-rate',(_displayReady&&S.usage>0)?S.usage.toFixed(1):'--');
-  set('asum-fills',analyticsSession.fullTankEvents.length>0?analyticsSession.fullTankEvents.length:'0');
+  // Show actual refill count (from _checkRefill), not just fullTankEvents length
+  const _rfCount=analyticsSession.refillCount;
+  set('asum-fills',_rfCount>0?_rfCount:'0');
   const _hel=document.getElementById('asum-health');
   if(_hel){_hel.textContent=analyticsSession.healthLabel;_hel.style.color=analyticsSession.healthScore>=80?'var(--ok)':analyticsSession.healthScore>=50?'var(--warn)':'var(--danger)';}
 
@@ -2526,18 +2541,18 @@ function renderAnalytics(){
   const emptyIn=(_displayReady&&S.usage>0&&volNow>0)?fmtHrs(volNow/S.usage):'∞';
   set('vol-empty-in',emptyIn);
 
-  // ── Period KPI cards (always visible) ──
+  // ── Period KPI number cards (always visible) ──
   const _hasBar=pt.morn+pt.aft+pt.eve+pt.ngt>0;
   set('prd-morn',pt.morn.toFixed(1));
   set('prd-aft', pt.aft.toFixed(1));
   set('prd-eve', pt.eve.toFixed(1));
   set('prd-ngt', pt.ngt.toFixed(1));
   if(_hasBar){
-    const _peakVal=Math.max(pt.morn,pt.aft,pt.eve,pt.ngt);
-    const _peakName=_peakVal===pt.morn?'🌅 Morning (6–12h)':_peakVal===pt.aft?'☀️ Afternoon (12–18h)':_peakVal===pt.eve?'🌆 Evening (18–24h)':'🌙 Night (0–6h)';
-    set('prd-peak','📊 Peak period: <strong style="color:var(--pri)">'+_peakName+'</strong> — '+_peakVal.toFixed(1)+' L used');
+    const _pk=Math.max(pt.morn,pt.aft,pt.eve,pt.ngt);
+    const _pn=_pk===pt.morn?'🌅 Morning':_pk===pt.aft?'☀️ Afternoon':_pk===pt.eve?'🌆 Evening':'🌙 Night';
+    set('prd-peak','Peak: <strong style="color:var(--pri)">'+_pn+'</strong> — '+_pk.toFixed(1)+' L');
   } else {
-    set('prd-peak','No usage drops recorded yet — keep monitoring');
+    set('prd-peak','Usage events appear here after water is consumed');
   }
 
   // ── Bar chart: time of day usage ──
@@ -2611,6 +2626,15 @@ function resetAnalytics(){
   analyticsSession.sessionStart=new Date().toISOString();
   analyticsSession.confirmedSamples=0;
   analyticsSession.computedUsageRate=0;
+  analyticsSession.refillCount=0;
+  analyticsSession.refillEvents=[];
+  analyticsSession._tankWasFull=false;
+  analyticsSession._tankDepleted=false;
+  // Reset 5-sample buffer
+  _rawBuffer=[];
+  _stableLevel=null;
+  _lastVoiceBand=null;
+  _lastUsageEventLevel=null;
   renderAnalytics();
   showToast('Usage counters reset','ok',2500);
 }
@@ -2680,22 +2704,12 @@ function downloadReport(){
   const monthlyLProj=rateRaw>0?(rateRaw*24*30).toFixed(0):'--';
   const monthlyCostProj=rateRaw>0?(rateRaw*24*30/1000*COST_PER_KL).toFixed(2):'--';
 
-  // Efficiency scoring — based on ACTUAL measured session consumption
-  // Method: totalUsedL / session_hours → project to 24h → compare vs tank capacity
-  // This uses real drop events, not estimated device rate, so it reflects true usage
-  const sessionStart=new Date(analyticsSession.sessionStart);
-  const sessionHours=Math.max(0.5,(Date.now()-sessionStart.getTime())/3600000);
-  const dailyLActual=volUsedSession>0?(volUsedSession/sessionHours*24):null;
-  // Fallback to rate projection if session too short (<30 min) or no drop events
-  const dailyLForEff=dailyLActual!==null&&sessionHours>=0.5&&volUsedSession>0
-    ? dailyLActual
-    : (rateRaw>0?rateRaw*24:null);
-  const dayUsagePct=dailyLForEff!==null?Math.min(200,(dailyLForEff/total)*100):null;
-  const effBasis=dailyLActual!==null&&volUsedSession>0
-    ? 'Actual session consumption: '+volUsedSession.toFixed(0)+'L over '+sessionHours.toFixed(1)+'h → '+dailyLForEff.toFixed(0)+'L/day projected'
-    : 'Based on real-time device usage rate: '+rateDisplay+' L/hr';
+  // Efficiency scoring
+  // Benchmark: ~150L/person/day typical Indian household; office ~50L/person/day
+  // We score based on usage rate relative to capacity
+  const dayUsagePct=rateRaw>0?Math.min(100,(rateRaw*24/total)*100):null;
   let effScore, effLabel, effColor, effAdvice;
-  if(dayUsagePct===null){effScore='--';effLabel='Insufficient data';effColor='#8a9bb0';effAdvice='Keep monitoring to build efficiency baseline. Need at least one usage drop event to score.';}
+  if(dayUsagePct===null){effScore='--';effLabel='Insufficient data';effColor='#8a9bb0';effAdvice='Keep monitoring to build efficiency baseline.';}
   else if(dayUsagePct<30){effScore='A+';effLabel='Excellent — Very Efficient';effColor='#34d399';effAdvice='Water consumption is well managed. Maintain current practices.';}
   else if(dayUsagePct<50){effScore='A';effLabel='Good Efficiency';effColor='#2DD4BF';effAdvice='Good control. Minor tweaks to peak-hour usage could save more.';}
   else if(dayUsagePct<70){effScore='B';effLabel='Moderate Usage';effColor='#fbbf24';effAdvice='Consider scheduling heavy water use (laundry, gardening) to off-peak hours.';}
@@ -2717,7 +2731,8 @@ function downloadReport(){
   const hcol=hs>=80?'#34d399':hs>=50?'#fbbf24':'#f87171';
   const nlDetected=analyticsSession.nightLeakDetected;
   const nlLiters=analyticsSession.nightLeakLiters.toFixed(0);
-  const fullCount=analyticsSession.fullTankEvents.length;
+  const fullCount=analyticsSession.refillCount;  // confirmed refill cycles
+  const refillEvents=analyticsSession.refillEvents||[];
   const suddenDrops=analyticsSession.suddenDrops.length;
   const dayAvg=analyticsSession.dayReadings.length?Math.round(analyticsSession.dayReadings.reduce((a,b)=>a+b,0)/analyticsSession.dayReadings.length):null;
   const ngtAvg=analyticsSession.nightReadingsPct.length?Math.round(analyticsSession.nightReadingsPct.reduce((a,b)=>a+b,0)/analyticsSession.nightReadingsPct.length):null;
@@ -2732,7 +2747,6 @@ function downloadReport(){
   const sCl=pct<10?'#f87171':pct<30?'#fbbf24':'#2DD4BF';
 
   // 24h history
-  // Always build from the authoritative clock-keyed store — never from S.history
   const {labels:histLabels,data:histData}=_buildChartArrays();
   const histHasData=histData.some(v=>v!=null);
 
@@ -2991,18 +3005,12 @@ function downloadReport(){
     </div>
   </div>
   <div class="card">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">COST BREAKDOWN — HOW IT IS CALCULATED</div>
-    <div style="background:rgba(45,212,191,.05);border:1px solid rgba(45,212,191,.12);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:rgba(180,220,255,.6);line-height:1.7">
-      <strong style="color:#2DD4BF">Formula:</strong> Litres used ÷ 1000 × ₹${COST_PER_KL} (municipal tariff) = estimated cost<br>
-      <strong style="color:#2DD4BF">Session cost</strong> = ${volUsedSession>0?volUsedSession.toFixed(0):'0'} L ÷ 1000 × ₹${COST_PER_KL} = ₹${sessionCostEst}<br>
-      <strong style="color:#2DD4BF">Daily projection</strong> = usage rate ${rateDisplay} L/hr × 24h = ${dailyLProj} L → ₹${dailyCostProj}<br>
-      <strong style="color:#2DD4BF">Monthly</strong> = daily ${dailyLProj} L × 30 days = ${monthlyLProj} L → ₹${monthlyCostProj}
-    </div>
-    <div class="cost-row"><span class="cost-label">💧 This session — actual measured</span><span class="cost-val">${volUsedSession>0?volUsedSession.toFixed(0):'0'} L &nbsp;≈&nbsp; ₹${sessionCostEst}</span></div>
-    <div class="cost-row"><span class="cost-label">📅 Projected daily</span><span class="cost-val">${dailyLProj} L &nbsp;≈&nbsp; ₹${dailyCostProj}</span></div>
-    <div class="cost-row"><span class="cost-label">🗓️ Projected monthly</span><span class="cost-val">${monthlyLProj} L &nbsp;≈&nbsp; ₹${monthlyCostProj}</span></div>
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:14px">COST BREAKDOWN (ESTIMATE @ ₹6 / 1000L)</div>
+    <div class="cost-row"><span class="cost-label">Water used this session</span><span class="cost-val">${volUsedSession>0?volUsedSession.toFixed(0):'0'} L &nbsp;≈&nbsp; ₹${sessionCostEst}</span></div>
+    <div class="cost-row"><span class="cost-label">Projected daily consumption</span><span class="cost-val">${dailyLProj} L &nbsp;≈&nbsp; ₹${dailyCostProj}</span></div>
+    <div class="cost-row"><span class="cost-label">Projected monthly consumption</span><span class="cost-val">${monthlyLProj} L &nbsp;≈&nbsp; ₹${monthlyCostProj}</span></div>
     ${nlDetected?`<div class="cost-row" style="border-top:1px solid rgba(248,113,113,.2);margin-top:8px;padding-top:16px"><span class="cost-label" style="color:#f87171">⚠ Night leakage waste (monthly est.)</span><span class="cost-val" style="color:#f87171">${(parseFloat(nlLiters)*30).toFixed(0)} L &nbsp;≈&nbsp; ₹${(parseFloat(nlLiters)*30/1000*COST_PER_KL).toFixed(2)}</span></div>`:''}
-    <div style="font-size:10px;color:rgba(180,220,255,.2);margin-top:12px">* Based on ₹${COST_PER_KL}/KL average municipal water tariff. Contact your local body for exact rate. 1 KL = 1000 L.</div>
+    <div style="font-size:10px;color:rgba(180,220,255,.25);margin-top:12px">* Cost estimates based on ₹6/KL average municipal water tariff. Adjust for your local rate.</div>
   </div></div>`;
 
   // ── SECTION 4: EFFICIENCY ──
@@ -3017,11 +3025,8 @@ function downloadReport(){
         <div style="font-size:12px;color:rgba(180,220,255,.6);line-height:1.6">${effAdvice}</div>
         ${dayUsagePct!==null?`<div style="margin-top:10px">
           <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:rgba(180,220,255,.4)">Daily tank draw</span><span style="color:${effColor};font-weight:700">${dayUsagePct.toFixed(0)}%</span></div>
-          <div class="fill-bar"><div class="fill-inner" style="width:${Math.min(100,dayUsagePct).toFixed(0)}%;background:${effColor}"></div></div>
+          <div class="fill-bar"><div class="fill-inner" style="width:${dayUsagePct.toFixed(0)}%;background:${effColor}"></div></div>
         </div>`:''}
-        <div style="margin-top:10px;font-size:10px;color:rgba(180,220,255,.35);background:rgba(255,255,255,.03);border-radius:6px;padding:7px 9px;line-height:1.5">
-          📐 <strong style="color:rgba(180,220,255,.5)">Data source:</strong> ${effBasis}
-        </div>
       </div>
     </div>
     <div class="card">
@@ -3088,43 +3093,22 @@ function downloadReport(){
   </div>`;
 
   // ── SECTION 7: 24H HISTORY ──
-  // Open the section and the chart card in one template literal
   html+=`<div class="sec" id="history"><div class="sec-title">7 — 24-Hour Level History</div>
   <div class="card" style="margin-bottom:12px">
     <div class="chart-wrap-lg"><canvas id="histC"></canvas></div>
-  </div>`;
-  // Build reading table rows using REAL timestamps from analyticsSession.readings
-  // If no readings yet, fall back to S.history with approximate hour labels
-  (function(){
-    const _rdgs=analyticsSession.readings;
-    const _hasRdgs=_rdgs.length>0;
-    const _readRows=_hasRdgs
-      ? [..._rdgs].reverse().slice(0,50).map(r=>{
-          const _rt=new Date(r.t);
-          const _lbl=_rt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-          const _v=r.m;
-          const _vl=(_v/100*total).toFixed(0);
-          const _st=_v>=95?'Full':_v>=70?'Good':_v>=30?'Normal':_v>=10?'Low':'Critical';
-          const _sc=_v>=70?'tc-ok':_v>=30?'':_v>=10?'tc-warn':'tc-danger';
-          return'<tr><td>'+_lbl+'</td><td class="'+_sc+'">'+_v+'%</td><td>'+_vl+' L</td><td class="'+_sc+'">'+_st+'</td></tr>';
-        }).join('')
-      : histLabels.map((lbl,i)=>{
-          const v=histData[i];
-          const vl=v!=null?(v/100*total).toFixed(0):'--';
-          const st=v==null?'NIL':v>=95?'Full':v>=70?'Good':v>=30?'Normal':v>=10?'Low':'Critical';
-          const sc=v==null?'':v>=70?'tc-ok':v>=30?'':v>=10?'tc-warn':'tc-danger';
-          return'<tr><td>'+lbl+'</td><td class="'+sc+'">'+( v!=null?v+'%':'NIL')+'</td><td>'+vl+(v!=null?' L':'')+'</td><td class="'+sc+'">'+st+'</td></tr>';
-        }).join('')
-    const _hdg=_hasRdgs
-      ?'READING LOG — ACTUAL DEVICE TIMESTAMPS (latest '+Math.min(_rdgs.length,50)+' readings)'
-      :'24H HISTORY — APPROXIMATE HOURLY SLOTS';
-    const _note=_hasRdgs?'':
-      '<div style="font-size:10px;color:rgba(180,220,255,.25);margin-top:8px">No real-time readings in this session — times are approximate hourly slots from local storage</div>';
-    html+='<div class="card"><div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">'+_hdg+'</div>'
-      +'<table><tr><th>Time</th><th>Level %</th><th>Volume</th><th>Status</th></tr>'+_readRows+'</table>'
-      +_note+'</div></div>';
-  })();
-
+  </div>
+  <div class="card">
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">HOURLY LEVEL TABLE</div>
+    <table><tr><th>Hour</th><th>Level %</th><th>Volume (L)</th><th>Status</th></tr>
+    ${histLabels.map((lbl,i)=>{
+      const v=histData[i];
+      const vl=v!=null?(v/100*total).toFixed(0):'--';
+      const st=v==null?'--':v>=95?'Full':v>=70?'Good':v>=30?'Normal':v>=10?'Low':'Critical';
+      const sc=v==null?'':v>=70?'tc-ok':v>=30?'':v>=10?'tc-warn':'tc-danger';
+      return`<tr><td>${lbl}</td><td class="${sc}">${v!=null?v+'%':'NIL'}</td><td>${vl}${v!=null?' L':''}</td><td class="${sc}">${st}</td></tr>`;
+    }).join('')}
+    </table>
+  </div></div>`;
 
   // ── SECTION 8: ALERT LOG ──
   if(alerts.length>0){
@@ -3132,7 +3116,7 @@ function downloadReport(){
     html+=`<div class="sec" id="alerts"><div class="sec-title">8 — Alert Log</div>
     <div class="card">
       <table><tr><th>Time</th><th>Priority</th><th>Message</th></tr>
-      ${alerts.slice(0,10).map(a=>{
+      ${alerts.slice(0,40).map(a=>{
         const m=_san(a.msg);
         const tc=a.type==='ac'?'tc-danger':a.type==='aw'?'tc-warn':'tc-ok';
         const tl=a.type==='ac'?'🚨 Critical':a.type==='aw'?'⚠️ Warning':'ℹ️ Info';
@@ -3206,7 +3190,7 @@ function downloadReport(){
 function renderAlertLog(){
   const el=document.getElementById('alertLog');
   if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div>';return;}
-  el.innerHTML=alerts.slice(0,10).map(a=>`
+  el.innerHTML=alerts.slice(0,30).map(a=>`
     <div class="alert-item ${a.type}">
       <div class="adot"></div>
       <div><div class="al-msg">${a.msg}</div><div class="al-time">${new Date(a.time).toLocaleString()}</div></div>
@@ -3469,17 +3453,14 @@ function set(id,html){const e=document.getElementById(id);if(e)e.innerHTML=html;
 function fmtUp(s){if(!s)return'--';if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';return Math.floor(s/86400)+'d '+Math.floor((s%86400)/3600)+'h';}
 function fmtHrs(h){if(!isFinite(h)||h<=0)return'∞';if(h<1)return Math.round(h*60)+' min';if(h<24)return Math.round(h)+' hrs';return Math.floor(h/24)+'d '+Math.round(h%24)+'h';}
 function goTab(name,btn){
-  _unlockSpeech(); // any tab tap is a user gesture — unlock speech synthesis for Chrome
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
   if(name==='analytics'){
     unlockAch(1);
-    // Resize all charts first (hidden tab = 0×0 canvas → must resize before drawing)
     [chart,donutChart,barChart,usagePieChart].forEach(c=>{try{if(c)c.resize();}catch(_){}});
-    // renderChart() refreshes 24h line chart with current labels+data
-    renderChart();
+    renderChart();  // fresh labels+data from clock store
     renderAnalytics();
   }
   if(name==='tips'){unlockAch(5);renderTips();}
