@@ -931,7 +931,13 @@ function _hourKey(d){ // "YYYY-MM-DD-HH"
 }
 function _recordHourly(pct){
   if(pct==null||isNaN(pct))return;
-  _hourlyStore[_hourKey()]=pct; // latest stable reading wins for this clock-hour
+  const _k=_hourKey();
+  // Only update this hour's slot if: (a) no value yet, or (b) change >= 2% from existing.
+  // This prevents sub-2% oscillations from flickering the 24h history chart.
+  // (The primary guard is in _processRaw; this is a secondary defense for edge cases.)
+  const _existing=_hourlyStore[_k];
+  if(_existing!=null&&Math.abs(pct-_existing)<2)return;
+  _hourlyStore[_k]=pct;
 }
 function _saveHourly(){
   // Prune >25h old keys
@@ -1461,6 +1467,45 @@ function _setTankAnim(dir){
 let _rawBuffer=[];           // rolling 5 raw readings from device
 const _SAMPLE_SIZE=5;        // number of samples before committing stable value
 let _stableLevel=null;       // last committed stable level (%)
+
+// ── STRICT STABLE DELTA GUARD ────────────────────────────────────────────────
+// PRIMARY FIX for 1-2% oscillations showing in graph & report.
+// The rolling 5-sample median can flip by 1% even with a stable sensor.
+// This guard rejects ANY stable commit whose delta is below the threshold.
+// Daytime (6AM–10PM): 3% minimum. Night (10PM–6AM): 5% minimum (more atm. noise).
+// NOTHING — no chart, no event, no report — is released until this passes.
+const _MIN_STABLE_DELTA_DAY=3;
+const _MIN_STABLE_DELTA_NIGHT=5;
+
+// ── SESSION-AWARE USAGE EVENT ACCUMULATOR ─────────────────────────────────────
+// "Record once event is finished" — groups all stable drops within a 10-min
+// settle window into ONE finalized event. Prevents micro-events and partial
+// readings from appearing in usage split, events list, and report.
+let _usageAccum=null; // {startPct,curPct,period,startTime,startTs,_timer}
+const _USAGE_SETTLE_MS=10*60*1000; // 10 min idle = usage session ended
+
+function _openOrExtendUsage(fromPct,toPct){
+  const now=new Date();const h=now.getHours();
+  const period=h>=6&&h<12?'morn':h>=12&&h<18?'aft':h>=18?'eve':'ngt';
+  if(!_usageAccum){
+    // Open new session
+    _usageAccum={startPct:fromPct,curPct:toPct,period,startTime:now.toLocaleTimeString(),startTs:Date.now()};
+  } else {
+    // Extend: track lowest point reached
+    if(toPct<_usageAccum.curPct)_usageAccum.curPct=toPct;
+  }
+  if(_usageAccum._timer)clearTimeout(_usageAccum._timer);
+  _usageAccum._timer=setTimeout(_commitUsageAccum,_USAGE_SETTLE_MS);
+}
+
+function _commitUsageAccum(){
+  if(!_usageAccum)return;
+  const acc=_usageAccum;_usageAccum=null;
+  if(acc.startPct<=acc.curPct)return; // no net drop
+  const dropL=((acc.startPct-acc.curPct)/100)*(S.total||1000);
+  if(dropL<1)return; // negligible
+  recordUsageEvent(dropL,acc.startPct,acc.curPct,acc.startTime,acc.startTs,acc.period);
+}
 let _lastVoiceBand=null;     // last 10% band announced by voice (-1 = none yet)
 let _lastUsageEventLevel=null; // level when last usage event was committed
 
@@ -1501,8 +1546,24 @@ function _processRaw(rawPct){
 
   const stable=Math.round(_median(_rawBuffer));
 
-  // If stable level hasn't changed, skip (de-duplicate)
+  // Guard 1: De-duplicate identical values
   if(_stableLevel!==null&&stable===_stableLevel)return null;
+
+  // Guard 2: MINIMUM DELTA — PRIMARY FIX FOR 1-2% OSCILLATION BUG
+  // The rolling median CAN change by 1% even with a physically stable tank
+  // (e.g. buffer [68,68,69,68,68]→68 then [68,69,68,68,69]→68 then [69,68,68,69,68]→68…
+  //  but [68,69,68,69,69]→69 = 1% flip). This guard kills that.
+  // Night (22:00–06:00) uses 5% because atmospheric pressure / humidity causes
+  // real 2-5% oscillations that are NOT actual water level changes.
+  if(_stableLevel!==null){
+    const _absδ=Math.abs(stable-_stableLevel);
+    const _hr=new Date().getHours();
+    const _minΔ=(_hr>=22||_hr<6)?_MIN_STABLE_DELTA_NIGHT:_MIN_STABLE_DELTA_DAY;
+    if(_absδ<_minΔ){
+      // Oscillation is below noise floor — do NOT release to any chart, graph, report or event
+      return null;
+    }
+  }
 
   const prev=_stableLevel;
   _stableLevel=stable;
@@ -1711,12 +1772,16 @@ function ingest(d,fromMQTT=false){
       if(stablePrev!=null&&stable<stablePrev){
         const dropL=((stablePrev-stable)/100)*(S.total||1000);
 
-        // Only record if drop is meaningful (>= 1% = ~10L on 1000L tank)
-        // This filters micro-oscillations that slipped through the median
-        if(stablePrev-stable>=1){
-          recordUsageEvent(dropL,stablePrev,stable);
+        // Only process drops >= 3% (MIN_STABLE_DELTA_DAY is already 3% so this is
+        // consistent — it's a secondary guard and documents the intent clearly).
+        // With the new min-delta guard in _processRaw, 1-2% changes never even
+        // reach this block. The 3% check here ensures that is enforced end-to-end.
+        if(stablePrev-stable>=_MIN_STABLE_DELTA_DAY){
+          // Route through the session accumulator — records ONE finalized event
+          // once water usage stops (10-min settle). "Record once event is finished."
+          _openOrExtendUsage(stablePrev,stable);
 
-          // Sudden drop (>10% stable-to-stable = real event, not noise)
+          // Sudden drop (>= 10% stable-to-stable = burst pipe / rapid drain)
           if(stablePrev-stable>=10){
             analyticsSession.suddenDrops.push({
               time:_now.toLocaleTimeString(),
@@ -1726,8 +1791,10 @@ function ingest(d,fromMQTT=false){
             if(analyticsSession.suddenDrops.length>30)analyticsSession.suddenDrops.shift();
           }
 
-          // Night leakage (22:00–06:00)
-          if(_isNight&&stablePrev-stable>=2){
+          // Night leakage (22:00–06:00) — use night threshold (5%) for consistency.
+          // Since _processRaw already requires 5% delta at night before committing,
+          // stablePrev-stable will always be >= 5 here during night hours.
+          if(_isNight&&stablePrev-stable>=_MIN_STABLE_DELTA_NIGHT){
             const ll=(stablePrev-stable)/100*(S.total||1000);
             analyticsSession.nightLeakLiters+=ll;
             if(analyticsSession.nightLeakLiters>20)analyticsSession.nightLeakDetected=true;
@@ -1913,6 +1980,10 @@ function checkAlerts(prev,cur,isFull){
   if(prev>=10&&cur<10&&ck('t-crit')){
     push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
     if(ck('t-sound'))playSound('critical_alarm');
+    // Also mark tank as depleted for refill counter — ensures _checkRefill resets
+    // correctly even if the 5-sample engine hasn't committed the <10% stable value yet
+    // (can happen if the raw drop is < MIN_STABLE_DELTA_DAY from last stable)
+    analyticsSession._tankDepleted=true;
   } else if(prev>=30&&cur<30&&ck('t-low')){
     push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
     if(ck('t-sound'))playSound('low_alert');
@@ -2378,13 +2449,16 @@ function renderDash(){
 // ═══════════════════════════════════════════════════════
 let donutChart=null,barChart=null,usagePieChart=null;
 
-function recordUsageEvent(dropL,fromPct,toPct){
+function recordUsageEvent(dropL,fromPct,toPct,_time,_ts,_period){
   const now=new Date();
   const h=now.getHours();
-  const period=h>=6&&h<12?'morn':h>=12&&h<18?'aft':h>=18?'eve':'ngt';
+  // Accept pre-computed params from accumulator (preserves original event time)
+  const period=_period||(h>=6&&h<12?'morn':h>=12&&h<18?'aft':h>=18?'eve':'ngt');
+  const time=_time||now.toLocaleTimeString();
+  const ts=_ts||Date.now();
   analyticsSession.periodTotals[period]+=dropL;
   analyticsSession.totalUsedL+=dropL;
-  analyticsSession.events.push({time:now.toLocaleTimeString(),dropL:dropL.toFixed(1),fromPct,toPct,period,ts:Date.now()});
+  analyticsSession.events.push({time,dropL:dropL.toFixed(1),fromPct,toPct,period,ts});
   if(analyticsSession.events.length>60)analyticsSession.events.shift();
   // Recompute usage rate from the last 3 hours of events
   const _3h=Date.now()-3*3600000;
@@ -2512,9 +2586,19 @@ function renderAnalytics(){
   const volNow=(_displayReady&&S.m!=null)?S.vol:0;
   const total=S.total||1000;
 
+  // ── Live accumulator overlay ───────────────────────────────────────────────
+  // While a usage session is still open (not yet settled), add its contribution
+  // to the display so the user sees consumption in real time.
+  const _liveExtra=_usageAccum?Math.max(0,(_usageAccum.startPct-_usageAccum.curPct)/100*total):0;
+  const _totalUsedDisplay=totalUsed+_liveExtra;
+  // Build per-period display including the live session
+  const ptDisplay=Object.assign({},pt);
+  if(_usageAccum&&_liveExtra>0)ptDisplay[_usageAccum.period]=(ptDisplay[_usageAccum.period]||0)+_liveExtra;
+  const _liveTag=_usageAccum?' <span style="font-size:9px;color:var(--warn);vertical-align:top">●LIVE</span>':'';
+
   // ── KPI cards ──
   set('asum-cur',(_displayReady&&S.m!=null)?pct+'%':'--');
-  set('asum-used',totalUsed>0?totalUsed.toFixed(1):'--');
+  set('asum-used',_totalUsedDisplay>0?_totalUsedDisplay.toFixed(1)+_liveTag:'--');
   set('asum-rate',(_displayReady&&S.usage>0)?S.usage.toFixed(1):'--');
   // Show actual refill count (from _checkRefill), not just fullTankEvents length
   const _rfCount=analyticsSession.refillCount;
@@ -2542,14 +2626,14 @@ function renderAnalytics(){
   set('vol-empty-in',emptyIn);
 
   // ── Period KPI number cards (always visible) ──
-  const _hasBar=pt.morn+pt.aft+pt.eve+pt.ngt>0;
-  set('prd-morn',pt.morn.toFixed(1));
-  set('prd-aft', pt.aft.toFixed(1));
-  set('prd-eve', pt.eve.toFixed(1));
-  set('prd-ngt', pt.ngt.toFixed(1));
+  const _hasBar=ptDisplay.morn+ptDisplay.aft+ptDisplay.eve+ptDisplay.ngt>0;
+  set('prd-morn',ptDisplay.morn.toFixed(1));
+  set('prd-aft', ptDisplay.aft.toFixed(1));
+  set('prd-eve', ptDisplay.eve.toFixed(1));
+  set('prd-ngt', ptDisplay.ngt.toFixed(1));
   if(_hasBar){
-    const _pk=Math.max(pt.morn,pt.aft,pt.eve,pt.ngt);
-    const _pn=_pk===pt.morn?'🌅 Morning':_pk===pt.aft?'☀️ Afternoon':_pk===pt.eve?'🌆 Evening':'🌙 Night';
+    const _pk=Math.max(ptDisplay.morn,ptDisplay.aft,ptDisplay.eve,ptDisplay.ngt);
+    const _pn=_pk===ptDisplay.morn?'🌅 Morning':_pk===ptDisplay.aft?'☀️ Afternoon':_pk===ptDisplay.eve?'🌆 Evening':'🌙 Night';
     set('prd-peak','Peak: <strong style="color:var(--pri)">'+_pn+'</strong> — '+_pk.toFixed(1)+' L');
   } else {
     set('prd-peak','Usage events appear here after water is consumed');
@@ -2557,7 +2641,7 @@ function renderAnalytics(){
 
   // ── Bar chart: time of day usage ──
   if(barChart){
-    barChart.data.datasets[0].data=[pt.morn,pt.aft,pt.eve,pt.ngt];
+    barChart.data.datasets[0].data=[ptDisplay.morn,ptDisplay.aft,ptDisplay.eve,ptDisplay.ngt];
     barChart.update('none');
     const _bnd=document.getElementById('barNoData');
     if(_bnd)_bnd.style.display=_hasBar?'none':'flex';
@@ -2565,9 +2649,9 @@ function renderAnalytics(){
 
   // ── Usage pie: only show if we have any data ──
   if(usagePieChart){
-    const _hasPie=pt.morn+pt.aft+pt.eve+pt.ngt>0;
+    const _hasPie=ptDisplay.morn+ptDisplay.aft+ptDisplay.eve+ptDisplay.ngt>0;
     usagePieChart.data.datasets[0].data=_hasPie
-      ?[Math.max(pt.morn,0.001),Math.max(pt.aft,0.001),Math.max(pt.eve,0.001),Math.max(pt.ngt,0.001)]
+      ?[Math.max(ptDisplay.morn,0.001),Math.max(ptDisplay.aft,0.001),Math.max(ptDisplay.eve,0.001),Math.max(ptDisplay.ngt,0.001)]
       :[0.001,0.001,0.001,0.001];
     usagePieChart.update('none');
     const _pnd=document.getElementById('pieNoData');
@@ -2591,10 +2675,11 @@ function renderAnalytics(){
 
   // ── Usage events ──
   const evEl=document.getElementById('usageEvents');
-  if(analyticsSession.events.length===0){
+  const _liveSessionHtml=_usageAccum?`<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:9px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;font-size:12px"><span style="font-size:16px;animation:sblink 1s step-end infinite">💧</span><div><div style="font-weight:700;color:var(--warn)">USAGE SESSION IN PROGRESS</div><div style="font-size:10px;color:var(--muted);margin-top:2px">Level: ${_usageAccum.startPct}% → ${_usageAccum.curPct}% · ~${_liveExtra.toFixed(1)} L consumed · Recording finalizes after 10 min idle</div></div></div>`:'';
+  if(analyticsSession.events.length===0&&!_usageAccum){
     evEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No usage drops recorded yet this session</div>';
   } else {
-    evEl.innerHTML=[...analyticsSession.events].reverse().slice(0,12).map(e=>`
+    evEl.innerHTML=_liveSessionHtml+[...analyticsSession.events].reverse().slice(0,12).map(e=>`
       <div class="session-item">
         <div>
           <div style="font-size:13px;font-weight:600">💧 ${e.fromPct}% → ${e.toPct}%</div>
@@ -2635,6 +2720,9 @@ function resetAnalytics(){
   _stableLevel=null;
   _lastVoiceBand=null;
   _lastUsageEventLevel=null;
+  // Clear any open usage session accumulator
+  if(_usageAccum&&_usageAccum._timer)clearTimeout(_usageAccum._timer);
+  _usageAccum=null;
   renderAnalytics();
   showToast('Usage counters reset','ok',2500);
 }
@@ -2678,6 +2766,10 @@ function downloadReport(){
   }
 
   // ── Gather all data ──
+  // IMPORTANT: Finalize any open usage session before generating report
+  // so all data is included (the accumulator's live portion is added)
+  const _reportExtraL=_usageAccum?Math.max(0,(_usageAccum.startPct-_usageAccum.curPct)/100*(S.total||1000)):0;
+  const _hasOpenSession=!!_usageAccum;
   const now=new Date();
   const ds=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const ts=now.toLocaleString();
@@ -2686,7 +2778,7 @@ function downloadReport(){
   const pct=Math.max(0,Math.min(100,S.m));
   const volNow=S.vol>0?S.vol:(pct/100)*total;
   const volAvail=(volNow).toFixed(0);
-  const volUsedSession=analyticsSession.totalUsedL;
+  const volUsedSession=analyticsSession.totalUsedL+_reportExtraL;
 
   // Usage rate — prefer event-computed (more accurate than device-reported)
   const rateRaw=analyticsSession.computedUsageRate>0
@@ -2716,8 +2808,9 @@ function downloadReport(){
   else if(dayUsagePct<90){effScore='C';effLabel='High Consumption';effColor='#fb923c';effAdvice='Usage is high. Check for running taps, toilet leaks, and peak-load habits.';}
   else{effScore='D';effLabel='Critical — Overconsumption';effColor='#f87171';effAdvice='Tank may run dry. Audit all water points and check for hidden leaks urgently.';}
 
-  // Period totals
-  const pt=analyticsSession.periodTotals;
+  // Period totals — include live session
+  const pt=Object.assign({},analyticsSession.periodTotals);
+  if(_usageAccum&&_reportExtraL>0)pt[_usageAccum.period]=(pt[_usageAccum.period]||0)+_reportExtraL;
   const morL=pt.morn.toFixed(1),aftL=pt.aft.toFixed(1),eveL=pt.eve.toFixed(1),ngtL=pt.ngt.toFixed(1);
   const totalPeriod=pt.morn+pt.aft+pt.eve+pt.ngt;
   const peakPeriod=
@@ -2857,6 +2950,7 @@ function downloadReport(){
       <div class="rep-badge-row">
         <span class="rbadge ${statusBadgeClass}">${statusLabel} — ${pct}%</span>
         <span class="rbadge rbadge-info">REAL DEVICE DATA</span>
+        ${_hasOpenSession?'<span class="rbadge rbadge-warn">⚡ SESSION IN PROGRESS</span>':''}
         ${nlDetected?'<span class="rbadge rbadge-danger">⚠ LEAK DETECTED</span>':''}
         ${hs>=80?'<span class="rbadge rbadge-ok">HEALTH: '+hl+'</span>':'<span class="rbadge rbadge-warn">HEALTH: '+hl+'</span>'}
       </div>
