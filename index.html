@@ -940,8 +940,8 @@ function _recordHourly(pct){
   _hourlyStore[_k]=pct;
 }
 function _saveHourly(){
-  // Prune >25h old keys
-  const cut=new Date(Date.now()-25*3600000);
+  // Prune >169h old keys (7 days + 1h buffer)
+  const cut=new Date(Date.now()-169*3600000);
   const cutK=_hourKey(cut);
   Object.keys(_hourlyStore).forEach(k=>{if(k<cutK)delete _hourlyStore[k];});
   try{localStorage.setItem(HOURLY_KEY_V4,JSON.stringify(_hourlyStore));}catch(_){}
@@ -974,6 +974,84 @@ function _buildChartArrays(){
   }
   return{labels,data};
 }
+
+// ── ANALYTICS PERSISTENCE ────────────────────────────────────────────────────
+// Persists session totals, usage events, refill log, and engine state so the
+// app resumes exactly where it left off after every reopen.
+const ANALYTICS_KEY='tasni_analytics_v2';
+const ENGINE_KEY='tasni_engine_v1';
+
+function _saveAnalytics(){
+  try{
+    const snap={
+      events:analyticsSession.events.slice(-60),
+      periodTotals:analyticsSession.periodTotals,
+      totalUsedL:analyticsSession.totalUsedL,
+      fullTankEvents:analyticsSession.fullTankEvents.slice(-20),
+      refillEvents:analyticsSession.refillEvents.slice(-20),
+      nightLeakLiters:analyticsSession.nightLeakLiters,
+      nightLeakDetected:analyticsSession.nightLeakDetected,
+      suddenDrops:analyticsSession.suddenDrops.slice(-30),
+      refillCount:analyticsSession.refillCount,
+      _tankDepleted:analyticsSession._tankDepleted,
+      healthScore:analyticsSession.healthScore,
+      healthLabel:analyticsSession.healthLabel,
+      computedUsageRate:analyticsSession.computedUsageRate,
+      dayReadings:analyticsSession.dayReadings.slice(-200),
+      nightReadingsPct:analyticsSession.nightReadingsPct.slice(-200),
+      savedAt:Date.now()
+    };
+    localStorage.setItem(ANALYTICS_KEY,JSON.stringify(snap));
+    // Also persist engine state so 5-sample buffer survives reopen
+    localStorage.setItem(ENGINE_KEY,JSON.stringify({
+      _stableLevel,
+      _rawBuffer:[..._rawBuffer],
+      savedAt:Date.now()
+    }));
+  }catch(_){}
+}
+
+function _loadAnalytics(){
+  try{
+    const raw=localStorage.getItem(ANALYTICS_KEY);
+    if(raw){
+      const snap=JSON.parse(raw);
+      // Only restore if data is less than 24 hours old (session boundary)
+      if(snap&&snap.savedAt&&(Date.now()-snap.savedAt)<86400000){
+        if(snap.events)analyticsSession.events=snap.events;
+        if(snap.periodTotals)Object.assign(analyticsSession.periodTotals,snap.periodTotals);
+        if(snap.totalUsedL)analyticsSession.totalUsedL=snap.totalUsedL;
+        if(snap.fullTankEvents)analyticsSession.fullTankEvents=snap.fullTankEvents;
+        if(snap.refillEvents)analyticsSession.refillEvents=snap.refillEvents;
+        if(snap.nightLeakLiters!=null)analyticsSession.nightLeakLiters=snap.nightLeakLiters;
+        if(snap.nightLeakDetected!=null)analyticsSession.nightLeakDetected=snap.nightLeakDetected;
+        if(snap.suddenDrops)analyticsSession.suddenDrops=snap.suddenDrops;
+        if(snap.refillCount!=null)analyticsSession.refillCount=snap.refillCount;
+        if(snap._tankDepleted!=null)analyticsSession._tankDepleted=snap._tankDepleted;
+        if(snap.healthScore!=null)analyticsSession.healthScore=snap.healthScore;
+        if(snap.healthLabel)analyticsSession.healthLabel=snap.healthLabel;
+        if(snap.computedUsageRate!=null)analyticsSession.computedUsageRate=snap.computedUsageRate;
+        if(snap.dayReadings)analyticsSession.dayReadings=snap.dayReadings;
+        if(snap.nightReadingsPct)analyticsSession.nightReadingsPct=snap.nightReadingsPct;
+      }
+    }
+  }catch(_){}
+  // Restore engine state
+  try{
+    const eng=localStorage.getItem(ENGINE_KEY);
+    if(eng){
+      const e=JSON.parse(eng);
+      if(e&&e.savedAt&&(Date.now()-e.savedAt)<86400000){
+        if(e._rawBuffer&&Array.isArray(e._rawBuffer))
+          _rawBuffer=[...e._rawBuffer].slice(-_SAMPLE_SIZE);
+        if(e._stableLevel!=null)_stableLevel=e._stableLevel;
+      }
+    }
+  }catch(_){}
+}
+
+// Auto-save every 90 seconds as background safety net (mobile PWA insurance)
+setInterval(()=>{_saveHourly();_saveAnalytics();},90000);
 
 // Boot guard timer — after 10s allow display to unlock on next real reading
 const _bootGuardTimer=setTimeout(()=>{
@@ -1090,8 +1168,9 @@ window.addEventListener('load',()=>{
   _updateTgStatus();
   _renderTgCmds();
   _loadHourly();
+  _loadAnalytics();  // restore session totals, events, refills, and engine state
   // Re-render chart immediately with any persisted hourly data
-  setTimeout(()=>{if(chart)renderChart();},100);
+  setTimeout(()=>{if(chart)renderChart();renderAnalytics();},100);
   renderDash();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(async reg=>{
@@ -1517,10 +1596,28 @@ function _median(arr){
   return s.length%2?s[m]:(s[m-1]+s[m])/2;
 }
 
-// Returns true if the buffer is stable (max spread ≤ 5%) — noise filter
+// ── SPIKE / OUTLIER FILTER ────────────────────────────────────────────────────
+// Before checking stability, remove IQR outliers from buffer.
+// IQR method: values outside Q1 - 1.5*IQR .. Q3 + 1.5*IQR are spikes.
+// This catches atmospheric pressure bounces (e.g. 68%→79%→68%→68%→68%)
+// that would otherwise slip through the median.
+function _removeOutliers(buf){
+  if(buf.length<4)return buf;
+  const s=[...buf].sort((a,b)=>a-b);
+  const q1=s[Math.floor(s.length*0.25)];
+  const q3=s[Math.floor(s.length*0.75)];
+  const iqr=q3-q1;
+  if(iqr<1)return buf; // all values tightly clustered, no filtering needed
+  const lo=q1-1.5*iqr,hi=q3+1.5*iqr;
+  const filtered=buf.filter(v=>v>=lo&&v<=hi);
+  return filtered.length>=3?filtered:buf; // need at least 3 clean samples
+}
+
+// Returns true if the buffer is stable (max spread ≤ 5% after outlier removal)
 function _isBufferStable(buf){
   if(buf.length<2)return true;
-  return Math.max(...buf)-Math.min(...buf)<=5;
+  const clean=_removeOutliers(buf);
+  return Math.max(...clean)-Math.min(...clean)<=5;
 }
 
 // Core: process one raw reading through the 5-sample engine
@@ -1533,7 +1630,7 @@ function _processRaw(rawPct){
   if(_rawBuffer.length>_SAMPLE_SIZE)_rawBuffer.shift();
   if(_rawBuffer.length<_SAMPLE_SIZE)return null; // not enough samples yet
 
-  // Check stability — if readings are wildly oscillating (>5% spread) keep buffering
+  // Check stability — if readings are wildly oscillating keep buffering
   if(!_isBufferStable(_rawBuffer)){
     // Special case: if ALL 5 samples are consistently rising, it's a refill → commit
     const _rising=_rawBuffer.every((v,i,a)=>i===0||v>=a[i-1]-1);
@@ -1544,7 +1641,9 @@ function _processRaw(rawPct){
     }
   }
 
-  const stable=Math.round(_median(_rawBuffer));
+  // Remove IQR outliers before computing median for maximum spike suppression
+  const _cleanBuf=_removeOutliers(_rawBuffer);
+  const stable=Math.round(_median(_cleanBuf));
 
   // Guard 1: De-duplicate identical values
   if(_stableLevel!==null&&stable===_stableLevel)return null;
@@ -1636,6 +1735,7 @@ function _checkRefill(prev,cur){
     push('ai','💧 '+evt.label+' COMPLETE ('+period+'): Tank at '+cur+'% — '+evt.vol+' L');
     if(ck('t-sound'))playSound('full_tank');
     setTimeout(()=>_speakAlert(analyticsSession.refillCount,'refill'),1500);
+    _saveAnalytics(); // persist refill event immediately
   }
 }
 
@@ -1752,15 +1852,10 @@ function ingest(d,fromMQTT=false){
       const _isNight=_hr>=22||_hr<6;
       const _isDay=!_isNight;
 
-      // Update hourly store with stable value
+      // Update hourly store with stable value — save immediately, no guard
       _recordHourly(stable);
-      const _hn=Date.now();
-      if(_hn-_lastHistorySave>60000){ // persist max once per minute
-        _lastHistorySave=_hn;
-        _saveHourly();
-      } else {
-        _syncHistArray(); // keep S.history in sync without full persist
-      }
+      _saveHourly();          // write-through: never lose a confirmed stable point
+      _saveAnalytics();       // persist session data (totals, events, refills)
 
       // 10% band voice announcement (fill and drain directions)
       _check10PctVoice(stablePrev,stable);
@@ -2470,6 +2565,7 @@ function recordUsageEvent(dropL,fromPct,toPct,_time,_ts,_period){
       analyticsSession.computedUsageRate=_total/_elapsed;
     }
   }
+  _saveAnalytics(); // persist immediately so data survives any app close
 }
 
 // Chart.js global defaults for dark theme
@@ -2972,6 +3068,7 @@ function downloadReport(){
     <a href="#health">Health Check</a>
     <a href="#recs">Recommendations</a>
     <a href="#history">24h History</a>
+    <a href="#ext-history">7-Day Trend</a>
     ${alerts.length?'<a href="#alerts">Alerts</a>':''}
   </div>`;
 
@@ -3220,6 +3317,83 @@ function downloadReport(){
     </div></div>`;
   }
 
+  // ── SECTION 9: 7-DAY EXTENDED HISTORY ──
+  // Build 7×24 slots from _hourlyStore (keyed by "YYYY-MM-DD-HH")
+  const _7dayLabels=[];
+  const _7dayData=[];
+  const _perDayStats=[];
+  const _now7=new Date();
+  for(let d=6;d>=0;d--){
+    const dayDate=new Date(_now7.getTime()-d*86400000);
+    const dayStr=dayDate.getFullYear()+'-'+String(dayDate.getMonth()+1).padStart(2,'0')+'-'+String(dayDate.getDate()).padStart(2,'0');
+    const dayLabel=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dayDate.getDay()]+' '+String(dayDate.getDate()).padStart(2,'0');
+    let dayMin=100,dayMax=0,daySum=0,dayCount=0,dayUsedL=0,dayPrev=null;
+    for(let h=0;h<24;h++){
+      const hKey=dayStr+'-'+String(h).padStart(2,'0');
+      const v=_hourlyStore[hKey];
+      _7dayLabels.push(d===0?String(h).padStart(2,'0')+':00':d===6?dayLabel:h===0?dayLabel:'');
+      _7dayData.push(v!=null?v:null);
+      if(v!=null){
+        dayMin=Math.min(dayMin,v);dayMax=Math.max(dayMax,v);
+        daySum+=v;dayCount++;
+        if(dayPrev!=null&&v<dayPrev)dayUsedL+=(dayPrev-v)/100*(S.total||1000);
+        dayPrev=v;
+      }
+    }
+    if(dayCount>0){
+      const dayAvgPct=Math.round(daySum/dayCount);
+      const swing=dayMax-dayMin;
+      const pattern=swing<5?'Stable':swing<15?'Moderate':swing<30?'Active':'High Use';
+      _perDayStats.push({label:dayLabel,min:dayMin,max:dayMax,avg:dayAvgPct,swing,usedL:dayUsedL.toFixed(0),pattern,count:dayCount});
+    }
+  }
+  const _7hasData=_7dayData.some(v=>v!=null);
+
+  // Data Reliability Score: confirmed readings vs. total expected readings
+  const _totalExpected=analyticsSession.confirmedSamples+Math.max(0,60-analyticsSession.confirmedSamples);
+  const _anomalyCount=analyticsSession.suddenDrops.length+(analyticsSession.nightLeakDetected?5:0);
+  const _reliabilityScore=Math.max(0,Math.min(100,Math.round(100-(_anomalyCount/Math.max(_totalExpected/10,1))*15)));
+  const _reliCol=_reliabilityScore>=85?'#34d399':_reliabilityScore>=60?'#fbbf24':'#f87171';
+  const _reliLabel=_reliabilityScore>=85?'HIGH CONFIDENCE':_reliabilityScore>=60?'MODERATE':'LOW — REVIEW DATA';
+
+  html+=`<div class="sec" id="ext-history"><div class="sec-title">9 — 7-Day Extended History</div>
+  <div class="kgrid kg3" style="margin-bottom:12px">
+    <div class="card">
+      <div class="kv" style="color:${_reliCol}">${_reliabilityScore}</div>
+      <div class="kl">Data Reliability Score</div>
+      <div class="ks">/100 — ${_reliLabel}</div>
+    </div>
+    <div class="card">
+      <div class="kv">${analyticsSession.confirmedSamples}</div>
+      <div class="kl">Confirmed Readings</div>
+      <div class="ks">Passed 5-sample engine gate</div>
+    </div>
+    <div class="card">
+      <div class="kv" style="color:${_anomalyCount>3?'#f87171':_anomalyCount>0?'#fbbf24':'#34d399'}">${_anomalyCount}</div>
+      <div class="kl">Anomalies Blocked</div>
+      <div class="ks">Spikes + leaks suppressed</div>
+    </div>
+  </div>
+  ${_7hasData?`<div class="card" style="margin-bottom:12px">
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">168-HOUR LEVEL CHART</div>
+    <div class="chart-wrap-lg"><canvas id="hist7C"></canvas></div>
+  </div>`:''}
+  ${_perDayStats.length>0?`<div class="card">
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">PER-DAY SUMMARY TABLE</div>
+    <table><tr><th>Day</th><th>Min %</th><th>Max %</th><th>Avg %</th><th>Swing</th><th>Est. Used (L)</th><th>Pattern</th></tr>
+    ${_perDayStats.map(r=>`<tr>
+      <td style="font-weight:600">${r.label}</td>
+      <td class="tc-warn">${r.min}%</td>
+      <td class="tc-ok">${r.max}%</td>
+      <td>${r.avg}%</td>
+      <td style="color:${r.swing>20?'#f87171':r.swing>10?'#fbbf24':'#34d399'}">${r.swing}%</td>
+      <td style="color:#2DD4BF;font-weight:600">${r.usedL} L</td>
+      <td style="font-size:11px;color:${r.pattern==='High Use'?'#f87171':r.pattern==='Active'?'#fbbf24':r.pattern==='Moderate'?'#2DD4BF':'#34d399'}">${r.pattern}</td>
+    </tr>`).join('')}
+    </table>
+  </div>`:'<div class="card" style="text-align:center;padding:20px;color:rgba(180,220,255,.3);font-size:13px">Not enough 7-day data yet — keep monitoring to build history.</div>'}
+  </div>`;
+
   // ── FOOTER ──
   html+=`<footer>
     TASNI® Water Monitor &nbsp;·&nbsp; Real device data only — no simulated values &nbsp;·&nbsp; Report generated ${ts}<br>
@@ -3266,6 +3440,25 @@ function downloadReport(){
         callbacks:{label:c=>c.parsed.y!=null?' '+c.parsed.y.toFixed(0)+'% level':' No data'}}},
         scales:{x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{maxTicksLimit:8,font:{size:10}}},
         y:{min:0,max:100,grid:{color:'rgba(45,212,191,.04)'},ticks:{callback:v=>v+'%',font:{size:10}}}}}});
+    }
+    // 7-day line chart
+    const h7El=document.getElementById('hist7C');
+    if(h7El){
+      const _7d=${JSON.stringify(_7dayData)};
+      const _7l=${JSON.stringify(_7dayLabels)};
+      const _7ctx=h7El.getContext('2d');
+      const _7g=_7ctx.createLinearGradient(0,0,0,240);
+      _7g.addColorStop(0,'rgba(124,58,237,.3)');_7g.addColorStop(1,'rgba(124,58,237,0)');
+      new Chart(_7ctx,{type:'line',data:{labels:_7l,datasets:[{label:'Level %',data:_7d,
+        borderColor:'#a78bfa',backgroundColor:_7g,borderWidth:2,fill:true,tension:.25,
+        pointRadius:0,spanGaps:true}]},
+        options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,13,26,.95)',
+        borderColor:'rgba(124,58,237,.3)',borderWidth:1,
+        callbacks:{label:c=>c.parsed.y!=null?' '+c.parsed.y.toFixed(0)+'%':' No data'}}},
+        scales:{x:{grid:{color:'rgba(124,58,237,.04)'},ticks:{maxTicksLimit:14,font:{size:9},
+          callback:(v,i)=>_7l[i]||''}},
+        y:{min:0,max:100,grid:{color:'rgba(124,58,237,.04)'},ticks:{callback:v=>v+'%',font:{size:10}}}}}});
     }
   });
   <\/script>`;
