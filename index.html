@@ -423,8 +423,8 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 <!-- BOOT LOADING OVERLAY — shown during 10s device sync wait -->
 <div class="boot-loading" id="bootLoading">
   <div class="boot-loading-icon">💧</div>
-  <div class="boot-loading-title">CONNECTING TO DEVICE</div>
-  <div class="boot-loading-sub">WAITING FOR FIRST READING</div>
+  <div class="boot-loading-title">LOADING FROM SERVER</div>
+  <div class="boot-loading-sub">SYNCING DEVICE DATA</div>
   <div class="boot-loading-bar-wrap"><div class="boot-loading-bar" id="bootBar"></div></div>
   <div class="boot-loading-count" id="bootCount">Please wait…</div>
 </div>
@@ -549,7 +549,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <!-- KPI row — 5 cards -->
       <div class="analytics-summary" style="grid-template-columns:repeat(5,1fr)">
         <div class="asumm"><div class="asumm-val" id="asum-cur">--</div><div class="asumm-lbl">Level %</div></div>
-        <div class="asumm"><div class="asumm-val" id="asum-used">--</div><div class="asumm-lbl">Used Today</div></div>
+        <div class="asumm"><div class="asumm-val" id="asum-used">--</div><div class="asumm-lbl">Used L</div></div>
         <div class="asumm"><div class="asumm-val" id="asum-rate">--</div><div class="asumm-lbl">L/hr</div></div>
         <div class="asumm"><div class="asumm-val" id="asum-fills">--</div><div class="asumm-lbl">Full Fills</div></div>
         <div class="asumm"><div class="asumm-val" id="asum-health" style="font-size:14px">--</div><div class="asumm-lbl">Health</div></div>
@@ -583,12 +583,11 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="chart-box"><canvas id="histChart"></canvas></div>
     </div>
 
-    <!-- Daily Usage History — permanent, cross-session, date-keyed -->
+    <!-- Bar chart: usage by time of day -->
     <div class="card">
-      <div class="card-title">Daily Water Consumption
-        <span style="font-size:9px;color:var(--ok);font-weight:400;margin-left:6px">● PERMANENT RECORD</span>
+      <div class="card-title">Water Usage by Time of Day
       </div>
-      <!-- Today's period KPIs from daily store -->
+      <!-- Period numeric KPIs — always visible -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
         <div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:8px 4px;text-align:center">
           <div id="prd-morn" style="font-family:var(--mono);font-size:18px;color:#fbbf24;line-height:1">0.0</div>
@@ -607,23 +606,20 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
           <div style="font-size:8px;color:rgba(56,189,248,.6);letter-spacing:1px;margin-top:3px">NIGHT<br>0–6h · L</div>
         </div>
       </div>
-      <div id="prd-peak" style="font-size:10px;color:var(--muted);margin-bottom:10px;text-align:center">Today's peak period appears here</div>
-
-      <!-- 7-day bar chart: L per day -->
-      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:rgba(180,220,255,.35);font-family:var(--head);margin-bottom:6px">7-DAY CONSUMPTION TREND</div>
-      <div style="position:relative;height:160px;margin-bottom:6px">
-        <canvas id="dailyBarChart"></canvas>
-        <div id="dailyBarNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:10px;color:var(--muted);font-family:var(--head);letter-spacing:1.5px;text-align:center">NO DAILY RECORDS YET</div>
+      <div id="prd-peak" style="font-size:10px;color:var(--muted);margin-bottom:8px;text-align:center">Usage events appear here after water is consumed</div>
+      <div class="card-title" style="margin-top:0">Water Usage by Time of Day
+        <span style="font-size:9px;color:var(--muted);font-weight:400;margin-left:4px">(this session)</span>
       </div>
-
-      <!-- Per-day table -->
-      <div id="dailyTableWrap" style="display:none;margin-top:8px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:rgba(180,220,255,.35);font-family:var(--head);margin-bottom:6px">DAILY BREAKDOWN</div>
-        <div id="dailyTable" style="overflow-x:auto;font-size:11px"></div>
+      <div style="position:relative;height:160px">
+        <canvas id="barChart"></canvas>
+        <div id="barNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:10px;color:var(--muted);font-family:var(--head);letter-spacing:1.5px;text-align:center">NO USAGE RECORDED<br>THIS SESSION YET</div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
+        Tracks actual level drops recorded this session. Empty = no drops recorded yet in that period.
       </div>
     </div>
 
-    <!-- Forecast + Usage Split -->
+    <!-- Forecast + status donut row -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="card" style="padding:14px">
         <div class="card-title" style="margin-bottom:10px">Forecast</div>
@@ -633,9 +629,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <div class="fc-row" style="border-bottom:none"><span style="font-size:11px">Empty in</span><span class="fc-val" id="fc-emp" style="font-size:12px;color:var(--warn)">--</span></div>
       </div>
       <div class="card" style="padding:14px">
-        <div class="card-title" style="margin-bottom:6px">Usage Split
-          <span style="font-size:9px;color:var(--ok);font-weight:400;margin-left:4px">● ALL TIME</span>
-        </div>
+        <div class="card-title" style="margin-bottom:10px">Usage Split</div>
         <div style="position:relative;height:100px">
           <canvas id="usagePieChart"></canvas>
           <div id="pieNoData" style="display:flex;position:absolute;inset:0;align-items:center;justify-content:center;pointer-events:none;font-size:9px;color:var(--muted);font-family:var(--head);letter-spacing:1px;text-align:center">NO DATA</div>
@@ -877,8 +871,6 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 // ═══════════════════════════════════════════
 const CFG_KEY='tasni_cfg';
 const ALERT_PREFS_KEY='tasni_alert_prefs';
-const ANALYTICS_KEY='tasni_analytics_v2';  // persisted session data
-const HOURLY_KEY_V5='tasni_hourly_v5';     // 7-day extended store (replaces V4's 25h)
 let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'{}');
 // S.m starts as null — NIL until first real DEVICE reading
 const S={m:null,vol:0,total:1000,s:'Offline',dist:0,t:'',usage:0,up:0,rssi:0,boot:0,isFull:0,name:'Main Tank',history:Array(24).fill(null),connected:false,lastUpdate:null,_wasFull:false};
@@ -894,8 +886,8 @@ const analyticsSession={
   events:[],
   periodTotals:{morn:0,aft:0,eve:0,ngt:0},
   totalUsedL:0,
-  readings:[],
-  fullTankEvents:[],
+  readings:[],                // raw confirmed readings [{t,m,stable}]
+  fullTankEvents:[],          // [{ts,time,pct,vol,refillNum,period}]
   nightReadings:[],
   nightLeakDetected:false,
   nightLeakLiters:0,
@@ -907,117 +899,14 @@ const analyticsSession={
   sessionStart:new Date().toISOString(),
   confirmedSamples:0,
   computedUsageRate:0,
-  refillCount:0,
-  refillEvents:[],
-  _tankWasFull:false,
-  _tankDepleted:false,
+  // ── Refill counter (resets to 0 when tank depletes to <10%) ──
+  refillCount:0,              // current cycle count (Refill 1, 2, 3…)
+  refillEvents:[],            // [{ts,time,period,refillNum,fromPct,toPct}]
+  _tankWasFull:false,         // tracks if tank was >= 95% (full) last reading
+  _tankDepleted:false,        // true once tank drops to < 10% after a fill
 };
 
-// ── ANALYTICS SESSION PERSISTENCE ────────────────────────────────────────────
-// Saved on every usage event commit, on tab hide, and on beforeunload.
-// Restored on startup so graphs/reports/events survive app restarts.
-const _ANALYTICS_FIELDS=[
-  'events','periodTotals','totalUsedL','fullTankEvents',
-  'nightLeakDetected','nightLeakLiters','suddenDrops',
-  'healthScore','healthLabel','sessionStart','confirmedSamples',
-  'computedUsageRate','refillCount','refillEvents',
-  '_tankDepleted','dayReadings','nightReadingsPct'
-];
-function _saveAnalytics(){
-  const save={};
-  _ANALYTICS_FIELDS.forEach(f=>{save[f]=analyticsSession[f];});
-  // Cap arrays to avoid localStorage bloat
-  if(save.events&&save.events.length>200)save.events=save.events.slice(-200);
-  if(save.dayReadings&&save.dayReadings.length>500)save.dayReadings=save.dayReadings.slice(-500);
-  if(save.nightReadingsPct&&save.nightReadingsPct.length>500)save.nightReadingsPct=save.nightReadingsPct.slice(-500);
-  // Persist engine state so 5-sample engine resumes without cold-start after reopen
-  save._engineState={stableLevel:_stableLevel,rawBuffer:[..._rawBuffer]};
-  try{localStorage.setItem(ANALYTICS_KEY,JSON.stringify(save));}catch(_){}
-}
-function _loadAnalytics(){
-  try{
-    const raw=localStorage.getItem(ANALYTICS_KEY);
-    if(!raw)return;
-    const p=JSON.parse(raw);
-    if(!p||typeof p!=='object')return;
-    _ANALYTICS_FIELDS.forEach(f=>{
-      if(p[f]!==undefined)analyticsSession[f]=p[f];
-    });
-    // Restore engine state — prevents cold-start 5-reading delay after reopen
-    if(p._engineState){
-      if(p._engineState.stableLevel!=null)_stableLevel=p._engineState.stableLevel;
-      if(Array.isArray(p._engineState.rawBuffer))_rawBuffer=p._engineState.rawBuffer.slice(-_SAMPLE_SIZE);
-    }
-    // Recompute health from loaded data
-    _updateTankHealth&&_updateTankHealth();
-  }catch(_){}
-}
-
-// ── PER-DAY USAGE STORE ──────────────────────────────────────────────────────
-// The core fix for "usage split not showing permanently".
-// analyticsSession.periodTotals is SESSION-scoped and resets.
-// _dailyStore is DATE-keyed and persists forever (90-day rolling window).
-// Every usage event writes to BOTH: session totals (for live display) +
-// today's daily record (permanent storage).
-// Format: { "YYYY-MM-DD": { morn, aft, eve, ngt, totalL, refills, events: [...] } }
-const DAILY_USAGE_KEY='tasni_daily_v1';
-let _dailyStore={};
-
-function _todayKey(){
-  const d=new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
-function _ensureDayRecord(dateKey){
-  if(!_dailyStore[dateKey])
-    _dailyStore[dateKey]={morn:0,aft:0,eve:0,ngt:0,totalL:0,refills:0,events:[],minLevel:100,maxLevel:0};
-  return _dailyStore[dateKey];
-}
-function _saveDailyStore(){
-  // Prune to 90 days
-  const _cutoff=new Date(Date.now()-90*24*3600000);
-  const _cutKey=_cutoff.getFullYear()+'-'+String(_cutoff.getMonth()+1).padStart(2,'0')+'-'+String(_cutoff.getDate()).padStart(2,'0');
-  Object.keys(_dailyStore).forEach(k=>{ if(k<_cutKey)delete _dailyStore[k]; });
-  try{localStorage.setItem(DAILY_USAGE_KEY,JSON.stringify(_dailyStore));}catch(_){}
-}
-function _loadDailyStore(){
-  try{
-    const raw=localStorage.getItem(DAILY_USAGE_KEY);
-    if(raw){const p=JSON.parse(raw);if(p&&typeof p==='object')_dailyStore=p;}
-  }catch(_){}
-}
-// Write one usage event to today's daily record
-function _recordDailyEvent(dropL,period,fromPct,toPct,time,ts){
-  const rec=_ensureDayRecord(_todayKey());
-  rec[period]+=dropL;
-  rec.totalL+=dropL;
-  rec.events.push({time,dropL:parseFloat(dropL.toFixed(1)),fromPct,toPct,period,ts});
-  if(rec.events.length>100)rec.events=rec.events.slice(-100);
-  _saveDailyStore();
-}
-// Write a refill to today's daily record
-function _recordDailyRefill(){
-  const rec=_ensureDayRecord(_todayKey());
-  rec.refills++;
-  _saveDailyStore();
-}
-// Update today's min/max level readings
-function _recordDailyLevel(pct){
-  const rec=_ensureDayRecord(_todayKey());
-  if(pct<rec.minLevel)rec.minLevel=pct;
-  if(pct>rec.maxLevel)rec.maxLevel=pct;
-  // No save here — saved on usage events to avoid write flood
-}
-// Get last N days sorted descending
-function _getDailyHistory(n){
-  return Object.keys(_dailyStore).sort().reverse().slice(0,n).reverse()
-    .map(k=>Object.assign({date:k},_dailyStore[k]));
-}
-// Get today's accumulated period totals from daily store (cross-session)
-function _todayPeriodTotals(){
-  const rec=_dailyStore[_todayKey()];
-  if(!rec)return{morn:0,aft:0,eve:0,ngt:0,totalL:0};
-  return{morn:rec.morn,aft:rec.aft,eve:rec.eve,ngt:rec.ngt,totalL:rec.totalL};
-}
+// ── BOOT DISPLAY GUARD ──
 // Requires 2 consecutive REAL device readings before displaying anything.
 // This prevents stale MQTT retained messages (e.g. old 79%) showing on open.
 // Demo mode sets _displayReady itself but does NOT write analytics/history.
@@ -1027,10 +916,11 @@ let _realReadingCount=0;
 const _BOOT_MS=10000; // hard 10-second NIL lock on every PWA open
 const _bootStart=Date.now(); // timestamp when page loaded
 
-// ── Real clock-keyed hourly history (V5 — 7-day retention) ──────────────────
-// Key: "YYYY-MM-DD-HH" → stable median % for that clock-hour.
-// Retains 168h (7 days) so graphs survive app restarts and long gaps.
-// The 24h chart always shows the most recent 24 slots; older data feeds the report.
+// ── Real clock-keyed hourly history ─────────────────────────────────────────
+// Key: "YYYY-MM-DD-HH" → stores the STABLE median value for that clock-hour.
+// This correctly handles 24h spanning midnight, DST, etc.
+// Old array-based HOURLY_KEY is no longer used.
+const HOURLY_KEY_V4='tasni_hourly_v4';
 let _hourlyStore={};  // { "2025-06-10-14": 68, ... }
 let _lastHistorySave=0;
 
@@ -1042,22 +932,24 @@ function _hourKey(d){ // "YYYY-MM-DD-HH"
 function _recordHourly(pct){
   if(pct==null||isNaN(pct))return;
   const _k=_hourKey();
+  // Only update this hour's slot if: (a) no value yet, or (b) change >= 2% from existing.
+  // This prevents sub-2% oscillations from flickering the 24h history chart.
+  // (The primary guard is in _processRaw; this is a secondary defense for edge cases.)
   const _existing=_hourlyStore[_k];
-  if(_existing!=null&&Math.abs(pct-_existing)<2)return; // < 2% flicker guard
+  if(_existing!=null&&Math.abs(pct-_existing)<2)return;
   _hourlyStore[_k]=pct;
 }
 function _saveHourly(){
-  // Prune data older than 7 days (168 hours)
-  const cut=new Date(Date.now()-168*3600000);
+  // Prune >169h old keys (7 days + 1h buffer)
+  const cut=new Date(Date.now()-169*3600000);
   const cutK=_hourKey(cut);
   Object.keys(_hourlyStore).forEach(k=>{if(k<cutK)delete _hourlyStore[k];});
-  try{localStorage.setItem(HOURLY_KEY_V5,JSON.stringify(_hourlyStore));}catch(_){}
+  try{localStorage.setItem(HOURLY_KEY_V4,JSON.stringify(_hourlyStore));}catch(_){}
   _syncHistArray();
 }
 function _loadHourly(){
   try{
-    // Migrate V4 data into V5 on first run
-    const raw=localStorage.getItem(HOURLY_KEY_V5)||localStorage.getItem('tasni_hourly_v4');
+    const raw=localStorage.getItem(HOURLY_KEY_V4);
     if(raw){const p=JSON.parse(raw);if(p&&typeof p==='object'&&!Array.isArray(p))_hourlyStore=p;}
   }catch(_){_hourlyStore={};}
   _syncHistArray();
@@ -1083,6 +975,84 @@ function _buildChartArrays(){
   return{labels,data};
 }
 
+// ── ANALYTICS PERSISTENCE ────────────────────────────────────────────────────
+// Persists session totals, usage events, refill log, and engine state so the
+// app resumes exactly where it left off after every reopen.
+const ANALYTICS_KEY='tasni_analytics_v2';
+const ENGINE_KEY='tasni_engine_v1';
+
+function _saveAnalytics(){
+  try{
+    const snap={
+      events:analyticsSession.events.slice(-60),
+      periodTotals:analyticsSession.periodTotals,
+      totalUsedL:analyticsSession.totalUsedL,
+      fullTankEvents:analyticsSession.fullTankEvents.slice(-20),
+      refillEvents:analyticsSession.refillEvents.slice(-20),
+      nightLeakLiters:analyticsSession.nightLeakLiters,
+      nightLeakDetected:analyticsSession.nightLeakDetected,
+      suddenDrops:analyticsSession.suddenDrops.slice(-30),
+      refillCount:analyticsSession.refillCount,
+      _tankDepleted:analyticsSession._tankDepleted,
+      healthScore:analyticsSession.healthScore,
+      healthLabel:analyticsSession.healthLabel,
+      computedUsageRate:analyticsSession.computedUsageRate,
+      dayReadings:analyticsSession.dayReadings.slice(-200),
+      nightReadingsPct:analyticsSession.nightReadingsPct.slice(-200),
+      savedAt:Date.now()
+    };
+    localStorage.setItem(ANALYTICS_KEY,JSON.stringify(snap));
+    // Also persist engine state so 5-sample buffer survives reopen
+    localStorage.setItem(ENGINE_KEY,JSON.stringify({
+      _stableLevel,
+      _rawBuffer:[..._rawBuffer],
+      savedAt:Date.now()
+    }));
+  }catch(_){}
+}
+
+function _loadAnalytics(){
+  try{
+    const raw=localStorage.getItem(ANALYTICS_KEY);
+    if(raw){
+      const snap=JSON.parse(raw);
+      // Only restore if data is less than 24 hours old (session boundary)
+      if(snap&&snap.savedAt&&(Date.now()-snap.savedAt)<86400000){
+        if(snap.events)analyticsSession.events=snap.events;
+        if(snap.periodTotals)Object.assign(analyticsSession.periodTotals,snap.periodTotals);
+        if(snap.totalUsedL)analyticsSession.totalUsedL=snap.totalUsedL;
+        if(snap.fullTankEvents)analyticsSession.fullTankEvents=snap.fullTankEvents;
+        if(snap.refillEvents)analyticsSession.refillEvents=snap.refillEvents;
+        if(snap.nightLeakLiters!=null)analyticsSession.nightLeakLiters=snap.nightLeakLiters;
+        if(snap.nightLeakDetected!=null)analyticsSession.nightLeakDetected=snap.nightLeakDetected;
+        if(snap.suddenDrops)analyticsSession.suddenDrops=snap.suddenDrops;
+        if(snap.refillCount!=null)analyticsSession.refillCount=snap.refillCount;
+        if(snap._tankDepleted!=null)analyticsSession._tankDepleted=snap._tankDepleted;
+        if(snap.healthScore!=null)analyticsSession.healthScore=snap.healthScore;
+        if(snap.healthLabel)analyticsSession.healthLabel=snap.healthLabel;
+        if(snap.computedUsageRate!=null)analyticsSession.computedUsageRate=snap.computedUsageRate;
+        if(snap.dayReadings)analyticsSession.dayReadings=snap.dayReadings;
+        if(snap.nightReadingsPct)analyticsSession.nightReadingsPct=snap.nightReadingsPct;
+      }
+    }
+  }catch(_){}
+  // Restore engine state
+  try{
+    const eng=localStorage.getItem(ENGINE_KEY);
+    if(eng){
+      const e=JSON.parse(eng);
+      if(e&&e.savedAt&&(Date.now()-e.savedAt)<86400000){
+        if(e._rawBuffer&&Array.isArray(e._rawBuffer))
+          _rawBuffer=[...e._rawBuffer].slice(-_SAMPLE_SIZE);
+        if(e._stableLevel!=null)_stableLevel=e._stableLevel;
+      }
+    }
+  }catch(_){}
+}
+
+// Auto-save every 90 seconds as background safety net (mobile PWA insurance)
+setInterval(()=>{_saveHourly();_saveAnalytics();},90000);
+
 // Boot guard timer — after 10s allow display to unlock on next real reading
 const _bootGuardTimer=setTimeout(()=>{
   _bootGuardActive=false;
@@ -1092,59 +1062,33 @@ const _bootGuardTimer=setTimeout(()=>{
 setInterval(()=>{if(chart)renderChart();},5*60*1000);
 
 // ── Boot loading overlay controller ──
-// Only shown when a device IS configured (IP or broker saved).
-// Dismissed as soon as _displayReady=true OR after 6s max (reduced from 25s).
-// Tapping the overlay always dismisses it immediately.
+// Animates the progress bar over 10s and dismisses on first real data
 (function(){
   const _bar=document.getElementById('bootBar');
   const _cnt=document.getElementById('bootCount');
   const _ov=document.getElementById('bootLoading');
   if(!_bar||!_cnt||!_ov)return;
-
-  // ── KEY FIX: if nothing is configured, skip overlay entirely ──
-  // cfg is already populated from localStorage above this IIFE.
-  // Without this, the overlay blocks the connect modal forever.
-  const _hasCfg=!!(cfg.ip||(cfg.broker&&cfg.broker.trim()));
-  if(!_hasCfg){
-    _ov.classList.add('gone');
-    return;
-  }
-
-  // Tap anywhere on overlay to dismiss immediately
-  _ov.addEventListener('click',()=>{
-    clearInterval(_iv);clearInterval(_pollReady);clearTimeout(_safetyTimer);
-    _ov.classList.add('gone');
-  },{once:true});
-
   let _pct=0;
   const _iv=setInterval(()=>{
-    _pct=Math.min(92,_pct+2.2); // fills to 92% in ~5s
+    _pct=Math.min(95,_pct+1.2); // fills to 95% in ~8s, waits for real data to complete
     _bar.style.width=_pct+'%';
     const _rem=Math.max(0,Math.ceil((_BOOT_MS-(Date.now()-_bootStart))/1000));
     _cnt.textContent=_rem>0?'Verifying device… '+_rem+'s':'Waiting for first reading…';
   },120);
-
-  // Add tap hint after 3s
-  setTimeout(()=>{
-    if(_cnt&&!_ov.classList.contains('gone'))
-      _cnt.textContent=(_cnt.textContent||'')+'  · Tap to skip';
-  },3000);
-
-  // Poll every 200ms — dismiss as soon as _displayReady is true
+  // Poll every 200ms — as soon as _displayReady is true, dismiss overlay
   const _pollReady=setInterval(()=>{
     if(_displayReady||demoMode){
-      clearInterval(_iv);clearInterval(_pollReady);clearTimeout(_safetyTimer);
+      clearInterval(_iv);clearInterval(_pollReady);
       _bar.style.width='100%';
       _cnt.textContent='Device connected ✓';
       setTimeout(()=>_ov.classList.add('gone'),400);
     }
   },200);
-
-  // Safety: always dismiss after 6s — never block the UI
-  const _safetyTimer=setTimeout(()=>{
+  // Safety: always dismiss after 25s even if no data
+  setTimeout(()=>{
     clearInterval(_iv);clearInterval(_pollReady);
     _ov.classList.add('gone');
-  },6000);
+  },25000);
 })();
 
 // ═══════════════════════════════════════════
@@ -1224,12 +1168,9 @@ window.addEventListener('load',()=>{
   _updateTgStatus();
   _renderTgCmds();
   _loadHourly();
-  _loadDailyStore();
-  _loadAnalytics(); // restore persisted events/totals/refills so graphs survive reopen
-  // Periodic auto-save every 90s — safety net for mobile browsers that don't fire beforeunload
-  setInterval(()=>{_saveHourly();_saveAnalytics();},90*1000);
+  _loadAnalytics();  // restore session totals, events, refills, and engine state
   // Re-render chart immediately with any persisted hourly data
-  setTimeout(()=>{if(chart)renderChart();renderAnalytics();},150);
+  setTimeout(()=>{if(chart)renderChart();renderAnalytics();},100);
   renderDash();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(async reg=>{
@@ -1262,8 +1203,8 @@ window.addEventListener('load',()=>{
   }
   unlockAch(0);
   if(!cfg.ip&&!cfg.broker){
-    // Show connect modal right after splash (1s) — boot overlay is already hidden when unconfigured
-    setTimeout(()=>document.getElementById('connModal').classList.remove('hidden'),1000);
+    // Show connect modal only after splash is done (2s)
+    setTimeout(()=>document.getElementById('connModal').classList.remove('hidden'),2200);
   } else {
     startConnections();
   }
@@ -1509,15 +1450,8 @@ document.addEventListener('visibilitychange',()=>{
     if(_mqttCfg2&&(!mqttBackup||!mqttBackup.connected)){_connectBackup(_mqttCfg2);}
     else if(_mqttCfg2)_startHBBackup(_mqttCfg2);
     requestWakeLock();
-  } else {
-    // App hidden (tab switch, phone lock, background) — save everything immediately
-    _saveHourly();
-    _saveAnalytics();
   }
 });
-// Save on tab/browser close — last chance to flush state
-window.addEventListener('beforeunload',()=>{_saveHourly();_saveAnalytics();});
-window.addEventListener('pagehide',()=>{_saveHourly();_saveAnalytics();});
 window.addEventListener('online',()=>{
   showToast('📶 Network restored','info',2500);
   if(_mqttCfg&&(!mqttPrimary||!mqttPrimary.connected))_connectPrimary(_mqttCfg);
@@ -1622,29 +1556,6 @@ let _stableLevel=null;       // last committed stable level (%)
 const _MIN_STABLE_DELTA_DAY=3;
 const _MIN_STABLE_DELTA_NIGHT=5;
 
-// ── BOUNCE DETECTOR v3 — 3-reading confirmation window ────────────────────────
-// Handles the "30L jump that returns to normal" pattern described in requirements.
-// Pattern: 60% → 75% → 76% → 62% (sensor spike then back) must ALL be rejected.
-//
-// Algorithm:
-//   1. Any reading >= _SPIKE_LITERS from stable level → enters "spike candidate" state
-//   2. Candidate must be CONFIRMED by 3 consecutive readings all within 8% of candidate
-//   3. If ANY reading during the 3-reading window returns to within 8% of the ORIGINAL
-//      stable level → the entire spike sequence is rejected and discarded
-//   4. Rejected readings NEVER enter _rawBuffer — invisible to charts/events/report
-//
-// This handles all three patterns:
-//   A. spike→back (1 bounce)  : previous 2-reading logic handled this
-//   B. spike→spike→back       : NEW — 3-reading window catches this
-//   C. spike→spike→spike→back : NEW — confirmation requires 3 ALL to agree
-//
-// Threshold: 30L on 1000L tank. Scales with actual tank capacity.
-const _SPIKE_LITERS=30;
-let _bounceCandidate=null; // {val, prevStable, confirmCount} — reading held for confirmation
-const _BOUNCE_CONFIRM_NEEDED=3; // require 3 consecutive confirming readings
-const _BOUNCE_AGREE_PCT=8;      // candidate readings must all be within 8% of the spike val
-const _BOUNCE_RETURN_PCT=8;     // if any reading returns within 8% of original → reject
-
 // ── SESSION-AWARE USAGE EVENT ACCUMULATOR ─────────────────────────────────────
 // "Record once event is finished" — groups all stable drops within a 10-min
 // settle window into ONE finalized event. Prevents micro-events and partial
@@ -1669,11 +1580,10 @@ function _openOrExtendUsage(fromPct,toPct){
 function _commitUsageAccum(){
   if(!_usageAccum)return;
   const acc=_usageAccum;_usageAccum=null;
-  if(acc.startPct<=acc.curPct)return;
+  if(acc.startPct<=acc.curPct)return; // no net drop
   const dropL=((acc.startPct-acc.curPct)/100)*(S.total||1000);
-  if(dropL<1)return;
+  if(dropL<1)return; // negligible
   recordUsageEvent(dropL,acc.startPct,acc.curPct,acc.startTime,acc.startTs,acc.period);
-  _saveAnalytics(); // persist immediately after each confirmed usage event
 }
 let _lastVoiceBand=null;     // last 10% band announced by voice (-1 = none yet)
 let _lastUsageEventLevel=null; // level when last usage event was committed
@@ -1686,10 +1596,28 @@ function _median(arr){
   return s.length%2?s[m]:(s[m-1]+s[m])/2;
 }
 
-// Returns true if the buffer is stable (max spread ≤ 5%) — noise filter
+// ── SPIKE / OUTLIER FILTER ────────────────────────────────────────────────────
+// Before checking stability, remove IQR outliers from buffer.
+// IQR method: values outside Q1 - 1.5*IQR .. Q3 + 1.5*IQR are spikes.
+// This catches atmospheric pressure bounces (e.g. 68%→79%→68%→68%→68%)
+// that would otherwise slip through the median.
+function _removeOutliers(buf){
+  if(buf.length<4)return buf;
+  const s=[...buf].sort((a,b)=>a-b);
+  const q1=s[Math.floor(s.length*0.25)];
+  const q3=s[Math.floor(s.length*0.75)];
+  const iqr=q3-q1;
+  if(iqr<1)return buf; // all values tightly clustered, no filtering needed
+  const lo=q1-1.5*iqr,hi=q3+1.5*iqr;
+  const filtered=buf.filter(v=>v>=lo&&v<=hi);
+  return filtered.length>=3?filtered:buf; // need at least 3 clean samples
+}
+
+// Returns true if the buffer is stable (max spread ≤ 5% after outlier removal)
 function _isBufferStable(buf){
   if(buf.length<2)return true;
-  return Math.max(...buf)-Math.min(...buf)<=5;
+  const clean=_removeOutliers(buf);
+  return Math.max(...clean)-Math.min(...clean)<=5;
 }
 
 // Core: process one raw reading through the 5-sample engine
@@ -1702,7 +1630,7 @@ function _processRaw(rawPct){
   if(_rawBuffer.length>_SAMPLE_SIZE)_rawBuffer.shift();
   if(_rawBuffer.length<_SAMPLE_SIZE)return null; // not enough samples yet
 
-  // Check stability — if readings are wildly oscillating (>5% spread) keep buffering
+  // Check stability — if readings are wildly oscillating keep buffering
   if(!_isBufferStable(_rawBuffer)){
     // Special case: if ALL 5 samples are consistently rising, it's a refill → commit
     const _rising=_rawBuffer.every((v,i,a)=>i===0||v>=a[i-1]-1);
@@ -1713,7 +1641,9 @@ function _processRaw(rawPct){
     }
   }
 
-  const stable=Math.round(_median(_rawBuffer));
+  // Remove IQR outliers before computing median for maximum spike suppression
+  const _cleanBuf=_removeOutliers(_rawBuffer);
+  const stable=Math.round(_median(_cleanBuf));
 
   // Guard 1: De-duplicate identical values
   if(_stableLevel!==null&&stable===_stableLevel)return null;
@@ -1806,7 +1736,6 @@ function _checkRefill(prev,cur){
     if(ck('t-sound'))playSound('full_tank');
     setTimeout(()=>_speakAlert(analyticsSession.refillCount,'refill'),1500);
     _saveAnalytics(); // persist refill event immediately
-    _recordDailyRefill(); // also write to permanent daily store
   }
 }
 
@@ -1870,66 +1799,18 @@ function ingest(d,fromMQTT=false){
   S.connected=true;
   S.lastUpdate=new Date();
 
-  // ── BOUNCE DETECTOR v3 — 3-reading confirmation window ───────────────────────
-  if(_stableLevel!=null&&S.m!=null){
-    const _cap=S.total||1000;
-    const _rawDeltaPct=Math.abs(S.m-_stableLevel);
-    const _rawDeltaL=_rawDeltaPct/100*_cap;
-
-    if(_rawDeltaL>=_SPIKE_LITERS){
-      if(_bounceCandidate===null){
-        // Reading 1: open the spike candidate window
-        _bounceCandidate={val:S.m,prevStable:_stableLevel,confirmCount:0};
-        console.warn('TASNI bounce-open: '+_stableLevel+'%→'+S.m+'% ('+_rawDeltaL.toFixed(0)+'L) need '+_BOUNCE_CONFIRM_NEEDED+' confirms');
-        S.m=_stableLevel; // keep UI at last stable value
-        renderDash();
-        return;
-      } else {
-        // Reading 2, 3, …: already in candidate window, this is another large-delta reading
-        const _closeToCandidate=Math.abs(S.m-_bounceCandidate.val)<=_BOUNCE_AGREE_PCT;
-        const _backToStable=Math.abs(S.m-_bounceCandidate.prevStable)<=_BOUNCE_RETURN_PCT;
-        if(_backToStable){
-          // Bounced back to original stable — entire sequence is sensor noise; reject
-          console.warn('TASNI bounce-reject(back): '+_bounceCandidate.prevStable+'%→'+_bounceCandidate.val+'%→'+S.m+'% DISCARDED');
-          _bounceCandidate=null;
-          S.m=_stableLevel;
-          renderDash();
-          return;
-        } else if(_closeToCandidate){
-          _bounceCandidate.confirmCount++;
-          console.info('TASNI bounce-confirm '+_bounceCandidate.confirmCount+'/'+_BOUNCE_CONFIRM_NEEDED+': '+S.m+'%');
-          if(_bounceCandidate.confirmCount>=_BOUNCE_CONFIRM_NEEDED){
-            // 3 consecutive readings all agree → the spike is a REAL event (fast pump, rapid fill)
-            console.info('TASNI bounce-accept: '+_bounceCandidate.confirmCount+' readings confirmed real transition');
-            _bounceCandidate=null;
-            // fall through to normal processing with confirmed S.m
-          } else {
-            S.m=_stableLevel; // still waiting for full confirmation
-            renderDash();
-            return;
-          }
-        } else {
-          // Large jump but neither close to candidate nor back to stable — unstable sensor
-          // Reset the candidate to this new value and keep waiting
-          _bounceCandidate={val:S.m,prevStable:_bounceCandidate.prevStable,confirmCount:0};
-          console.warn('TASNI bounce-shift: candidate reset to '+S.m+'%');
-          S.m=_stableLevel;
-          renderDash();
-          return;
-        }
-      }
-    } else if(_bounceCandidate!==null){
-      // Normal-range reading while a spike window is open
-      const _backToStable=Math.abs(S.m-_bounceCandidate.prevStable)<=_BOUNCE_RETURN_PCT;
-      if(_backToStable){
-        // Returned to stable range — confirm it's a bounce, discard candidate
-        console.warn('TASNI bounce-reject(normal-return): back to '+S.m+'%, discarding spike candidate '+_bounceCandidate.val+'%');
-        _bounceCandidate=null;
-        // continue with current S.m (which is near stable)
-      } else {
-        // Not back to stable but also not near candidate — unclear; clear window and accept
-        _bounceCandidate=null;
-      }
+  // ── SPIKE FILTER — secondary safety net ──
+  // If a single reading jumps > 20% from the last known value with no fill event,
+  // it is almost certainly sensor noise or a stale broker packet — ignore it.
+  if(prev!=null&&S.m!=null){
+    const _delta=S.m-prev;
+    const _absDelta=Math.abs(_delta);
+    if(_absDelta>20&&fromMQTT){
+      // Sudden spike up: could be a retained/old message — ignore if no fill trend
+      // Sudden drop down: could be sensor glitch — log but don't record as usage
+      console.warn('TASNI spike filter: rejected jump from '+prev+'% to '+S.m+'% (delta='+_delta+'%)');
+      S.m=prev; // revert to last known good value
+      return;
     }
   }
 
@@ -1971,11 +1852,10 @@ function ingest(d,fromMQTT=false){
       const _isNight=_hr>=22||_hr<6;
       const _isDay=!_isNight;
 
-      // Update hourly store with stable value + save immediately
-      // FIX: removed 60s guard — every new confirmed stable value is persisted instantly.
-      // Mobile PWA cannot rely on beforeunload; write-through is the only safe approach.
+      // Update hourly store with stable value — save immediately, no guard
       _recordHourly(stable);
-      _saveHourly(); // immediate write-through — no guard
+      _saveHourly();          // write-through: never lose a confirmed stable point
+      _saveAnalytics();       // persist session data (totals, events, refills)
 
       // 10% band voice announcement (fill and drain directions)
       _check10PctVoice(stablePrev,stable);
@@ -2024,10 +1904,6 @@ function ingest(d,fromMQTT=false){
       if(analyticsSession.nightReadingsPct.length>500)analyticsSession.nightReadingsPct.shift();
 
       _updateTankHealth();
-      _recordDailyLevel(stable); // track today's min/max for report
-      // Persist engine state immediately after every stable commit
-      // This ensures _stableLevel + _rawBuffer survive app reopen with no data loss
-      _saveAnalytics();
     }
   }
 
@@ -2666,31 +2542,30 @@ function renderDash(){
 //  ANALYTICS — charts + correct real data only
 //  Charts: donut (level), line (history), bar (time of day), pie (usage split)
 // ═══════════════════════════════════════════════════════
-let donutChart=null,barChart=null,usagePieChart=null,dailyBarChart=null;
+let donutChart=null,barChart=null,usagePieChart=null;
 
 function recordUsageEvent(dropL,fromPct,toPct,_time,_ts,_period){
   const now=new Date();
   const h=now.getHours();
+  // Accept pre-computed params from accumulator (preserves original event time)
   const period=_period||(h>=6&&h<12?'morn':h>=12&&h<18?'aft':h>=18?'eve':'ngt');
   const time=_time||now.toLocaleTimeString();
   const ts=_ts||Date.now();
-  // Session totals (live display)
   analyticsSession.periodTotals[period]+=dropL;
   analyticsSession.totalUsedL+=dropL;
   analyticsSession.events.push({time,dropL:dropL.toFixed(1),fromPct,toPct,period,ts});
   if(analyticsSession.events.length>60)analyticsSession.events.shift();
-  // ── DAILY STORE (permanent, cross-session) ──
-  _recordDailyEvent(dropL,period,fromPct,toPct,time,ts);
-  // Recompute usage rate from last 3h
+  // Recompute usage rate from the last 3 hours of events
   const _3h=Date.now()-3*3600000;
   const _recent=analyticsSession.events.filter(e=>e.ts&&e.ts>_3h);
   if(_recent.length>=2){
-    const _elapsed=(_recent[_recent.length-1].ts-_recent[0].ts)/3600000;
+    const _elapsed=(_recent[_recent.length-1].ts-_recent[0].ts)/3600000; // hours
     if(_elapsed>0){
       const _total=_recent.reduce((s,e)=>s+parseFloat(e.dropL),0);
       analyticsSession.computedUsageRate=_total/_elapsed;
     }
   }
+  _saveAnalytics(); // persist immediately so data survives any app close
 }
 
 // Chart.js global defaults for dark theme
@@ -2790,31 +2665,6 @@ function initChart(){
       }
     }
   });
-
-  // ── Daily 7-day bar chart — L consumed per day ──
-  const dbc=document.getElementById('dailyBarChart');
-  if(dbc){
-    dailyBarChart=new Chart(dbc.getContext('2d'),{
-      type:'bar',
-      data:{labels:[],datasets:[
-        {label:'Morning',data:[],backgroundColor:'rgba(251,191,36,.65)',borderColor:'rgba(251,191,36,.9)',borderWidth:1,borderRadius:4,stack:'day'},
-        {label:'Afternoon',data:[],backgroundColor:'rgba(45,212,191,.65)',borderColor:'rgba(45,212,191,.9)',borderWidth:1,borderRadius:4,stack:'day'},
-        {label:'Evening',data:[],backgroundColor:'rgba(124,58,237,.65)',borderColor:'rgba(167,139,250,.9)',borderWidth:1,borderRadius:4,stack:'day'},
-        {label:'Night',data:[],backgroundColor:'rgba(56,189,248,.45)',borderColor:'rgba(56,189,248,.8)',borderWidth:1,borderRadius:4,stack:'day'}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:true,position:'top',labels:{color:'rgba(180,220,255,.55)',font:{size:9},boxWidth:10,padding:8}},
-          tooltip:{mode:'index',backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,
-            titleColor:'#2DD4BF',bodyColor:'#cce7ff',
-            callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y.toFixed(1)} L`,
-              footer:items=>' Total: '+items.reduce((s,i)=>s+i.parsed.y,0).toFixed(1)+' L'}}},
-        scales:{
-          x:{stacked:true,grid:{display:false},ticks:{color:'rgba(200,230,255,.45)',font:{size:9},maxRotation:45}},
-          y:{stacked:true,grid:{color:'rgba(45,212,191,.05)'},ticks:{color:'rgba(200,230,255,.35)',font:{size:9},callback:v=>v+'L'},beginAtZero:true}
-        }
-      }
-    });
-  }
 }
 
 function renderChart(){
@@ -2826,28 +2676,27 @@ function renderChart(){
 }
 
 function renderAnalytics(){
+  const pt=analyticsSession.periodTotals;
+  const totalUsed=analyticsSession.totalUsedL;
   const pct=(_displayReady&&S.m!=null)?S.m:0;
   const volNow=(_displayReady&&S.m!=null)?S.vol:0;
   const total=S.total||1000;
 
-  // ── SOURCE OF TRUTH: daily store for today (cross-session, permanent) ────────
-  // Session periodTotals is ephemeral; daily store survives app restarts.
-  // We add any live accumulator on top of what's already committed to the store.
-  const _todayRec=_dailyStore[_todayKey()]||{morn:0,aft:0,eve:0,ngt:0,totalL:0};
+  // ── Live accumulator overlay ───────────────────────────────────────────────
+  // While a usage session is still open (not yet settled), add its contribution
+  // to the display so the user sees consumption in real time.
   const _liveExtra=_usageAccum?Math.max(0,(_usageAccum.startPct-_usageAccum.curPct)/100*total):0;
-  const ptToday={
-    morn:_todayRec.morn+(_usageAccum&&_usageAccum.period==='morn'?_liveExtra:0),
-    aft: _todayRec.aft +(_usageAccum&&_usageAccum.period==='aft'?_liveExtra:0),
-    eve: _todayRec.eve +(_usageAccum&&_usageAccum.period==='eve'?_liveExtra:0),
-    ngt: _todayRec.ngt +(_usageAccum&&_usageAccum.period==='ngt'?_liveExtra:0),
-  };
-  const totalUsedToday=_todayRec.totalL+_liveExtra;
+  const _totalUsedDisplay=totalUsed+_liveExtra;
+  // Build per-period display including the live session
+  const ptDisplay=Object.assign({},pt);
+  if(_usageAccum&&_liveExtra>0)ptDisplay[_usageAccum.period]=(ptDisplay[_usageAccum.period]||0)+_liveExtra;
   const _liveTag=_usageAccum?' <span style="font-size:9px;color:var(--warn);vertical-align:top">●LIVE</span>':'';
 
-  // ── KPI header ──
+  // ── KPI cards ──
   set('asum-cur',(_displayReady&&S.m!=null)?pct+'%':'--');
-  set('asum-used',totalUsedToday>0?totalUsedToday.toFixed(1)+_liveTag:'0.0');
+  set('asum-used',_totalUsedDisplay>0?_totalUsedDisplay.toFixed(1)+_liveTag:'--');
   set('asum-rate',(_displayReady&&S.usage>0)?S.usage.toFixed(1):'--');
+  // Show actual refill count (from _checkRefill), not just fullTankEvents length
   const _rfCount=analyticsSession.refillCount;
   set('asum-fills',_rfCount>0?_rfCount:'0');
   const _hel=document.getElementById('asum-health');
@@ -2857,6 +2706,7 @@ function renderAnalytics(){
   if(donutChart){
     const filled=Math.max(0,Math.min(100,pct));
     const empty=100-filled;
+    // Colour by level
     const col=filled>=50?'rgba(45,212,191,.85)':filled>=20?'rgba(251,191,36,.85)':'rgba(248,113,113,.85)';
     const colBg=filled>=50?'rgba(45,212,191,.07)':filled>=20?'rgba(251,191,36,.06)':'rgba(248,113,113,.06)';
     donutChart.data.datasets[0].data=[filled,empty];
@@ -2864,99 +2714,40 @@ function renderAnalytics(){
     donutChart.data.datasets[0].borderColor=[col.replace('.85',',.35'),colBg];
     donutChart.update('none');
   }
-  set('donutPct',(_displayReady&&S.m!=null)?pct+'%':'--');
+  set('donutPct',(_displayReady&&!demoMode&&S.m!=null)?pct+'%':(_displayReady&&S.m!=null)?pct+'%':'--');
   if(donutChart&&!_displayReady){donutChart.data.datasets[0].data=[0,100];donutChart.update('none');}
   set('vol-display',(_displayReady&&S.m!=null)?volNow.toFixed(0)+' L':'-- L');
   set('vol-total-display',total);
   const emptyIn=(_displayReady&&S.usage>0&&volNow>0)?fmtHrs(volNow/S.usage):'∞';
   set('vol-empty-in',emptyIn);
 
-  // ── Today's period KPI cards (from daily store — always show) ──
-  set('prd-morn',ptToday.morn.toFixed(1));
-  set('prd-aft', ptToday.aft.toFixed(1));
-  set('prd-eve', ptToday.eve.toFixed(1));
-  set('prd-ngt', ptToday.ngt.toFixed(1));
-  const _pk=Math.max(ptToday.morn,ptToday.aft,ptToday.eve,ptToday.ngt);
-  if(_pk>0){
-    const _pn=_pk===ptToday.morn?'🌅 Morning':_pk===ptToday.aft?'☀️ Afternoon':_pk===ptToday.eve?'🌆 Evening':'🌙 Night';
-    set('prd-peak','Peak today: <strong style="color:var(--pri)">'+_pn+'</strong> — '+_pk.toFixed(1)+' L');
+  // ── Period KPI number cards (always visible) ──
+  const _hasBar=ptDisplay.morn+ptDisplay.aft+ptDisplay.eve+ptDisplay.ngt>0;
+  set('prd-morn',ptDisplay.morn.toFixed(1));
+  set('prd-aft', ptDisplay.aft.toFixed(1));
+  set('prd-eve', ptDisplay.eve.toFixed(1));
+  set('prd-ngt', ptDisplay.ngt.toFixed(1));
+  if(_hasBar){
+    const _pk=Math.max(ptDisplay.morn,ptDisplay.aft,ptDisplay.eve,ptDisplay.ngt);
+    const _pn=_pk===ptDisplay.morn?'🌅 Morning':_pk===ptDisplay.aft?'☀️ Afternoon':_pk===ptDisplay.eve?'🌆 Evening':'🌙 Night';
+    set('prd-peak','Peak: <strong style="color:var(--pri)">'+_pn+'</strong> — '+_pk.toFixed(1)+' L');
   } else {
-    set('prd-peak','Today\'s peak period will appear here after first usage');
+    set('prd-peak','Usage events appear here after water is consumed');
   }
 
-  // ── Daily 7-day stacked bar chart ──
-  const _hist7=_getDailyHistory(7);
-  const _hasDaily=_hist7.some(d=>d.totalL>0);
-  const _dbnd=document.getElementById('dailyBarNoData');
-  if(dailyBarChart){
-    if(_hasDaily){
-      const _lbl=_hist7.map(d=>{const p=d.date.split('-');return p[1]+'/'+p[2];});
-      dailyBarChart.data.labels=_lbl;
-      dailyBarChart.data.datasets[0].data=_hist7.map(d=>parseFloat((d.morn||0).toFixed(2)));
-      dailyBarChart.data.datasets[1].data=_hist7.map(d=>parseFloat((d.aft||0).toFixed(2)));
-      dailyBarChart.data.datasets[2].data=_hist7.map(d=>parseFloat((d.eve||0).toFixed(2)));
-      dailyBarChart.data.datasets[3].data=_hist7.map(d=>parseFloat((d.ngt||0).toFixed(2)));
-      dailyBarChart.update('none');
-      if(_dbnd)_dbnd.style.display='none';
-    } else {
-      if(_dbnd)_dbnd.style.display='flex';
-    }
+  // ── Bar chart: time of day usage ──
+  if(barChart){
+    barChart.data.datasets[0].data=[ptDisplay.morn,ptDisplay.aft,ptDisplay.eve,ptDisplay.ngt];
+    barChart.update('none');
+    const _bnd=document.getElementById('barNoData');
+    if(_bnd)_bnd.style.display=_hasBar?'none':'flex';
   }
 
-  // ── Per-day table ──
-  const _dtw=document.getElementById('dailyTableWrap');
-  const _dt=document.getElementById('dailyTable');
-  if(_dt&&_hasDaily){
-    if(_dtw)_dtw.style.display='block';
-    _dt.innerHTML=`<table style="width:100%;border-collapse:collapse">
-      <thead><tr style="border-bottom:1px solid rgba(45,212,191,.15);font-size:10px;color:rgba(180,220,255,.4);font-family:var(--head);letter-spacing:1px">
-        <th style="text-align:left;padding:5px 4px">DATE</th>
-        <th style="text-align:right;padding:5px 4px;color:#fbbf24">MORN</th>
-        <th style="text-align:right;padding:5px 4px;color:#2DD4BF">AFT</th>
-        <th style="text-align:right;padding:5px 4px;color:#a78bfa">EVE</th>
-        <th style="text-align:right;padding:5px 4px;color:#38bdf8">NIGHT</th>
-        <th style="text-align:right;padding:5px 4px">TOTAL</th>
-        <th style="text-align:center;padding:5px 4px">FILLS</th>
-      </tr></thead><tbody>
-      ${[..._hist7].reverse().map(d=>{
-        const _isToday=d.date===_todayKey();
-        const _tot=_isToday?totalUsedToday:(d.totalL||0);
-        const _morn=_isToday?ptToday.morn:(d.morn||0);
-        const _aft=_isToday?ptToday.aft:(d.aft||0);
-        const _eve=_isToday?ptToday.eve:(d.eve||0);
-        const _ngt=_isToday?ptToday.ngt:(d.ngt||0);
-        const _rowStyle=_isToday?'background:rgba(45,212,191,.04);font-weight:600':'';
-        return`<tr style="border-bottom:1px solid rgba(45,212,191,.06);font-size:12px;${_rowStyle}">
-          <td style="padding:6px 4px;font-family:var(--mono);font-size:11px;color:${_isToday?'var(--pri)':'rgba(180,220,255,.6)'}">${d.date}${_isToday?' ●':''}</td>
-          <td style="text-align:right;padding:6px 4px;color:#fbbf24">${_morn.toFixed(1)}</td>
-          <td style="text-align:right;padding:6px 4px;color:#2DD4BF">${_aft.toFixed(1)}</td>
-          <td style="text-align:right;padding:6px 4px;color:#a78bfa">${_eve.toFixed(1)}</td>
-          <td style="text-align:right;padding:6px 4px;color:#38bdf8">${_ngt.toFixed(1)}</td>
-          <td style="text-align:right;padding:6px 4px;font-family:var(--mono);color:${_tot>200?'var(--warn)':_tot>0?'rgba(200,230,255,.8)':'rgba(200,230,255,.3)'}">${_tot.toFixed(1)} L</td>
-          <td style="text-align:center;padding:6px 4px;color:var(--ok)">${d.refills||0}</td>
-        </tr>`;
-      }).join('')}
-      </tbody></table>`;
-  } else if(_dtw) {
-    _dtw.style.display='none';
-  }
-
-  // ── Usage Split pie — ALL-TIME totals from daily store ──
-  // Sum across ALL days in the store, not just today/this session
-  let _allMorn=0,_allAft=0,_allEve=0,_allNgt=0;
-  Object.values(_dailyStore).forEach(r=>{_allMorn+=r.morn||0;_allAft+=r.aft||0;_allEve+=r.eve||0;_allNgt+=r.ngt||0;});
-  // Also add live accumulator
-  if(_usageAccum&&_liveExtra>0){
-    const p=_usageAccum.period;
-    if(p==='morn')_allMorn+=_liveExtra;
-    else if(p==='aft')_allAft+=_liveExtra;
-    else if(p==='eve')_allEve+=_liveExtra;
-    else _allNgt+=_liveExtra;
-  }
-  const _hasPie=_allMorn+_allAft+_allEve+_allNgt>0;
+  // ── Usage pie: only show if we have any data ──
   if(usagePieChart){
+    const _hasPie=ptDisplay.morn+ptDisplay.aft+ptDisplay.eve+ptDisplay.ngt>0;
     usagePieChart.data.datasets[0].data=_hasPie
-      ?[Math.max(_allMorn,0.001),Math.max(_allAft,0.001),Math.max(_allEve,0.001),Math.max(_allNgt,0.001)]
+      ?[Math.max(ptDisplay.morn,0.001),Math.max(ptDisplay.aft,0.001),Math.max(ptDisplay.eve,0.001),Math.max(ptDisplay.ngt,0.001)]
       :[0.001,0.001,0.001,0.001];
     usagePieChart.update('none');
     const _pnd=document.getElementById('pieNoData');
@@ -2967,7 +2758,7 @@ function renderAnalytics(){
   if(_displayReady&&S.m!=null){
     set('fc-cur',pct+'%');
     if(S.usage>0&&total>0){
-      const pph=(S.usage/total)*100;
+      const pph=(S.usage/total)*100; // percent drop per hour
       set('fc-24',Math.max(0,pct-pph*24).toFixed(0)+'%');
       set('fc-3d',Math.max(0,pct-pph*72).toFixed(0)+'%');
       set('fc-emp',fmtHrs(volNow/S.usage));
@@ -2978,16 +2769,13 @@ function renderAnalytics(){
     ['fc-cur','fc-24','fc-3d','fc-emp'].forEach(id=>set(id,'--'));
   }
 
-  // ── Usage events log ──
+  // ── Usage events ──
   const evEl=document.getElementById('usageEvents');
-  if(!evEl)return;
-  const _liveSessionHtml=_usageAccum?`<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:9px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;font-size:12px"><span style="font-size:16px;animation:sblink 1s step-end infinite">💧</span><div><div style="font-weight:700;color:var(--warn)">USAGE SESSION IN PROGRESS</div><div style="font-size:10px;color:var(--muted);margin-top:2px">Level: ${_usageAccum.startPct}% → ${_usageAccum.curPct}% · ~${_liveExtra.toFixed(1)} L · Finalizes after 10 min idle</div></div></div>`:'';
-  // Show events from daily store today (cross-session events list)
-  const _todayEvents=(_dailyStore[_todayKey()]||{events:[]}).events||[];
-  if(_todayEvents.length===0&&!_usageAccum){
-    evEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No usage drops recorded today yet</div>';
+  const _liveSessionHtml=_usageAccum?`<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:9px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;font-size:12px"><span style="font-size:16px;animation:sblink 1s step-end infinite">💧</span><div><div style="font-weight:700;color:var(--warn)">USAGE SESSION IN PROGRESS</div><div style="font-size:10px;color:var(--muted);margin-top:2px">Level: ${_usageAccum.startPct}% → ${_usageAccum.curPct}% · ~${_liveExtra.toFixed(1)} L consumed · Recording finalizes after 10 min idle</div></div></div>`:'';
+  if(analyticsSession.events.length===0&&!_usageAccum){
+    evEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No usage drops recorded yet this session</div>';
   } else {
-    evEl.innerHTML=_liveSessionHtml+[..._todayEvents].reverse().slice(0,15).map(e=>`
+    evEl.innerHTML=_liveSessionHtml+[...analyticsSession.events].reverse().slice(0,12).map(e=>`
       <div class="session-item">
         <div>
           <div style="font-size:13px;font-weight:600">💧 ${e.fromPct}% → ${e.toPct}%</div>
@@ -2995,7 +2783,7 @@ function renderAnalytics(){
         </div>
         <div style="text-align:right">
           <div class="session-vol">−${e.dropL} L</div>
-          <div class="session-time" style="color:var(--muted)">${({morn:'Morning',aft:'Afternoon',eve:'Evening',ngt:'Night'})[e.period]||e.period}</div>
+          <div class="session-time" style="color:var(--muted)">${({morn:'Morning',aft:'Afternoon',eve:'Evening',ngt:'Night'})[e.period]}</div>
         </div>
       </div>`).join('');
   }
@@ -3028,10 +2816,9 @@ function resetAnalytics(){
   _stableLevel=null;
   _lastVoiceBand=null;
   _lastUsageEventLevel=null;
+  // Clear any open usage session accumulator
   if(_usageAccum&&_usageAccum._timer)clearTimeout(_usageAccum._timer);
   _usageAccum=null;
-  _bounceCandidate=null;
-  localStorage.removeItem(ANALYTICS_KEY); // wipe persisted session
   renderAnalytics();
   showToast('Usage counters reset','ok',2500);
 }
@@ -3074,7 +2861,9 @@ function downloadReport(){
     return;
   }
 
-  // ── Data assembly ──
+  // ── Gather all data ──
+  // IMPORTANT: Finalize any open usage session before generating report
+  // so all data is included (the accumulator's live portion is added)
   const _reportExtraL=_usageAccum?Math.max(0,(_usageAccum.startPct-_usageAccum.curPct)/100*(S.total||1000)):0;
   const _hasOpenSession=!!_usageAccum;
   const now=new Date();
@@ -3084,32 +2873,39 @@ function downloadReport(){
   const total=S.total||1000;
   const pct=Math.max(0,Math.min(100,S.m));
   const volNow=S.vol>0?S.vol:(pct/100)*total;
-  const volAvail=volNow.toFixed(0);
-  const volUsedSession=(_todayRecRpt.totalL||0)+_reportExtraL;
+  const volAvail=(volNow).toFixed(0);
+  const volUsedSession=analyticsSession.totalUsedL+_reportExtraL;
 
-  // Usage rate
+  // Usage rate — prefer event-computed (more accurate than device-reported)
   const rateRaw=analyticsSession.computedUsageRate>0
-    ?analyticsSession.computedUsageRate:(S.usage>0&&S.usage<500?S.usage:0);
+    ? analyticsSession.computedUsageRate
+    : (S.usage>0&&S.usage<500?S.usage:0);
   const rateDisplay=rateRaw>0?rateRaw.toFixed(1):'--';
   const emptyIn=rateRaw>0&&volNow>0?fmtHrs(volNow/rateRaw):'--';
 
-  // Cost — tiered Indian municipal tariff
-  // Tier 1: 0–10 KL/month ₹3.5/KL | Tier 2: 10–25 KL ₹6/KL | Tier 3: 25+ KL ₹10/KL
-  const dailyLProj=rateRaw>0?rateRaw*24:0;
-  const monthlyLProj=dailyLProj*30;
-  function _tieredCost(litres){
-    const kl=litres/1000;
-    if(kl<=10)return(kl*3.5).toFixed(2);
-    if(kl<=25)return(10*3.5+(kl-10)*6).toFixed(2);
-    return(10*3.5+15*6+(kl-25)*10).toFixed(2);
-  }
-  const sessionCostEst=_tieredCost(volUsedSession);
-  const dailyCostProj=dailyLProj>0?_tieredCost(dailyLProj):'--';
-  const monthlyCostProj=monthlyLProj>0?_tieredCost(monthlyLProj):'--';
+  // Cost estimate — Indian average ₹5–8 per kilolitre (1000L); use ₹6
+  const COST_PER_KL=6;
+  const sessionCostEst=(volUsedSession/1000*COST_PER_KL).toFixed(2);
+  // Daily projection: if rateRaw known, project 24h consumption
+  const dailyLProj=rateRaw>0?(rateRaw*24).toFixed(0):'--';
+  const dailyCostProj=rateRaw>0?(rateRaw*24/1000*COST_PER_KL).toFixed(2):'--';
+  const monthlyLProj=rateRaw>0?(rateRaw*24*30).toFixed(0):'--';
+  const monthlyCostProj=rateRaw>0?(rateRaw*24*30/1000*COST_PER_KL).toFixed(2):'--';
 
-  // Period totals — daily store is the authoritative source (cross-session)
-  const _todayRecRpt=_dailyStore[_todayKey()]||{morn:0,aft:0,eve:0,ngt:0,totalL:0};
-  const pt=Object.assign({},_todayRecRpt);
+  // Efficiency scoring
+  // Benchmark: ~150L/person/day typical Indian household; office ~50L/person/day
+  // We score based on usage rate relative to capacity
+  const dayUsagePct=rateRaw>0?Math.min(100,(rateRaw*24/total)*100):null;
+  let effScore, effLabel, effColor, effAdvice;
+  if(dayUsagePct===null){effScore='--';effLabel='Insufficient data';effColor='#8a9bb0';effAdvice='Keep monitoring to build efficiency baseline.';}
+  else if(dayUsagePct<30){effScore='A+';effLabel='Excellent — Very Efficient';effColor='#34d399';effAdvice='Water consumption is well managed. Maintain current practices.';}
+  else if(dayUsagePct<50){effScore='A';effLabel='Good Efficiency';effColor='#2DD4BF';effAdvice='Good control. Minor tweaks to peak-hour usage could save more.';}
+  else if(dayUsagePct<70){effScore='B';effLabel='Moderate Usage';effColor='#fbbf24';effAdvice='Consider scheduling heavy water use (laundry, gardening) to off-peak hours.';}
+  else if(dayUsagePct<90){effScore='C';effLabel='High Consumption';effColor='#fb923c';effAdvice='Usage is high. Check for running taps, toilet leaks, and peak-load habits.';}
+  else{effScore='D';effLabel='Critical — Overconsumption';effColor='#f87171';effAdvice='Tank may run dry. Audit all water points and check for hidden leaks urgently.';}
+
+  // Period totals — include live session
+  const pt=Object.assign({},analyticsSession.periodTotals);
   if(_usageAccum&&_reportExtraL>0)pt[_usageAccum.period]=(pt[_usageAccum.period]||0)+_reportExtraL;
   const morL=pt.morn.toFixed(1),aftL=pt.aft.toFixed(1),eveL=pt.eve.toFixed(1),ngtL=pt.ngt.toFixed(1);
   const totalPeriod=pt.morn+pt.aft+pt.eve+pt.ngt;
@@ -3118,23 +2914,13 @@ function downloadReport(){
     pt.aft>=pt.eve&&pt.aft>=pt.ngt?'Afternoon (12PM–6PM)':
     pt.eve>=pt.ngt?'Evening (6PM–12AM)':'Night (12AM–6AM)';
 
-  // Efficiency
-  const dayUsagePct=rateRaw>0?Math.min(100,(rateRaw*24/total)*100):null;
-  let effScore,effLabel,effColor,effAdvice;
-  if(dayUsagePct===null){effScore='--';effLabel='Insufficient data';effColor='#8a9bb0';effAdvice='Keep monitoring to build efficiency baseline.';}
-  else if(dayUsagePct<30){effScore='A+';effLabel='Excellent — Very Efficient';effColor='#34d399';effAdvice='Consumption is well controlled. Maintain these habits.';}
-  else if(dayUsagePct<50){effScore='A';effLabel='Good Efficiency';effColor='#2DD4BF';effAdvice='Good control. Reducing peak-hour loads could improve score further.';}
-  else if(dayUsagePct<70){effScore='B';effLabel='Moderate Usage';effColor='#fbbf24';effAdvice='Shift heavy use (laundry, irrigation) to off-peak hours to conserve.';}
-  else if(dayUsagePct<90){effScore='C';effLabel='High Consumption';effColor='#fb923c';effAdvice='Check for running taps, toilet leaks, and cluster-usage habits.';}
-  else{effScore='D';effLabel='Critical — Overconsumption';effColor='#f87171';effAdvice='Tank may run dry. Audit all water points and check for hidden leaks urgently.';}
-
-  // Health
+  // Health data
   const hs=analyticsSession.healthScore;
   const hl=analyticsSession.healthLabel;
   const hcol=hs>=80?'#34d399':hs>=50?'#fbbf24':'#f87171';
   const nlDetected=analyticsSession.nightLeakDetected;
   const nlLiters=analyticsSession.nightLeakLiters.toFixed(0);
-  const fullCount=analyticsSession.refillCount;
+  const fullCount=analyticsSession.refillCount;  // confirmed refill cycles
   const refillEvents=analyticsSession.refillEvents||[];
   const suddenDrops=analyticsSession.suddenDrops.length;
   const dayAvg=analyticsSession.dayReadings.length?Math.round(analyticsSession.dayReadings.reduce((a,b)=>a+b,0)/analyticsSession.dayReadings.length):null;
@@ -3145,81 +2931,32 @@ function downloadReport(){
   const fc24=pph>0?Math.max(0,pct-pph*24).toFixed(0)+'%':'--';
   const fc3d=pph>0?Math.max(0,pct-pph*72).toFixed(0)+'%':'--';
   const fc7d=pph>0?Math.max(0,pct-pph*168).toFixed(0)+'%':'--';
+
+  // Status colour
   const sCl=pct<10?'#f87171':pct<30?'#fbbf24':'#2DD4BF';
+
+  // 24h history
   const {labels:histLabels,data:histData}=_buildChartArrays();
+  const histHasData=histData.some(v=>v!=null);
 
-  // ── Refill duration analysis ──
-  const _refillDurations=[];
-  if(refillEvents.length>=2){
-    for(let i=1;i<refillEvents.length;i++){
-      const _gap=(refillEvents[i].ts-refillEvents[i-1].ts)/3600000;
-      if(_gap>0&&_gap<72)_refillDurations.push(_gap);
-    }
-  }
-  const _avgRefillGap=_refillDurations.length?
-    (_refillDurations.reduce((a,b)=>a+b,0)/_refillDurations.length).toFixed(1):'--';
-  const _lastRefill=refillEvents.length?refillEvents[refillEvents.length-1]:null;
-
-  // ── Benchmark comparison (BIS IS:1172, WHO, CPHEEO norms) ──
-  // CPHEEO: Residential 135L/person/day | Office 45L/person/day | Hotel 450L/bed/day
-  const _benchmarks=[
-    {type:'Residential Apartment',norm:135,unit:'L/person/day',ref:'CPHEEO 2013'},
-    {type:'Office Building',norm:45,unit:'L/person/day',ref:'CPHEEO 2013'},
-    {type:'WHO Minimum',norm:50,unit:'L/person/day',ref:'WHO 2003'},
-    {type:'BIS IS:1172 Urban',norm:200,unit:'L/person/day',ref:'BIS IS:1172'},
-  ];
-  const _dailyPerPersonProj=dailyLProj>0?(dailyLProj/4).toFixed(0):'--'; // assume 4 occupants
-
-  // ── Conservation score (0-100) ──
-  let consScore=100;
-  if(nlDetected)consScore-=25;
-  if(suddenDrops>2)consScore-=15;
-  if(dayUsagePct!==null){
-    if(dayUsagePct>90)consScore-=25;
-    else if(dayUsagePct>70)consScore-=15;
-    else if(dayUsagePct>50)consScore-=5;
-  }
-  if(fullCount>4)consScore-=10;
-  if(S.rssi&&S.rssi<-80)consScore-=5;
-  consScore=Math.max(0,Math.min(100,consScore));
-  const consLabel=consScore>=80?'EXCELLENT':consScore>=60?'GOOD':consScore>=40?'AVERAGE':'POOR';
-  const consColor=consScore>=80?'#34d399':consScore>=60?'#2DD4BF':consScore>=40?'#fbbf24':'#f87171';
-
-  // ── Signal & sensor health ──
-  const rssiStr=S.rssi?S.rssi+' dBm':'N/A';
-  const rssiLabel=!S.rssi?'N/A':S.rssi>-50?'Excellent':S.rssi>-65?'Good':S.rssi>-75?'Fair':'Weak';
-  const rssiColor=!S.rssi?'#8a9bb0':S.rssi>-65?'#34d399':S.rssi>-75?'#fbbf24':'#f87171';
-  const sensorStability=analyticsSession.confirmedSamples>0?
-    Math.max(0,100-analyticsSession.suddenDrops.length*5).toFixed(0)+'%':'--';
-  const dataQuality=analyticsSession.confirmedSamples>=20?'HIGH':
-    analyticsSession.confirmedSamples>=10?'MEDIUM':'LOW';
-  const dqColor=analyticsSession.confirmedSamples>=20?'#34d399':
-    analyticsSession.confirmedSamples>=10?'#fbbf24':'#f87171';
-
-  // ── Carbon footprint (water treatment + pumping) ──
-  // India average: 0.344 kgCO₂/kWh, pumping ~0.5 kWh/KL, treatment ~0.3 kWh/KL
-  const CO2_PER_KL=0.275; // kg CO₂ per 1000L (pumping + treatment, India avg)
-  const sessionCO2=(volUsedSession/1000*CO2_PER_KL).toFixed(3);
-  const dailyCO2=(dailyLProj/1000*CO2_PER_KL).toFixed(3);
-  const monthlyCO2=(monthlyLProj/1000*CO2_PER_KL).toFixed(2);
-
-  // ── Smart recommendations (enhanced) ──
+  // ── Smart recommendations ──
   const recs=[];
-  if(nlDetected)recs.push({icon:'🔧',pri:'HIGH',title:'Fix Night Leakage Immediately',body:`~${nlLiters}L lost between 10PM–6AM. Estimated monthly waste: ${(parseFloat(nlLiters)*30).toFixed(0)}L ≈ ₹${(parseFloat(nlLiters)*30/1000*6).toFixed(0)}. Inspect pipe joints, ball-valves, float valves, and stop-cocks. Hire a plumber.`});
-  if(suddenDrops>=3)recs.push({icon:'📉',pri:'HIGH',title:'Investigate Sudden Level Drops',body:`${suddenDrops} confirmed sudden drops this session. Could indicate a fast-draining overflow pipe, burst fitting, or large simultaneous draw. Cross-check with usage events log.`});
-  if(pct<20)recs.push({icon:'💧',pri:'HIGH',title:'Low Tank — Refill Urgently',body:`Only ${pct}% (≈${volAvail}L) remaining.${emptyIn!='--'?' Estimated empty in '+emptyIn+'.':''} Schedule supply immediately.`});
-  if(rateRaw>0&&dayUsagePct>70)recs.push({icon:'🔄',pri:'MEDIUM',title:'Reduce Peak Hour Usage',body:'Highest consumption in '+peakPeriod+'. Stagger laundry, gardening, and bathing to off-peak hours. A 15% shift could extend tank life by '+Math.round(15/(pph||1))+' hours.'});
-  if(fullCount>3)recs.push({icon:'⚡',pri:'MEDIUM',title:'Optimise Refill Schedule',body:`Tank refilled ${fullCount} times this session. Adjust float valve sensitivity or supply schedule to reduce overflow risk. Consider a smart solenoid valve with auto-shutoff.`});
-  if(rateRaw>0&&_avgRefillGap!='--'&&parseFloat(_avgRefillGap)<8)recs.push({icon:'🚰',pri:'MEDIUM',title:'Increase Tank Capacity or Supply Frequency',body:`Average time between refills is only ${_avgRefillGap} hours — tank is cycling too fast. Consider upgrading to a larger tank or negotiating more frequent municipal supply.`});
-  if(dayAvg&&ngtAvg&&(dayAvg-ngtAvg)>15)recs.push({icon:'🌙',pri:'LOW',title:'Investigate Night Level Variance',body:`Day avg ${dayAvg}% vs night avg ${ngtAvg}% — ${Math.abs(dayAvg-ngtAvg)}% swing. Significant night drops (not flagged as leakage) may indicate slow overnight draws. Install a night-mode flow restrictor.`});
-  if(S.rssi&&S.rssi<-75)recs.push({icon:'📡',pri:'LOW',title:'Improve WiFi Signal Quality',body:`Device RSSI is ${S.rssi} dBm (${rssiLabel}). Poor signal causes gaps in history and missed alerts. Move the router, add a Wi-Fi extender near the tank, or switch to 2.4GHz band.`});
-  if(consScore<60)recs.push({icon:'🌱',pri:'LOW',title:'Implement Water Conservation Practices',body:`Conservation score is ${consScore}/100. Quick wins: dual-flush toilets (save 30L/day), tap aerators (save 15L/day), greywater reuse for gardening (save 40L/day).`});
-  if(recs.length===0)recs.push({icon:'✅',pri:'INFO',title:'System Operating Within Normal Parameters',body:'All health indicators are green. Continue regular monitoring. Schedule a sensor calibration check every 3 months.'});
+  if(nlDetected)recs.push({icon:'🔧',pri:'HIGH',title:'Fix Night Leakage Immediately',body:`~${nlLiters}L is leaking between 10PM–6AM. Check all pipe joints, ball-valves, and stop-cocks. A plumber visit is strongly recommended.`});
+  if(suddenDrops>=3)recs.push({icon:'📉',pri:'HIGH',title:'Investigate Sudden Level Drops',body:`${suddenDrops} sudden drops detected this session. Could indicate a fast-draining overflow, burst pipe, or sensor calibration issue.`});
+  if(pct<20)recs.push({icon:'💧',pri:'HIGH',title:'Low Tank — Refill Urgently',body:`Only ${pct}% (≈${volAvail}L) remaining. ${emptyIn!='--'?'Estimated empty in '+emptyIn+'.':''} Schedule a refill immediately.`});
+  if(rateRaw>0&&dayUsagePct>70)recs.push({icon:'🔄',pri:'MEDIUM',title:'Reduce Peak Hour Usage',body:'Peak usage detected at '+peakPeriod+'. Spread heavy use (laundry, irrigation) to off-peak hours to extend tank life.'});
+  if(fullCount>3)recs.push({icon:'⚡',pri:'MEDIUM',title:'Optimise Refill Schedule',body:`Tank reached capacity ${fullCount} times. Consider adjusting your supply schedule or float valve setting to avoid overflow and water wastage.`});
+  if(dayAvg&&ngtAvg&&(dayAvg-ngtAvg)>15)recs.push({icon:'🌙',pri:'LOW',title:'High Night Level Variance',body:`Day average is ${dayAvg}% vs night average ${ngtAvg}%. Large swings may indicate night-time usage or slow leakage — worth monitoring.`});
+  if(S.rssi&&S.rssi<-75)recs.push({icon:'📡',pri:'LOW',title:'Weak WiFi Signal',body:`Device RSSI is ${S.rssi} dBm. Move the router closer or add a repeater for reliable monitoring data.`});
+  if(recs.length===0)recs.push({icon:'✅',pri:'INFO',title:'System Operating Normally',body:'No issues detected this session. Continue regular monitoring to maintain your water management track record.'});
 
+  // Sanitize helper
   const san=s=>String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const priBadge=p=>p==='HIGH'?`<span style="background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:1px">● HIGH</span>`:
-    p==='MEDIUM'?`<span style="background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.3);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:1px">● MEDIUM</span>`:
-    `<span style="background:rgba(45,212,191,.1);color:#2DD4BF;border:1px solid rgba(45,212,191,.2);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:1px">● INFO</span>`;
+
+  // ── Priority badge ──
+  const priBadge=p=>p==='HIGH'?`<span style="background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:1px">HIGH</span>`:
+    p==='MEDIUM'?`<span style="background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.3);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:1px">MEDIUM</span>`:
+    `<span style="background:rgba(45,212,191,.1);color:#2DD4BF;border:1px solid rgba(45,212,191,.2);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:1px">INFO</span>`;
 
   const CHARTJS=`<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"><\/script>`;
 
@@ -3227,133 +2964,112 @@ function downloadReport(){
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Inter',system-ui,Arial,sans-serif;background:#040d1a;color:#cce7ff;padding:0;min-height:100vh}
-    .page{max-width:980px;margin:0 auto;padding:28px 24px 60px}
+    .page{max-width:960px;margin:0 auto;padding:28px 24px 48px}
     /* Header */
-    .rep-header{display:flex;align-items:flex-start;justify-content:space-between;padding:26px 30px;background:linear-gradient(135deg,rgba(8,22,50,.97),rgba(3,12,32,.99));border:1px solid rgba(45,212,191,.2);border-radius:16px;margin-bottom:6px;gap:20px}
-    .rep-logo{font-size:11px;font-weight:900;letter-spacing:4px;color:#2DD4BF;margin-bottom:4px;display:flex;align-items:center;gap:8px}
-    .rep-title{font-size:28px;font-weight:900;color:#fff;letter-spacing:-.5px;line-height:1.1}
-    .rep-sub{font-size:13px;color:rgba(180,220,255,.55);margin-top:6px;line-height:1.5}
+    .rep-header{display:flex;align-items:flex-start;justify-content:space-between;padding:24px 28px;background:linear-gradient(135deg,rgba(8,22,50,.97),rgba(3,12,32,.99));border:1px solid rgba(45,212,191,.18);border-radius:16px;margin-bottom:24px;gap:20px}
+    .rep-logo{font-size:11px;font-weight:900;letter-spacing:4px;color:#2DD4BF;margin-bottom:4px}
+    .rep-title{font-size:26px;font-weight:900;color:#fff;letter-spacing:-.5px;line-height:1.1}
+    .rep-sub{font-size:13px;color:rgba(180,220,255,.6);margin-top:6px;line-height:1.5}
     .rep-badge-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-    .rbadge{padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px}
+    .rbadge{padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1.5px}
     .rbadge-ok{background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.3)}
     .rbadge-warn{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
     .rbadge-danger{background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.3)}
     .rbadge-info{background:rgba(45,212,191,.08);color:#2DD4BF;border:1px solid rgba(45,212,191,.2)}
-    /* Data quality watermark */
-    .dq-strip{background:rgba(45,212,191,.04);border:1px solid rgba(45,212,191,.1);border-radius:8px;padding:8px 16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;font-size:11px;color:rgba(180,220,255,.5);flex-wrap:wrap}
-    .dq-strip b{color:rgba(180,220,255,.75)}
     /* Sections */
-    .sec{margin-bottom:28px;page-break-inside:avoid}
-    .sec-title{font-size:11px;font-weight:700;letter-spacing:3px;color:#2DD4BF;text-transform:uppercase;padding:0 0 10px;border-bottom:1px solid rgba(45,212,191,.12);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
-    /* KPI grids */
-    .kgrid{display:grid;gap:12px;margin-bottom:12px}
+    .sec{margin-bottom:28px}
+    .sec-title{font-size:11px;font-weight:700;letter-spacing:3px;color:#2DD4BF;text-transform:uppercase;padding:0 0 10px;border-bottom:1px solid rgba(45,212,191,.12);margin-bottom:16px}
+    /* KPI grid */
+    .kgrid{display:grid;gap:12px;margin-bottom:0}
     .kg2{grid-template-columns:1fr 1fr}
     .kg3{grid-template-columns:1fr 1fr 1fr}
     .kg4{grid-template-columns:repeat(4,1fr)}
     .kg5{grid-template-columns:repeat(5,1fr)}
     @media(max-width:640px){.kg4,.kg5,.kg3{grid-template-columns:1fr 1fr}.kg2{grid-template-columns:1fr}}
     /* Cards */
-    .card{background:rgba(8,22,50,.92);border:1px solid rgba(45,212,191,.11);border-radius:14px;padding:18px;position:relative;overflow:hidden}
-    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,.18),transparent)}
+    .card{background:rgba(8,22,50,.9);border:1px solid rgba(45,212,191,.12);border-radius:14px;padding:18px;position:relative;overflow:hidden}
+    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(45,212,191,.15),transparent)}
     .kv{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:600;line-height:1;margin-bottom:6px}
-    .kv-sm{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;line-height:1;margin-bottom:4px}
-    .kl{font-size:10px;font-weight:600;letter-spacing:2px;color:rgba(180,220,255,.4);text-transform:uppercase}
-    .ks{font-size:12px;color:rgba(180,220,255,.55);margin-top:4px;line-height:1.4}
+    .kl{font-size:10px;font-weight:600;letter-spacing:2px;color:rgba(180,220,255,.45);text-transform:uppercase}
+    .ks{font-size:12px;color:rgba(180,220,255,.55);margin-top:4px}
     .fill-bar{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin-top:10px}
     .fill-inner{height:100%;border-radius:3px}
-    /* Alert banner */
-    .alert-banner{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.25);border-radius:12px;padding:16px 18px;margin-bottom:16px;display:flex;gap:14px;align-items:flex-start}
-    .alert-banner-title{font-size:13px;font-weight:700;color:#f87171;margin-bottom:4px}
-    .alert-banner-body{font-size:12px;color:rgba(248,113,113,.75);line-height:1.55}
+    /* Alert box */
+    .alert-banner{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:12px;padding:16px 18px;margin-bottom:16px;display:flex;gap:14px;align-items:flex-start}
+    .alert-banner-title{font-size:13px;font-weight:700;color:#f87171;margin-bottom:4px;letter-spacing:.5px}
+    .alert-banner-body{font-size:12px;color:rgba(248,113,113,.8);line-height:1.5}
     /* Charts */
     .chart-wrap{position:relative;height:200px}
     .chart-wrap-lg{position:relative;height:260px}
-    /* Recs */
-    .rec-item{background:rgba(8,22,50,.8);border:1px solid rgba(45,212,191,.09);border-radius:12px;padding:14px 16px;display:flex;gap:14px;align-items:flex-start;margin-bottom:10px}
+    /* Recommendations */
+    .rec-item{background:rgba(8,22,50,.8);border:1px solid rgba(45,212,191,.1);border-radius:12px;padding:14px 16px;display:flex;gap:14px;align-items:flex-start;margin-bottom:10px}
     .rec-icon{font-size:22px;flex-shrink:0;margin-top:2px}
-    .rec-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-    .rec-body{font-size:12px;color:rgba(180,220,255,.6);line-height:1.6}
+    .rec-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .rec-body{font-size:12px;color:rgba(180,220,255,.65);line-height:1.55}
     /* Table */
     table{width:100%;border-collapse:collapse;font-size:12px}
-    th{text-align:left;padding:10px 12px;font-size:10px;letter-spacing:1.5px;color:rgba(45,212,191,.55);border-bottom:1px solid rgba(45,212,191,.1);font-weight:600;background:rgba(45,212,191,.03)}
+    th{text-align:left;padding:10px 12px;font-size:10px;letter-spacing:1.5px;color:rgba(45,212,191,.6);border-bottom:1px solid rgba(45,212,191,.1);font-weight:600;background:rgba(45,212,191,.04)}
     td{padding:9px 12px;border-bottom:1px solid rgba(45,212,191,.06);color:rgba(180,220,255,.8)}
     tr:last-child td{border-bottom:none}
-    tr:hover td{background:rgba(45,212,191,.025)}
-    .tc-ok{color:#34d399}.tc-warn{color:#fbbf24}.tc-danger{color:#f87171}.tc-info{color:#2DD4BF}
-    /* Cost rows */
+    tr:hover td{background:rgba(45,212,191,.03)}
+    .tc-ok{color:#34d399}.tc-warn{color:#fbbf24}.tc-danger{color:#f87171}
+    /* Cost row */
     .cost-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(45,212,191,.07);font-size:13px}
     .cost-row:last-child{border-bottom:none}
-    .cost-label{color:rgba(180,220,255,.55)}
+    .cost-label{color:rgba(180,220,255,.6)}
     .cost-val{font-family:'JetBrains Mono',monospace;color:#2DD4BF;font-size:14px;font-weight:600}
-    /* Score rings */
-    .score-big{font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:900;line-height:1;margin-bottom:4px}
-    /* Benchmark bars */
-    .bench-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-    .bench-lbl{font-size:11px;color:rgba(180,220,255,.5);width:180px;flex-shrink:0}
-    .bench-bar-wrap{flex:1;height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden}
-    .bench-bar{height:100%;border-radius:3px;background:rgba(45,212,191,.6)}
-    .bench-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(180,220,255,.5);width:50px;text-align:right;flex-shrink:0}
-    /* TOC */
-    .toc{background:rgba(45,212,191,.03);border:1px solid rgba(45,212,191,.09);border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    .toc-label{font-size:10px;font-weight:700;letter-spacing:2px;color:rgba(45,212,191,.45);margin-right:8px}
-    .toc a{font-size:11px;color:rgba(180,220,255,.55);text-decoration:none;padding:3px 10px;border-radius:10px;border:1px solid rgba(45,212,191,.1)}
-    /* Print */
-    .print-btn{position:fixed;bottom:24px;right:24px;background:linear-gradient(135deg,#7c3aed,#2DD4BF);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;box-shadow:0 4px 20px rgba(45,212,191,.3);z-index:100}
-    @media print{
-      body{background:#fff!important;color:#000!important}
-      .card{background:#f8f9fc!important;border-color:#dde!important}
-      .print-btn{display:none!important}
-      .sec-title{color:#005!important}
-      .kv,.kv-sm,.cost-val,.bench-val{color:#003!important;font-family:monospace!important}
-      td,th{color:#222!important}
-      .kl,.ks,.rep-sub{color:#555!important}
-    }
-    footer{margin-top:40px;padding-top:16px;border-top:1px solid rgba(45,212,191,.08);font-size:10px;color:rgba(180,220,255,.22);text-align:center;line-height:1.9}
+    /* Eff badge */
+    .eff-big{font-family:'JetBrains Mono',monospace;font-size:52px;font-weight:900;line-height:1;margin-bottom:4px}
+    /* TOC nav */
+    .toc{background:rgba(45,212,191,.04);border:1px solid rgba(45,212,191,.1);border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .toc-label{font-size:10px;font-weight:700;letter-spacing:2px;color:rgba(45,212,191,.5);margin-right:8px}
+    .toc a{font-size:11px;color:rgba(180,220,255,.6);text-decoration:none;padding:3px 10px;border-radius:10px;border:1px solid rgba(45,212,191,.12);transition:all .2s}
+    .toc a:hover{background:rgba(45,212,191,.08);color:#2DD4BF}
+    /* Footer */
+    footer{margin-top:40px;padding-top:16px;border-top:1px solid rgba(45,212,191,.08);font-size:10px;color:rgba(180,220,255,.25);text-align:center;line-height:1.8}
   </style>`;
 
   let html=`<!DOCTYPE html><html lang="en"><head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>TASNI Water Report — ${san(tankName)} — ${ds}</title>
   ${CSS}${CHARTJS}
-  </head><body>
-  <button class="print-btn" onclick="window.print()">🖨 Print / Save PDF</button>
-  <div class="page">`;
+  </head><body><div class="page">`;
 
   // ── HEADER ──
   const statusLabel=pct>=95?'FULL':pct>=70?'HEALTHY':pct>=30?'NORMAL':pct>=10?'LOW':'CRITICAL';
   const statusBadgeClass=pct>=70?'rbadge-ok':pct>=30?'rbadge-info':pct>=10?'rbadge-warn':'rbadge-danger';
   html+=`<div class="rep-header">
     <div>
-      <div class="rep-logo">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2DD4BF" stroke-width="2.5"><path d="M12 2C8 7 4 11 4 15a8 8 0 0016 0c0-4-4-8-8-13z"/></svg>
-        TASNI® WATER INTELLIGENCE
-      </div>
-      <div class="rep-title">Water Management Report</div>
-      <div class="rep-sub">📍 ${san(tankName)} &nbsp;·&nbsp; Capacity: ${total}L &nbsp;·&nbsp; ${ts}</div>
+      <div class="rep-logo">TASNI® WATER MONITOR</div>
+      <div class="rep-title">Water Intelligence Report</div>
+      <div class="rep-sub">📍 ${san(tankName)} &nbsp;·&nbsp; Capacity: ${total} L &nbsp;·&nbsp; Generated: ${ts}</div>
       <div class="rep-badge-row">
         <span class="rbadge ${statusBadgeClass}">${statusLabel} — ${pct}%</span>
-        <span class="rbadge rbadge-info">✓ REAL DEVICE DATA</span>
-        ${_hasOpenSession?'<span class="rbadge rbadge-warn">⚡ SESSION ACTIVE</span>':''}
+        <span class="rbadge rbadge-info">REAL DEVICE DATA</span>
+        ${_hasOpenSession?'<span class="rbadge rbadge-warn">⚡ SESSION IN PROGRESS</span>':''}
         ${nlDetected?'<span class="rbadge rbadge-danger">⚠ LEAK DETECTED</span>':''}
-        <span class="rbadge ${hs>=80?'rbadge-ok':'rbadge-warn'}">HEALTH ${hs}/100</span>
-        <span class="rbadge rbadge-info">EFF: ${effScore}</span>
+        ${hs>=80?'<span class="rbadge rbadge-ok">HEALTH: '+hl+'</span>':'<span class="rbadge rbadge-warn">HEALTH: '+hl+'</span>'}
       </div>
     </div>
     <div style="text-align:right;flex-shrink:0">
-      <div style="font-family:'JetBrains Mono',monospace;font-size:54px;font-weight:900;color:${sCl};line-height:1">${pct}<span style="font-size:22px">%</span></div>
-      <div style="font-size:11px;color:rgba(180,220,255,.35);margin-top:4px;letter-spacing:1px">CURRENT LEVEL</div>
-      <div style="font-size:14px;color:rgba(180,220,255,.55);margin-top:3px">${san(volAvail)} L available</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${consColor};margin-top:6px">CONS: ${consScore}/100 ${consLabel}</div>
+      <div style="font-family:\'JetBrains Mono\',monospace;font-size:52px;font-weight:900;color:${sCl};line-height:1">${pct}<span style="font-size:20px">%</span></div>
+      <div style="font-size:11px;color:rgba(180,220,255,.4);margin-top:4px;letter-spacing:1px">CURRENT LEVEL</div>
+      <div style="font-size:13px;color:rgba(180,220,255,.6);margin-top:2px">${san(volAvail)} L available</div>
     </div>
   </div>`;
 
-  // ── DATA QUALITY STRIP ──
-  html+=`<div class="dq-strip">
-    <span>📊 <b>Data quality:</b> <span style="color:${dqColor};font-weight:700">${dataQuality}</span></span>
-    <span>·</span><span><b>Confirmed samples:</b> ${analyticsSession.confirmedSamples}</span>
-    <span>·</span><span><b>Engine:</b> 5-sample median · ${_MIN_STABLE_DELTA_DAY}% day / ${_MIN_STABLE_DELTA_NIGHT}% night noise floor</span>
-    <span>·</span><span><b>Bounce filter:</b> ${_SPIKE_LITERS}L threshold</span>
-    <span>·</span><span><b>Session started:</b> ${new Date(analyticsSession.sessionStart).toLocaleString()}</span>
+  // ── TABLE OF CONTENTS ──
+  html+=`<div class="toc">
+    <span class="toc-label">SECTIONS</span>
+    <a href="#snapshot">Snapshot</a>
+    <a href="#consumption">Consumption</a>
+    <a href="#cost">Cost Analysis</a>
+    <a href="#efficiency">Efficiency</a>
+    <a href="#health">Health Check</a>
+    <a href="#recs">Recommendations</a>
+    <a href="#history">24h History</a>
+    <a href="#ext-history">7-Day Trend</a>
+    ${alerts.length?'<a href="#alerts">Alerts</a>':''}
   </div>`;
 
   // ── NIGHT LEAKAGE BANNER ──
@@ -3362,459 +3078,331 @@ function downloadReport(){
       <span style="font-size:26px">🚨</span>
       <div>
         <div class="alert-banner-title">NIGHT LEAKAGE DETECTED — IMMEDIATE ACTION REQUIRED</div>
-        <div class="alert-banner-body">~<strong>${nlLiters}L</strong> lost between 10PM–6AM. Monthly projection: ${(parseFloat(nlLiters)*30).toFixed(0)}L ≈ ₹${(parseFloat(nlLiters)*30/1000*6).toFixed(0)}. Inspect all pipe joints, ball-valves, and overflow pipes.</div>
+        <div class="alert-banner-body">Approximately <strong>${nlLiters} L</strong> was lost between 10 PM and 6 AM this session. This is a confirmed abnormal drain pattern. Inspect all pipe joints, ball-valves, overflow pipes, and stop-cocks. ${rateRaw>0?'At current rate this equates to ₹'+(parseFloat(nlLiters)/1000*COST_PER_KL*30).toFixed(0)+' wasted per month if unresolved.':''}</div>
       </div>
     </div>`;
   }
 
-  // ── TOC ──
-  html+=`<div class="toc">
-    <span class="toc-label">SECTIONS</span>
-    <a href="#snapshot">1 Snapshot</a><a href="#consumption">2 Consumption</a>
-    <a href="#cost">3 Cost</a><a href="#efficiency">4 Efficiency</a>
-    <a href="#benchmark">5 Benchmarks</a><a href="#health">6 Health</a>
-    <a href="#refills">7 Refills</a><a href="#conservation">8 Conservation</a>
-    <a href="#sensor">9 Sensor</a><a href="#recs">10 Actions</a>
-    <a href="#history">11 History</a>${alerts.length?'<a href="#alerts">12 Alerts</a>':''}
-  </div>`;
-
-  // ══════════════════════════════════════
-  // SECTION 1 — EXECUTIVE SNAPSHOT
-  // ══════════════════════════════════════
+  // ── SECTION 1: SNAPSHOT ──
   html+=`<div class="sec" id="snapshot"><div class="sec-title">1 — Executive Snapshot</div>
   <div class="kgrid kg5">
-    <div class="card"><div class="kv" style="color:${sCl}">${pct}%</div><div class="kl">Tank Level</div><div class="ks">${san(volAvail)} L of ${total}L</div><div class="fill-bar"><div class="fill-inner" style="width:${pct}%;background:${sCl}"></div></div></div>
-    <div class="card"><div class="kv">${rateDisplay}</div><div class="kl">Usage Rate</div><div class="ks">L per hour</div></div>
-    <div class="card"><div class="kv" style="color:#fbbf24">${emptyIn}</div><div class="kl">Est. Empty In</div><div class="ks">${rateRaw>0?'At current rate':'Awaiting usage'}</div></div>
-    <div class="card"><div class="kv">${volUsedSession>0?volUsedSession.toFixed(0):'0'}</div><div class="kl">Session Used</div><div class="ks">Litres consumed</div></div>
-    <div class="card"><div class="kv" style="color:${hcol}">${hs}</div><div class="kl">Health Score</div><div class="ks">/100 — ${hl}</div></div>
+    <div class="card">
+      <div class="kv" style="color:${sCl}">${pct}%</div>
+      <div class="kl">Tank Level</div>
+      <div class="ks">${san(volAvail)} L of ${total} L</div>
+      <div class="fill-bar"><div class="fill-inner" style="width:${pct}%;background:${sCl}"></div></div>
+    </div>
+    <div class="card">
+      <div class="kv">${rateDisplay}</div>
+      <div class="kl">Usage Rate</div>
+      <div class="ks">Litres per hour</div>
+    </div>
+    <div class="card">
+      <div class="kv" style="color:#fbbf24">${emptyIn}</div>
+      <div class="kl">Est. Empty In</div>
+      <div class="ks">${rateRaw>0?'Based on current rate':'Awaiting usage data'}</div>
+    </div>
+    <div class="card">
+      <div class="kv">${volUsedSession>0?volUsedSession.toFixed(0):'0'}</div>
+      <div class="kl">Used This Session</div>
+      <div class="ks">Litres consumed</div>
+    </div>
+    <div class="card">
+      <div class="kv" style="color:${hcol}">${hs}</div>
+      <div class="kl">Health Score</div>
+      <div class="ks">/100 — ${hl}</div>
+    </div>
   </div>
-  <div class="kgrid kg3">
+
+  <div class="kgrid kg3" style="margin-top:12px">
     <div class="card">
-      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:10px">24H / 3D / 7D FORECAST</div>
-      ${[['24 hours',fc24],['3 days',fc3d],['7 days',fc7d]].map(([l,v])=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="font-size:13px;color:rgba(180,220,255,.55)">${l}</span><span style="font-family:'JetBrains Mono',monospace;color:#fbbf24">${v}</span></div>`).join('')}
-      <div style="font-size:10px;color:rgba(180,220,255,.3);margin-top:6px">Empty in: <span style="color:#fbbf24">${emptyIn}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:11px;font-weight:600;color:rgba(180,220,255,.5);letter-spacing:1.5px">24H FORECAST</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:rgba(180,220,255,.6)">In 24 hours</span><span style="font-family:\'JetBrains Mono\',monospace;color:#fbbf24">${fc24}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:rgba(180,220,255,.6)">In 3 days</span><span style="font-family:\'JetBrains Mono\',monospace;color:#f87171">${fc3d}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:rgba(180,220,255,.6)">In 7 days</span><span style="font-family:\'JetBrains Mono\',monospace;color:#f87171">${fc7d}</span></div>
+      </div>
     </div>
     <div class="card">
-      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:10px">DAY / NIGHT PROFILE</div>
-      ${[['☀️ Day avg (6AM–10PM)',dayAvg,'#2DD4BF'],['🌙 Night avg (10PM–6AM)',ngtAvg,'#a78bfa']].map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="font-size:13px;color:rgba(180,220,255,.55)">${l}</span><span style="font-family:'JetBrains Mono',monospace;color:${c}">${v!=null?v+'%':'--'}</span></div>`).join('')}
-      ${dayAvg&&ngtAvg?`<div style="font-size:11px;color:rgba(180,220,255,.3);margin-top:6px">Δ ${Math.abs(dayAvg-ngtAvg)}% — ${dayAvg>ngtAvg?'day higher (normal)':'night higher — monitor'}</div>`:''}
+      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.5);letter-spacing:1.5px;margin-bottom:10px">DAY / NIGHT AVERAGE</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:rgba(180,220,255,.6)">☀️ Day avg (6AM–10PM)</span><span style="font-family:\'JetBrains Mono\',monospace;color:#2DD4BF">${dayAvg!=null?dayAvg+'%':'--'}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:rgba(180,220,255,.6)">🌙 Night avg (10PM–6AM)</span><span style="font-family:\'JetBrains Mono\',monospace;color:#a78bfa">${ngtAvg!=null?ngtAvg+'%':'--'}</span></div>
+        ${dayAvg&&ngtAvg?`<div style="font-size:11px;color:rgba(180,220,255,.4);margin-top:4px">Difference: ${Math.abs(dayAvg-ngtAvg)}% ${dayAvg>ngtAvg?'(day higher — normal)':'(night higher — check for leaks)'}</div>`:''}
+      </div>
     </div>
     <div class="card">
-      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:10px">DEVICE STATUS</div>
-      ${[['Sensor dist.',S.dist>0?S.dist.toFixed(1)+' cm':'--'],['WiFi RSSI',rssiStr+' — '+rssiLabel],['Uptime',S.up?fmtUp(S.up):'--'],['Boot count',S.boot||'--']].map(([l,v])=>`<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:12px;color:rgba(180,220,255,.5)">${l}</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#2DD4BF">${v}</span></div>`).join('')}
+      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.5);letter-spacing:1.5px;margin-bottom:10px">DEVICE STATUS</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:rgba(180,220,255,.6)">Sensor distance</span><span style="font-family:\'JetBrains Mono\',monospace;color:#2DD4BF">${S.dist>0?S.dist.toFixed(1)+' cm':'--'}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:rgba(180,220,255,.6)">WiFi signal</span><span style="font-family:\'JetBrains Mono\',monospace;color:${S.rssi&&S.rssi>-70?'#34d399':S.rssi&&S.rssi>-80?'#fbbf24':'#f87171'}">${S.rssi?S.rssi+' dBm':'--'}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="font-size:13px;color:rgba(180,220,255,.6)">Device uptime</span><span style="font-family:\'JetBrains Mono\',monospace;color:#2DD4BF">${S.up?fmtUp(S.up):'--'}</span></div>
+      </div>
     </div>
   </div></div>`;
 
-  // ══════════════════════════════════════
-  // SECTION 2 — CONSUMPTION INTELLIGENCE
-  // ══════════════════════════════════════
+  // ── SECTION 2: CONSUMPTION ──
   html+=`<div class="sec" id="consumption"><div class="sec-title">2 — Consumption Intelligence</div>
   <div class="kgrid kg4" style="margin-bottom:12px">
-    <div class="card"><div class="kv" style="color:#fbbf24">${morL}</div><div class="kl">🌅 Morning</div><div class="ks">6AM–12PM · L</div></div>
-    <div class="card"><div class="kv" style="color:#2DD4BF">${aftL}</div><div class="kl">☀️ Afternoon</div><div class="ks">12PM–6PM · L</div></div>
-    <div class="card"><div class="kv" style="color:#a78bfa">${eveL}</div><div class="kl">🌆 Evening</div><div class="ks">6PM–12AM · L</div></div>
-    <div class="card"><div class="kv" style="color:#38bdf8">${ngtL}</div><div class="kl">🌙 Night</div><div class="ks">12AM–6AM · L</div></div>
+    <div class="card"><div class="kv" style="color:#fbbf24">${morL}</div><div class="kl">🌅 Morning</div><div class="ks">6AM – 12PM (L)</div></div>
+    <div class="card"><div class="kv" style="color:#2DD4BF">${aftL}</div><div class="kl">☀️ Afternoon</div><div class="ks">12PM – 6PM (L)</div></div>
+    <div class="card"><div class="kv" style="color:#a78bfa">${eveL}</div><div class="kl">🌆 Evening</div><div class="ks">6PM – 12AM (L)</div></div>
+    <div class="card"><div class="kv" style="color:#38bdf8">${ngtL}</div><div class="kl">🌙 Night</div><div class="ks">12AM – 6AM (L)</div></div>
   </div>
   ${totalPeriod>0?`<div class="card" style="margin-bottom:12px">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">PERIOD DISTRIBUTION — PEAK: ${san(peakPeriod)}</div>
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">PEAK USAGE PERIOD — ${san(peakPeriod)}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px">
-      ${['Morning','Afternoon','Evening','Night'].map((n,i)=>{const v=[pt.morn,pt.aft,pt.eve,pt.ngt][i];const bar=totalPeriod>0?Math.round(v/totalPeriod*100):0;const c=['#fbbf24','#2DD4BF','#a78bfa','#38bdf8'][i];return`<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:rgba(180,220,255,.45)">${n}</span><span style="font-size:11px;font-weight:700;color:${c}">${bar}%</span></div><div class="fill-bar"><div class="fill-inner" style="width:${bar}%;background:${c}"></div></div><div style="font-size:10px;color:rgba(180,220,255,.3);margin-top:3px">${[pt.morn,pt.aft,pt.eve,pt.ngt][i].toFixed(1)} L</div></div>`;}).join('')}
+      ${['Morning','Afternoon','Evening','Night'].map((n,i)=>{const v=[pt.morn,pt.aft,pt.eve,pt.ngt][i];const bar=totalPeriod>0?Math.round(v/totalPeriod*100):0;const c=['#fbbf24','#2DD4BF','#a78bfa','#38bdf8'][i];return`<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;color:rgba(180,220,255,.5)">${n}</span><span style="font-size:11px;font-weight:700;color:${c}">${bar}%</span></div><div class="fill-bar"><div class="fill-inner" style="width:${bar}%;background:${c}"></div></div></div>`;}).join('')}
     </div>
   </div>`:''}
-  ${analyticsSession.events.length>0?`<div class="card">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">FINALIZED USAGE EVENTS (LAST 12)</div>
-    <table><tr><th>Time</th><th>From</th><th>To</th><th>Consumed</th><th>Period</th><th>Est. Cost</th></tr>
-    ${[...analyticsSession.events].reverse().slice(0,12).map(e=>{const cl=((e.fromPct-e.toPct)/100*total/1000*6).toFixed(2);return`<tr><td>${san(e.time)}</td><td>${e.fromPct}%</td><td>${e.toPct}%</td><td class="tc-info" style="font-weight:600">${e.dropL} L</td><td>${{morn:'Morning',aft:'Afternoon',eve:'Evening',ngt:'Night'}[e.period]||e.period}</td><td class="tc-warn">₹${cl}</td></tr>`;}).join('')}
+  ${analyticsSession.events.length>0?`
+  <div class="card">
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">RECENT USAGE EVENTS (LAST 10)</div>
+    <table><tr><th>Time</th><th>From</th><th>To</th><th>Consumed</th><th>Period</th></tr>
+    ${[...analyticsSession.events].reverse().slice(0,10).map(e=>`<tr>
+      <td>${san(e.time)}</td>
+      <td>${e.fromPct}%</td>
+      <td>${e.toPct}%</td>
+      <td style="color:#2DD4BF;font-weight:600">${e.dropL} L</td>
+      <td>${{morn:'Morning',aft:'Afternoon',eve:'Evening',ngt:'Night'}[e.period]||e.period}</td>
+    </tr>`).join('')}
     </table>
-  </div>`:''}
+  </div>`:'<div class="card" style="text-align:center;padding:20px;color:rgba(180,220,255,.3);font-size:13px">No usage drop events recorded this session yet.</div>'}
   <div style="height:12px"></div>
-  <div class="kgrid kg2"><div class="card"><div class="chart-wrap"><canvas id="barC"></canvas></div></div><div class="card"><div class="chart-wrap"><canvas id="pieC"></canvas></div></div></div>
-  </div>`;
+  <div class="kgrid kg2">
+    <div class="card"><div class="chart-wrap"><canvas id="barC"></canvas></div></div>
+    <div class="card"><div class="chart-wrap"><canvas id="pieC"></canvas></div></div>
+  </div></div>`;
 
-  // ══════════════════════════════════════
-  // SECTION 3 — COST ANALYSIS (TIERED)
-  // ══════════════════════════════════════
-  html+=`<div class="sec" id="cost"><div class="sec-title">3 — Cost & Carbon Analysis</div>
+  // ── SECTION 3: COST ANALYSIS ──
+  html+=`<div class="sec" id="cost"><div class="sec-title">3 — Cost & Consumption Analysis</div>
   <div class="kgrid kg3" style="margin-bottom:12px">
-    <div class="card"><div class="kl" style="margin-bottom:8px">SESSION USED</div><div class="kv">${volUsedSession>0?volUsedSession.toFixed(0):'0'} <span style="font-size:14px">L</span></div><div class="ks">Cost ₹${sessionCostEst}</div></div>
-    <div class="card"><div class="kl" style="margin-bottom:8px">DAILY PROJECTION</div><div class="kv">${dailyLProj>0?dailyLProj.toFixed(0):'--'} <span style="font-size:14px">${dailyLProj>0?'L':''}</span></div><div class="ks">${dailyCostProj!='--'?'₹'+dailyCostProj+'/day':'Based on rate'}</div></div>
-    <div class="card"><div class="kl" style="margin-bottom:8px">MONTHLY PROJECTION</div><div class="kv">${monthlyLProj>0?(monthlyLProj/1000).toFixed(2):'--'} <span style="font-size:14px">${monthlyLProj>0?'KL':''}</span></div><div class="ks">${monthlyCostProj!='--'?'₹'+monthlyCostProj+'/month':''}</div></div>
+    <div class="card">
+      <div class="kl" style="margin-bottom:8px">SESSION USED</div>
+      <div class="kv">${volUsedSession>0?volUsedSession.toFixed(0):'0'} <span style="font-size:14px">L</span></div>
+      <div class="ks">Est. cost ₹${sessionCostEst}</div>
+    </div>
+    <div class="card">
+      <div class="kl" style="margin-bottom:8px">DAILY PROJECTION</div>
+      <div class="kv">${dailyLProj} <span style="font-size:14px">${dailyLProj!='--'?'L':''}</span></div>
+      <div class="ks">${dailyCostProj!='--'?'Est. ₹'+dailyCostProj+'/day':'Based on current rate'}</div>
+    </div>
+    <div class="card">
+      <div class="kl" style="margin-bottom:8px">MONTHLY PROJECTION</div>
+      <div class="kv">${monthlyLProj!='--'?(parseFloat(monthlyLProj)/1000).toFixed(2)+' <span style="font-size:14px">KL</span>':'--'}</div>
+      <div class="ks">${monthlyCostProj!='--'?'Est. ₹'+monthlyCostProj+'/month':'Based on current rate'}</div>
+    </div>
   </div>
-  <div class="kgrid kg2">
-    <div class="card">
-      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:14px">TIERED TARIFF BREAKDOWN (Indian Municipal)</div>
-      <div class="cost-row"><span class="cost-label">Tier 1 (0–10 KL/month)</span><span class="cost-val">₹3.50 / KL</span></div>
-      <div class="cost-row"><span class="cost-label">Tier 2 (10–25 KL/month)</span><span class="cost-val">₹6.00 / KL</span></div>
-      <div class="cost-row"><span class="cost-label">Tier 3 (25+ KL/month)</span><span class="cost-val">₹10.00 / KL</span></div>
-      <div class="cost-row" style="margin-top:8px;border-top:1px solid rgba(45,212,191,.1);padding-top:12px"><span class="cost-label">This session</span><span class="cost-val">₹${sessionCostEst}</span></div>
-      <div class="cost-row"><span class="cost-label">Monthly estimate</span><span class="cost-val">₹${monthlyCostProj}</span></div>
-      ${nlDetected?`<div class="cost-row" style="border-top:1px solid rgba(248,113,113,.15);margin-top:6px"><span class="cost-label" style="color:#f87171">⚠ Leakage waste/month</span><span class="cost-val" style="color:#f87171">₹${(parseFloat(nlLiters)*30/1000*6).toFixed(0)}</span></div>`:''}
-    </div>
-    <div class="card">
-      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:14px">CARBON FOOTPRINT (Water Processing)</div>
-      <div class="cost-row"><span class="cost-label">CO₂ basis</span><span class="cost-val">0.275 kg/KL</span></div>
-      <div class="cost-row"><span class="cost-label">This session</span><span class="cost-val">${sessionCO2} kg CO₂</span></div>
-      <div class="cost-row"><span class="cost-label">Daily projection</span><span class="cost-val">${dailyCO2} kg CO₂</span></div>
-      <div class="cost-row"><span class="cost-label">Monthly projection</span><span class="cost-val">${monthlyCO2} kg CO₂</span></div>
-      <div style="font-size:10px;color:rgba(180,220,255,.25);margin-top:10px">Based on India avg 0.344 kgCO₂/kWh · 0.5 kWh/KL pumping + 0.3 kWh/KL treatment</div>
-    </div>
+  <div class="card">
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:14px">COST BREAKDOWN (ESTIMATE @ ₹6 / 1000L)</div>
+    <div class="cost-row"><span class="cost-label">Water used this session</span><span class="cost-val">${volUsedSession>0?volUsedSession.toFixed(0):'0'} L &nbsp;≈&nbsp; ₹${sessionCostEst}</span></div>
+    <div class="cost-row"><span class="cost-label">Projected daily consumption</span><span class="cost-val">${dailyLProj} L &nbsp;≈&nbsp; ₹${dailyCostProj}</span></div>
+    <div class="cost-row"><span class="cost-label">Projected monthly consumption</span><span class="cost-val">${monthlyLProj} L &nbsp;≈&nbsp; ₹${monthlyCostProj}</span></div>
+    ${nlDetected?`<div class="cost-row" style="border-top:1px solid rgba(248,113,113,.2);margin-top:8px;padding-top:16px"><span class="cost-label" style="color:#f87171">⚠ Night leakage waste (monthly est.)</span><span class="cost-val" style="color:#f87171">${(parseFloat(nlLiters)*30).toFixed(0)} L &nbsp;≈&nbsp; ₹${(parseFloat(nlLiters)*30/1000*COST_PER_KL).toFixed(2)}</span></div>`:''}
+    <div style="font-size:10px;color:rgba(180,220,255,.25);margin-top:12px">* Cost estimates based on ₹6/KL average municipal water tariff. Adjust for your local rate.</div>
   </div></div>`;
 
-  // ══════════════════════════════════════
-  // SECTION 4 — EFFICIENCY RATING
-  // ══════════════════════════════════════
+  // ── SECTION 4: EFFICIENCY ──
   html+=`<div class="sec" id="efficiency"><div class="sec-title">4 — Efficiency Rating</div>
-  <div class="kgrid kg2">
+  <div class="kgrid kg2" style="margin-bottom:12px">
     <div class="card" style="display:flex;align-items:center;gap:20px">
-      <div><div class="score-big" style="color:${effColor}">${effScore}</div><div style="font-size:11px;font-weight:700;color:${effColor};letter-spacing:1px;margin-top:2px">${effLabel}</div></div>
+      <div>
+        <div class="eff-big" style="color:${effColor}">${effScore}</div>
+        <div style="font-size:11px;font-weight:700;color:${effColor};letter-spacing:1px;margin-top:2px">${effLabel}</div>
+      </div>
       <div style="flex:1">
-        <div style="font-size:12px;color:rgba(180,220,255,.6);line-height:1.65;margin-bottom:10px">${effAdvice}</div>
-        ${dayUsagePct!==null?`<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:rgba(180,220,255,.4)">Daily tank draw</span><span style="color:${effColor};font-weight:700">${dayUsagePct.toFixed(0)}% of capacity</span></div><div class="fill-bar"><div class="fill-inner" style="width:${Math.min(100,dayUsagePct).toFixed(0)}%;background:${effColor}"></div></div>`:''}
+        <div style="font-size:12px;color:rgba(180,220,255,.6);line-height:1.6">${effAdvice}</div>
+        ${dayUsagePct!==null?`<div style="margin-top:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:rgba(180,220,255,.4)">Daily tank draw</span><span style="color:${effColor};font-weight:700">${dayUsagePct.toFixed(0)}%</span></div>
+          <div class="fill-bar"><div class="fill-inner" style="width:${dayUsagePct.toFixed(0)}%;background:${effColor}"></div></div>
+        </div>`:''}
       </div>
     </div>
     <div class="card">
-      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">EFFICIENCY SCALE</div>
-      ${[['A+','< 30% daily draw','#34d399',20],['A','30–50%','#2DD4BF',40],['B','50–70%','#fbbf24',60],['C','70–90%','#fb923c',80],['D','90%+','#f87171',100]].map(([g,d,c,w])=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${c};width:24px">${g}</span><div class="fill-bar" style="flex:1;margin-top:0"><div class="fill-inner" style="width:${w}%;background:${c}"></div></div><span style="font-size:11px;color:rgba(180,220,255,.35);width:70px">${d}</span>${effScore===g?`<span style="font-size:10px;color:${c};font-weight:700">◀ YOU</span>`:''}</div>`).join('')}
+      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">EFFICIENCY SCALE</div>
+      ${[['A+','<30% daily draw','#34d399'],['A','30–50%','#2DD4BF'],['B','50–70%','#fbbf24'],['C','70–90%','#fb923c'],['D','90%+','#f87171']].map(([g,d,c])=>`
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">
+        <span style="font-family:\'JetBrains Mono\',monospace;font-size:13px;font-weight:700;color:${c};width:24px">${g}</span>
+        <div class="fill-bar" style="flex:1;margin-top:0"><div class="fill-inner" style="width:${g==='A+'?20:g==='A'?40:g==='B'?60:g==='C'?80:100}%;background:${c}"></div></div>
+        <span style="font-size:11px;color:rgba(180,220,255,.4);width:70px">${d}</span>
+        ${effScore===g?'<span style="font-size:10px;color:'+c+';font-weight:700">◀ YOU</span>':''}
+      </div>`).join('')}
     </div>
   </div></div>`;
 
-  // ══════════════════════════════════════
-  // SECTION 5 — BENCHMARK COMPARISON
-  // ══════════════════════════════════════
-  html+=`<div class="sec" id="benchmark"><div class="sec-title">5 — Benchmark Comparison <span style="font-size:10px;color:rgba(180,220,255,.3);font-weight:400;letter-spacing:0">CPHEEO · WHO · BIS IS:1172</span></div>
+  // ── SECTION 5: HEALTH ──
+  html+=`<div class="sec" id="health"><div class="sec-title">5 — Infrastructure Health Check</div>
+  <div class="kgrid kg4" style="margin-bottom:12px">
+    <div class="card">
+      <div class="kv" style="color:${hcol}">${hs}</div>
+      <div class="kl">Health Score</div>
+      <div class="ks">${hl}</div>
+    </div>
+    <div class="card">
+      <div class="kv" style="color:${nlDetected?'#f87171':'#34d399'}">${nlDetected?nlLiters+' L':'0 L'}</div>
+      <div class="kl">Night Leakage</div>
+      <div class="ks">${nlDetected?'⚠ 10PM–6AM detected':'✅ None detected'}</div>
+    </div>
+    <div class="card">
+      <div class="kv" style="color:${suddenDrops>2?'#f87171':suddenDrops>0?'#fbbf24':'#34d399'}">${suddenDrops}</div>
+      <div class="kl">Sudden Drops</div>
+      <div class="ks">${suddenDrops>0?'>5% in one reading':'Clean readings'}</div>
+    </div>
+    <div class="card">
+      <div class="kv" style="color:#34d399">${fullCount}</div>
+      <div class="kl">Full Tank Events</div>
+      <div class="ks">Times tank reached ${total}L</div>
+    </div>
+  </div>
+  ${analyticsSession.fullTankEvents.length>0?`
   <div class="card" style="margin-bottom:12px">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:14px">YOUR DAILY PROJECTION vs STANDARD NORMS (assumes 4 occupants)</div>
-    ${_benchmarks.map(b=>{const yourVal=dailyLProj>0?parseFloat(_dailyPerPersonProj):null;const barW=yourVal?Math.min(100,(yourVal/b.norm)*100):0;const col=barW<80?'#34d399':barW<120?'#fbbf24':'#f87171';return`<div style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-        <span style="font-size:12px;font-weight:600;color:rgba(180,220,255,.7)">${b.type} <span style="font-size:10px;color:rgba(180,220,255,.3)">(${b.ref})</span></span>
-        <span style="font-size:11px;color:rgba(180,220,255,.4)">Norm: ${b.norm} ${b.unit}</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="flex:1;height:8px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden;position:relative">
-          <div style="height:100%;width:${Math.min(100,b.norm/b.norm*100)}%;background:rgba(45,212,191,.12);border-radius:4px"></div>
-          ${yourVal?`<div style="position:absolute;top:0;height:100%;width:${barW}%;background:${col};border-radius:4px;transition:width .5s"></div>`:''}
-          <div style="position:absolute;top:0;bottom:0;left:${Math.min(100,100)}%;width:2px;background:rgba(45,212,191,.3)"></div>
-        </div>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${col};width:80px;text-align:right">${yourVal?yourVal+' L/p/d':'No data'}</span>
-        <span style="font-size:11px;color:${col};width:60px">${yourVal?`${barW.toFixed(0)}% of norm`:''}</span>
-      </div>
-    </div>`;}).join('')}
-  </div>
-  <div class="card">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">STANDARD BENCHMARKS FOR REFERENCE</div>
-    <table><tr><th>Standard</th><th>Category</th><th>Per Person/Day</th><th>Authority</th><th>Applicability</th></tr>
-    <tr><td>Basic minimum</td><td>Survival</td><td>20 L</td><td>WHO</td><td>Emergency / rural</td></tr>
-    <tr><td>Basic services</td><td>Domestic</td><td>50 L</td><td>WHO 2003</td><td>Low-income urban</td></tr>
-    <tr><td>Residential flat</td><td>Domestic</td><td>135 L</td><td>CPHEEO 2013</td><td>Apartments / housing</td></tr>
-    <tr><td>Individual house</td><td>Domestic</td><td>150–200 L</td><td>BIS IS:1172</td><td>Independent plots</td></tr>
-    <tr><td>Office building</td><td>Commercial</td><td>45 L</td><td>CPHEEO 2013</td><td>Per employee per day</td></tr>
-    <tr><td>Hospital (general)</td><td>Healthcare</td><td>340 L/bed</td><td>CPHEEO 2013</td><td>Inpatient beds</td></tr>
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">FULL TANK FILL LOG</div>
+    <table><tr><th>#</th><th>Time</th><th>Level at Event</th><th>Volume</th></tr>
+    ${analyticsSession.fullTankEvents.map((e,i)=>`<tr><td>${i+1}</td><td>${san(e.time)}</td><td class="tc-ok">${e.pct}%</td><td>${e.vol} L</td></tr>`).join('')}
     </table>
-  </div></div>`;
-
-  // ══════════════════════════════════════
-  // SECTION 6 — INFRASTRUCTURE HEALTH
-  // ══════════════════════════════════════
-  html+=`<div class="sec" id="health"><div class="sec-title">6 — Infrastructure Health Check</div>
-  <div class="kgrid kg4" style="margin-bottom:12px">
-    <div class="card"><div class="kv" style="color:${hcol}">${hs}</div><div class="kl">Health Score</div><div class="ks">/100 — ${hl}</div></div>
-    <div class="card"><div class="kv" style="color:${nlDetected?'#f87171':'#34d399'}">${nlDetected?nlLiters+' L':'None'}</div><div class="kl">Night Leakage</div><div class="ks">${nlDetected?'⚠ 10PM–6AM':'✅ Not detected'}</div></div>
-    <div class="card"><div class="kv" style="color:${suddenDrops>2?'#f87171':suddenDrops>0?'#fbbf24':'#34d399'}">${suddenDrops}</div><div class="kl">Sudden Drops</div><div class="ks">${suddenDrops>0?'≥5% per reading':'Clean readings'}</div></div>
-    <div class="card"><div class="kv" style="color:#34d399">${fullCount}</div><div class="kl">Refill Cycles</div><div class="ks">Full tank events</div></div>
-  </div>
-  ${analyticsSession.fullTankEvents.length>0?`<div class="card" style="margin-bottom:12px">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">FULL TANK EVENT LOG</div>
-    <table><tr><th>#</th><th>Time</th><th>Period</th><th>Level</th><th>Volume</th><th>Refill #</th></tr>
-    ${analyticsSession.fullTankEvents.map((e,i)=>`<tr><td>${i+1}</td><td>${san(e.time)}</td><td>${e.period||'--'}</td><td class="tc-ok">${e.pct}%</td><td>${e.vol} L</td><td class="tc-info">Refill ${e.refillNum}</td></tr>`).join('')}
-    </table></div>`:''}
-  ${analyticsSession.suddenDrops.length>0?`<div class="card">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">SUDDEN DROP LOG (≥5% in one reading)</div>
-    <table><tr><th>Time</th><th>From</th><th>To</th><th>Volume Lost</th><th>ISO Timestamp</th></tr>
-    ${analyticsSession.suddenDrops.slice(0,10).map(e=>`<tr><td>${san(e.time)}</td><td>${e.fromPct}%</td><td>${e.toPct}%</td><td class="tc-danger">${e.dropL} L</td><td style="font-size:10px;color:rgba(180,220,255,.3)">${e.ts}</td></tr>`).join('')}
-    </table></div>`:''}
+  </div>`:''}
+  ${analyticsSession.suddenDrops.length>0?`
+  <div class="card">
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">SUDDEN DROP LOG (>5% IN ONE READING)</div>
+    <table><tr><th>Time</th><th>From</th><th>To</th><th>Drop</th></tr>
+    ${analyticsSession.suddenDrops.slice(0,10).map(e=>`<tr><td>${san(e.time)}</td><td>${e.fromPct}%</td><td>${e.toPct}%</td><td class="tc-danger">${e.dropL} L</td></tr>`).join('')}
+    </table>
+  </div>`:''}
   </div>`;
 
-  // ══════════════════════════════════════
-  // SECTION 7 — REFILL DURATION ANALYSIS
-  // ══════════════════════════════════════
-  html+=`<div class="sec" id="refills"><div class="sec-title">7 — Refill Cycle Analysis</div>`;
-  if(refillEvents.length===0){
-    html+=`<div class="card" style="text-align:center;padding:24px;color:rgba(180,220,255,.3)">No refill cycles recorded this session yet. Data appears here once the tank reaches 95%+.</div>`;
-  } else {
-    html+=`<div class="kgrid kg3" style="margin-bottom:12px">
-      <div class="card"><div class="kv">${fullCount}</div><div class="kl">Total Refills</div><div class="ks">This session</div></div>
-      <div class="card"><div class="kv">${_avgRefillGap}</div><div class="kl">Avg Gap (hrs)</div><div class="ks">Between full fills</div></div>
-      <div class="card"><div class="kv">${_lastRefill?san(_lastRefill.time):'--'}</div><div class="kl">Last Refill</div><div class="ks">${_lastRefill?_lastRefill.period+' · Refill #'+_lastRefill.refillNum:'--'}</div></div>
+  // ── SECTION 6: RECOMMENDATIONS ──
+  html+=`<div class="sec" id="recs"><div class="sec-title">6 — Smart Action Recommendations</div>
+  ${recs.map(r=>`<div class="rec-item">
+    <div class="rec-icon">${r.icon}</div>
+    <div>
+      <div class="rec-title">${san(r.title)} ${priBadge(r.pri)}</div>
+      <div class="rec-body">${san(r.body)}</div>
     </div>
-    <div class="card">
-      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">REFILL EVENT LOG</div>
-      <table><tr><th>#</th><th>Time</th><th>Period</th><th>From</th><th>To</th><th>Volume</th><th>Gap from prev.</th></tr>
-      ${refillEvents.map((e,i)=>{
-        const _gapStr=i>0?((e.ts-refillEvents[i-1].ts)/3600000).toFixed(1)+'h':'—';
-        return`<tr><td class="tc-ok">${e.refillNum}</td><td>${san(e.time)}</td><td>${e.period}</td><td>${e.fromPct}%</td><td class="tc-ok">${e.toPct}%</td><td>${e.vol} L</td><td>${_gapStr}</td></tr>`;
-      }).join('')}
-      </table>
-    </div>
-    ${_avgRefillGap!='--'?`<div class="card" style="margin-top:12px">
-      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:10px">REFILL FREQUENCY INTERPRETATION</div>
-      <div style="font-size:12px;color:rgba(180,220,255,.6);line-height:1.7">
-        ${parseFloat(_avgRefillGap)<6?'⚠ Very high refill frequency. Tank is cycling too quickly — consider larger capacity or more frequent supply.':parseFloat(_avgRefillGap)<12?'ℹ Moderate frequency. Normal for households with irregular supply schedules.':'✅ Good refill interval. Tank is sized appropriately for consumption.'}
-        Avg interval: <strong style="color:#2DD4BF">${_avgRefillGap} hours</strong> between fills.
-        At this rate: ~${(24/parseFloat(_avgRefillGap)).toFixed(1)} fills/day · ~${(24/parseFloat(_avgRefillGap)*30).toFixed(0)} fills/month.
-      </div>
-    </div>`:''}`;
-  }
-  html+=`</div>`;
-
-  // ══════════════════════════════════════
-  // SECTION 8 — CONSERVATION SCORE
-  // ══════════════════════════════════════
-  html+=`<div class="sec" id="conservation"><div class="sec-title">8 — Water Conservation Score</div>
-  <div class="kgrid kg2">
-    <div class="card" style="display:flex;align-items:center;gap:24px">
-      <div style="flex-shrink:0;text-align:center">
-        <div class="score-big" style="color:${consColor}">${consScore}</div>
-        <div style="font-size:11px;font-weight:700;color:${consColor};letter-spacing:2px;margin-top:4px">${consLabel}</div>
-        <div style="font-size:10px;color:rgba(180,220,255,.3);margin-top:4px">out of 100</div>
-      </div>
-      <div style="flex:1">
-        <div class="fill-bar" style="height:8px;margin-bottom:12px"><div class="fill-inner" style="width:${consScore}%;background:linear-gradient(90deg,${consColor},${consColor}aa)"></div></div>
-        <div style="font-size:11px;color:rgba(180,220,255,.5);line-height:1.8">
-          ${consScore>=80?'✅ Excellent conservation practices — minimal waste, good monitoring habits.':consScore>=60?'ℹ Good but improvable — address flagged issues to reach excellent.':consScore>=40?'⚠ Average — significant improvement possible. Focus on night leakage and peak usage.':'🚨 Poor conservation score — multiple issues require attention. Review all recommendations.'}
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">SCORE BREAKDOWN</div>
-      ${[
-        ['Night leakage',nlDetected?'-25':'0',nlDetected?'#f87171':'#34d399',nlDetected?'Detected — fix urgently':'Not detected'],
-        ['Sudden drops',suddenDrops>2?'-15':suddenDrops>0?'-5':'0',suddenDrops>2?'#f87171':suddenDrops>0?'#fbbf24':'#34d399',suddenDrops+' events'],
-        ['Usage efficiency',dayUsagePct>90?'-25':dayUsagePct>70?'-15':dayUsagePct>50?'-5':'0',dayUsagePct>70?'#f87171':dayUsagePct>50?'#fbbf24':'#34d399',dayUsagePct?dayUsagePct.toFixed(0)+'% daily draw':'No data'],
-        ['Refill frequency',fullCount>4?'-10':'0',fullCount>4?'#fbbf24':'#34d399',fullCount+' refills'],
-        ['Signal quality',S.rssi&&S.rssi<-80?'-5':'0',S.rssi&&S.rssi<-80?'#fbbf24':'#34d399',rssiLabel],
-      ].map(([l,pts,c,note])=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(45,212,191,.06)"><span style="font-size:12px;color:rgba(180,220,255,.55)">${l}</span><div style="display:flex;align-items:center;gap:10px"><span style="font-size:10px;color:rgba(180,220,255,.3)">${note}</span><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${c};font-weight:700;width:30px;text-align:right">${pts}</span></div></div>`).join('')}
-      <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:14px;color:${consColor};font-weight:700;text-align:right">= ${consScore} / 100</div>
-    </div>
-  </div></div>`;
-
-  // ══════════════════════════════════════
-  // SECTION 9 — SENSOR & SIGNAL HEALTH
-  // ══════════════════════════════════════
-  html+=`<div class="sec" id="sensor"><div class="sec-title">9 — Sensor & Signal Health</div>
-  <div class="kgrid kg4" style="margin-bottom:12px">
-    <div class="card"><div class="kv-sm" style="color:${rssiColor}">${rssiStr}</div><div class="kl">WiFi RSSI</div><div class="ks">${rssiLabel}</div></div>
-    <div class="card"><div class="kv-sm" style="color:${dqColor}">${dataQuality}</div><div class="kl">Data Quality</div><div class="ks">${analyticsSession.confirmedSamples} confirmed</div></div>
-    <div class="card"><div class="kv-sm">${sensorStability}</div><div class="kl">Sensor Stability</div><div class="ks">${suddenDrops} anomalies</div></div>
-    <div class="card"><div class="kv-sm">${S.dist>0?S.dist.toFixed(1)+' cm':'--'}</div><div class="kl">Current Distance</div><div class="ks">Sensor to surface</div></div>
-  </div>
-  <div class="card">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:14px">SIGNAL QUALITY GUIDE</div>
-    <table><tr><th>RSSI Range</th><th>Quality</th><th>Impact</th><th>Action</th></tr>
-    <tr><td class="tc-ok">> -50 dBm</td><td class="tc-ok">Excellent</td><td>Zero packet loss</td><td>No action needed</td></tr>
-    <tr><td class="tc-ok">-50 to -65 dBm</td><td class="tc-ok">Good</td><td>Reliable connection</td><td>No action needed</td></tr>
-    <tr><td class="tc-warn">-65 to -75 dBm</td><td class="tc-warn">Fair</td><td>Occasional gaps</td><td>Consider extender</td></tr>
-    <tr><td class="tc-danger">-75 to -85 dBm</td><td class="tc-danger">Weak</td><td>Frequent disconnects</td><td>Move router / add repeater</td></tr>
-    <tr><td class="tc-danger">< -85 dBm</td><td class="tc-danger">Very Weak</td><td>Unreliable data</td><td>Urgent action required</td></tr>
-    </table>
-    <div style="margin-top:14px;font-size:11px;color:rgba(180,220,255,.4);line-height:1.7">
-      <strong style="color:rgba(180,220,255,.6)">Calibration Note:</strong> Sensor calibrated Empty=${cfg.emptyDist||125}cm, Full=${cfg.fullDist||10}cm. Re-calibrate every 3 months or after tank cleaning. Ultrasonic sensors can drift ±2cm over 6 months.
-      ${S.boot>3?`<br><strong style="color:#fbbf24">Boot count is ${S.boot}</strong> — frequent reboots may indicate power supply issues or firmware crashes. Check USB power and firmware logs.`:''}
-    </div>
-  </div></div>`;
-
-  // ══════════════════════════════════════
-  // SECTION 10 — SMART RECOMMENDATIONS
-  // ══════════════════════════════════════
-  html+=`<div class="sec" id="recs"><div class="sec-title">10 — Smart Action Recommendations</div>
-  ${recs.map(r=>`<div class="rec-item"><div class="rec-icon">${r.icon}</div><div><div class="rec-title">${san(r.title)} ${priBadge(r.pri)}</div><div class="rec-body">${san(r.body)}</div></div></div>`).join('')}
+  </div>`).join('')}
   </div>`;
 
-  // ══════════════════════════════════════
-  // SECTION 11 — 24H HISTORY
-  // ══════════════════════════════════════
-  html+=`<div class="sec" id="history"><div class="sec-title">11 — 24-Hour Level History</div>
-  <div class="card" style="margin-bottom:12px"><div class="chart-wrap-lg"><canvas id="histC"></canvas></div></div>
+  // ── SECTION 7: 24H HISTORY ──
+  html+=`<div class="sec" id="history"><div class="sec-title">7 — 24-Hour Level History</div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="chart-wrap-lg"><canvas id="histC"></canvas></div>
+  </div>
   <div class="card">
-    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">HOURLY LEVEL TABLE</div>
-    <table><tr><th>Hour</th><th>Level %</th><th>Volume (L)</th><th>Change</th><th>Status</th></tr>
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">HOURLY LEVEL TABLE</div>
+    <table><tr><th>Hour</th><th>Level %</th><th>Volume (L)</th><th>Status</th></tr>
     ${histLabels.map((lbl,i)=>{
       const v=histData[i];
       const vl=v!=null?(v/100*total).toFixed(0):'--';
-      const prev=histData.slice(0,i).reverse().find(x=>x!=null);
-      const chg=v!=null&&prev!=null?(v-prev>0?'+':'')+(v-prev)+'%':'--';
-      const chgCol=v!=null&&prev!=null?(v>prev?'tc-ok':v<prev?'tc-danger':''):'';
-      const st=v==null?'No data':v>=95?'Full':v>=70?'Good':v>=30?'Normal':v>=10?'Low':'Critical';
+      const st=v==null?'--':v>=95?'Full':v>=70?'Good':v>=30?'Normal':v>=10?'Low':'Critical';
       const sc=v==null?'':v>=70?'tc-ok':v>=30?'':v>=10?'tc-warn':'tc-danger';
-      return`<tr><td>${lbl}</td><td class="${sc}">${v!=null?v+'%':'NIL'}</td><td>${vl}${v!=null?' L':''}</td><td class="${chgCol}">${chg}</td><td class="${sc}">${st}</td></tr>`;
+      return`<tr><td>${lbl}</td><td class="${sc}">${v!=null?v+'%':'NIL'}</td><td>${vl}${v!=null?' L':''}</td><td class="${sc}">${st}</td></tr>`;
     }).join('')}
     </table>
   </div></div>`;
 
-  // ══════════════════════════════════════
-  // SECTION 12 — 7-DAY EXTENDED HISTORY & MULTI-DAY ANALYSIS
-  // ══════════════════════════════════════
-  // Use _dailyStore (authoritative) for consumed-L data and _hourlyStore for level trend
-  (function(){
-    // Level trend from hourlyStore (168h fine resolution)
-    const _7dLabels=[],_7dData=[];
-    const _7dStart=new Date(Date.now()-6*24*3600000);
-    _7dStart.setMinutes(0,0,0);
-    for(let h=0;h<168;h++){
-      const _d=new Date(_7dStart.getTime()+h*3600000);
-      const _k=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+
-               String(_d.getDate()).padStart(2,'0')+'-'+String(_d.getHours()).padStart(2,'0');
-      _7dLabels.push(_d.getMonth()+1+'/'+_d.getDate()+' '+_d.getHours().toString().padStart(2,'0')+'h');
-      _7dData.push(_hourlyStore[_k]!=null?_hourlyStore[_k]:null);
-    }
-    const _7dHasLevel=_7dData.some(v=>v!=null);
-
-    // Per-day consumption from daily store (REAL recorded usage, not estimated from level swing)
-    const _hist7=_getDailyHistory(7);
-    const _has7day=_hist7.length>=1&&_hist7.some(d=>d.totalL>0);
-
-    // All-time aggregates across daily store
-    let _allTimeMorn=0,_allTimeAft=0,_allTimeEve=0,_allTimeNgt=0,_allTimeTotal=0,_allTimeRefills=0;
-    Object.values(_dailyStore).forEach(r=>{
-      _allTimeMorn+=r.morn||0;_allTimeAft+=r.aft||0;
-      _allTimeEve+=r.eve||0;_allTimeNgt+=r.ngt||0;
-      _allTimeTotal+=r.totalL||0;_allTimeRefills+=r.refills||0;
-    });
-    const _daysWithData=Object.keys(_dailyStore).filter(k=>(_dailyStore[k].totalL||0)>0).length;
-    const _avgPerDay=_daysWithData>0?(_allTimeTotal/_daysWithData):0;
-
-    // Data reliability
-    const _totalAttempted=analyticsSession.confirmedSamples||0;
-    const _spikesRejected=analyticsSession.suddenDrops.length||0;
-    const _relScore=_totalAttempted>0?Math.max(0,Math.min(100,100-Math.round((_spikesRejected/_totalAttempted)*100))):100;
-    const _relLabel=_relScore>=95?'Excellent':_relScore>=85?'Good':_relScore>=70?'Fair':'Check Sensor';
-    const _relCol=_relScore>=95?'#34d399':_relScore>=85?'#2DD4BF':_relScore>=70?'#fbbf24':'#f87171';
-
-    html+=`<div class="sec" id="week"><div class="sec-title">12 — Extended History, Multi-Day Analytics & Reliability</div>`;
-
-    // Top KPI cards
-    html+=`<div class="kgrid kg4" style="margin-bottom:12px">
-      <div class="card">
-        <div class="kv" style="color:${_relCol}">${_relScore}</div>
-        <div class="kl">Data Reliability</div><div class="ks">/100 — ${_relLabel}</div>
-      </div>
-      <div class="card">
-        <div class="kv">${_allTimeTotal.toFixed(0)} L</div>
-        <div class="kl">All-Time Recorded</div><div class="ks">From ${_daysWithData} days with data</div>
-      </div>
-      <div class="card">
-        <div class="kv">${_avgPerDay.toFixed(0)} L</div>
-        <div class="kl">Avg Per Day</div><div class="ks">Based on usage records</div>
-      </div>
-      <div class="card">
-        <div class="kv">${_allTimeRefills}</div>
-        <div class="kl">Total Refills</div><div class="ks">Since monitoring started</div>
-      </div>
-    </div>`;
-
-    // All-time usage split breakdown
-    if(_allTimeTotal>0){
-      html+=`<div class="card" style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">ALL-TIME CONSUMPTION SPLIT</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center">
-          <div><div style="font-size:22px;font-weight:700;color:#fbbf24">${_allTimeMorn.toFixed(0)} L</div><div style="font-size:10px;color:rgba(251,191,36,.6);margin-top:3px">🌅 MORNING<br>${_allTimeTotal>0?((_allTimeMorn/_allTimeTotal)*100).toFixed(0):'0'}%</div></div>
-          <div><div style="font-size:22px;font-weight:700;color:#2DD4BF">${_allTimeAft.toFixed(0)} L</div><div style="font-size:10px;color:rgba(45,212,191,.6);margin-top:3px">☀️ AFTERNOON<br>${_allTimeTotal>0?((_allTimeAft/_allTimeTotal)*100).toFixed(0):'0'}%</div></div>
-          <div><div style="font-size:22px;font-weight:700;color:#a78bfa">${_allTimeEve.toFixed(0)} L</div><div style="font-size:10px;color:rgba(167,139,250,.6);margin-top:3px">🌆 EVENING<br>${_allTimeTotal>0?((_allTimeEve/_allTimeTotal)*100).toFixed(0):'0'}%</div></div>
-          <div><div style="font-size:22px;font-weight:700;color:#38bdf8">${_allTimeNgt.toFixed(0)} L</div><div style="font-size:10px;color:rgba(56,189,248,.6);margin-top:3px">🌙 NIGHT<br>${_allTimeTotal>0?((_allTimeNgt/_allTimeTotal)*100).toFixed(0):'0'}%</div></div>
-        </div>
-      </div>`;
-    }
-
-    // 7-day level trend chart
-    if(_7dHasLevel){
-      html+=`<div class="card" style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">7-DAY LEVEL TREND</div>
-        <div class="chart-wrap-lg"><canvas id="hist7dC"></canvas></div>
-      </div>`;
-    }
-
-    // 7-day consumption bar chart (stacked by period)
-    if(_has7day){
-      html+=`<div class="card" style="margin-bottom:12px">
-        <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">7-DAY CONSUMPTION (RECORDED USAGE)</div>
-        <div class="chart-wrap-lg"><canvas id="daily7dBarC"></canvas></div>
-      </div>`;
-    }
-
-    // Per-day table — real consumption from daily store + level swing from hourlyStore
-    const _dayMap7={};
-    Object.keys(_hourlyStore).sort().forEach(k=>{
-      const _d=k.substring(0,10);if(!_dayMap7[_d])_dayMap7[_d]=[];
-      if(_hourlyStore[k]!=null)_dayMap7[_d].push(_hourlyStore[k]);
-    });
-    const _allDays=Array.from(new Set([
-      ...Object.keys(_dailyStore),
-      ...Object.keys(_dayMap7)
-    ])).sort().slice(-7);
-
-    html+=`<div class="card"><div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.4);letter-spacing:2px;margin-bottom:12px">PER-DAY BREAKDOWN (REAL RECORDED DATA)</div>
-      <table><tr><th>Date</th><th>Recorded Used</th><th>Morning</th><th>Afternoon</th><th>Evening</th><th>Night</th><th>Min Level</th><th>Max Level</th><th>Refills</th><th>Pattern</th></tr>
-      ${[..._allDays].reverse().map(d=>{
-        const _dr=_dailyStore[d]||{morn:0,aft:0,eve:0,ngt:0,totalL:0,refills:0};
-        const _isToday=d===_todayKey();
-        const _totL=_isToday?(_dr.totalL+_reportExtraL):_dr.totalL;
-        const _lv=_dayMap7[d]||[];
-        const _mn=_lv.length?Math.min(..._lv):'--';
-        const _mx=_lv.length?Math.max(..._lv):'--';
-        const _pat=_totL<=0?'No data 🔵':_totL<50?'Low 🟢':_totL<150?'Moderate 🟡':_totL<300?'Active 🟠':'High Use 🔴';
-        return`<tr style="${_isToday?'background:rgba(45,212,191,.04);font-weight:600':''}">
-          <td style="font-weight:700;color:${_isToday?'var(--pri)':''}">${d}${_isToday?' ●':''}</td>
-          <td class="tc-ok" style="font-family:var(--mono)">${_totL.toFixed(1)} L</td>
-          <td style="color:#fbbf24">${(_dr.morn||0).toFixed(1)}</td>
-          <td style="color:#2DD4BF">${(_dr.aft||0).toFixed(1)}</td>
-          <td style="color:#a78bfa">${(_dr.eve||0).toFixed(1)}</td>
-          <td style="color:#38bdf8">${(_dr.ngt||0).toFixed(1)}</td>
-          <td class="tc-danger">${typeof _mn==='number'?_mn+'%':'--'}</td>
-          <td class="tc-ok">${typeof _mx==='number'?_mx+'%':'--'}</td>
-          <td style="color:var(--ok)">${_dr.refills||0}</td>
-          <td style="font-size:11px">${_pat}</td>
-        </tr>`;
-      }).join('')}
-      </table></div>`;
-
-    html+=`</div>`;
-
-    // Inject chart data
-    window.__7dLabels=_7dLabels;
-    window.__7dData=_7dData;
-    window.__7dHasData=_7dHasLevel;
-    window.__daily7d=_hist7;
-    window.__daily7dHas=_has7day;
-  })();
-
-  // ══════════════════════════════════════
-  // SECTION 13 — ALERT LOG
-  // ══════════════════════════════════════
+  // ── SECTION 8: ALERT LOG ──
   if(alerts.length>0){
-    const _san2=msg=>msg.replace(/:\s*\S+\.\S+\.\S+/g,'').replace(/:\s*\d{1,3}(\.\d{1,3}){3}/g,'').replace(/\[.*?\]/g,'').replace(/https?:\/\/\S+/g,'').trim().replace(/:$/,'');
-    html+=`<div class="sec" id="alerts"><div class="sec-title">13 — Alert Log</div>
-    <div class="card"><table><tr><th>Timestamp</th><th>Priority</th><th>Message</th></tr>
-    ${alerts.slice(0,40).map(a=>{const m=_san2(a.msg);const tc=a.type==='ac'?'tc-danger':a.type==='aw'?'tc-warn':'tc-ok';const tl=a.type==='ac'?'🚨 Critical':a.type==='aw'?'⚠️ Warning':'ℹ️ Info';return`<tr><td style="font-size:11px;color:rgba(180,220,255,.35)">${new Date(a.time).toLocaleString()}</td><td class="${tc}" style="font-size:11px;font-weight:700">${tl}</td><td>${san(m)}</td></tr>`;}).join('')}
-    </table></div></div>`;
+    function _san(msg){return msg.replace(/:\s*\S+\.\S+\.\S+/g,'').replace(/:\s*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/g,'').replace(/\[.*?\]/g,'').replace(/https?:\/\/\S+/g,'').trim().replace(/:\s*$/,'');}
+    html+=`<div class="sec" id="alerts"><div class="sec-title">8 — Alert Log</div>
+    <div class="card">
+      <table><tr><th>Time</th><th>Priority</th><th>Message</th></tr>
+      ${alerts.slice(0,40).map(a=>{
+        const m=_san(a.msg);
+        const tc=a.type==='ac'?'tc-danger':a.type==='aw'?'tc-warn':'tc-ok';
+        const tl=a.type==='ac'?'🚨 Critical':a.type==='aw'?'⚠️ Warning':'ℹ️ Info';
+        return`<tr><td style="font-size:11px;color:rgba(180,220,255,.4)">${new Date(a.time).toLocaleString()}</td><td class="${tc}" style="font-size:11px;font-weight:700">${tl}</td><td>${san(m)}</td></tr>`;
+      }).join('')}
+      </table>
+    </div></div>`;
   }
 
-  // Update TOC to include new sections
-  html=html.replace('<a href="#history">24h History</a>',
-    '<a href="#history">24h History</a><a href="#week">7-Day Trend</a>'+
-    (alerts.length?'<a href="#alerts">Alerts</a>':''));
+  // ── SECTION 9: 7-DAY EXTENDED HISTORY ──
+  // Build 7×24 slots from _hourlyStore (keyed by "YYYY-MM-DD-HH")
+  const _7dayLabels=[];
+  const _7dayData=[];
+  const _perDayStats=[];
+  const _now7=new Date();
+  for(let d=6;d>=0;d--){
+    const dayDate=new Date(_now7.getTime()-d*86400000);
+    const dayStr=dayDate.getFullYear()+'-'+String(dayDate.getMonth()+1).padStart(2,'0')+'-'+String(dayDate.getDate()).padStart(2,'0');
+    const dayLabel=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dayDate.getDay()]+' '+String(dayDate.getDate()).padStart(2,'0');
+    let dayMin=100,dayMax=0,daySum=0,dayCount=0,dayUsedL=0,dayPrev=null;
+    for(let h=0;h<24;h++){
+      const hKey=dayStr+'-'+String(h).padStart(2,'0');
+      const v=_hourlyStore[hKey];
+      _7dayLabels.push(d===0?String(h).padStart(2,'0')+':00':d===6?dayLabel:h===0?dayLabel:'');
+      _7dayData.push(v!=null?v:null);
+      if(v!=null){
+        dayMin=Math.min(dayMin,v);dayMax=Math.max(dayMax,v);
+        daySum+=v;dayCount++;
+        if(dayPrev!=null&&v<dayPrev)dayUsedL+=(dayPrev-v)/100*(S.total||1000);
+        dayPrev=v;
+      }
+    }
+    if(dayCount>0){
+      const dayAvgPct=Math.round(daySum/dayCount);
+      const swing=dayMax-dayMin;
+      const pattern=swing<5?'Stable':swing<15?'Moderate':swing<30?'Active':'High Use';
+      _perDayStats.push({label:dayLabel,min:dayMin,max:dayMax,avg:dayAvgPct,swing,usedL:dayUsedL.toFixed(0),pattern,count:dayCount});
+    }
+  }
+  const _7hasData=_7dayData.some(v=>v!=null);
+
+  // Data Reliability Score: confirmed readings vs. total expected readings
+  const _totalExpected=analyticsSession.confirmedSamples+Math.max(0,60-analyticsSession.confirmedSamples);
+  const _anomalyCount=analyticsSession.suddenDrops.length+(analyticsSession.nightLeakDetected?5:0);
+  const _reliabilityScore=Math.max(0,Math.min(100,Math.round(100-(_anomalyCount/Math.max(_totalExpected/10,1))*15)));
+  const _reliCol=_reliabilityScore>=85?'#34d399':_reliabilityScore>=60?'#fbbf24':'#f87171';
+  const _reliLabel=_reliabilityScore>=85?'HIGH CONFIDENCE':_reliabilityScore>=60?'MODERATE':'LOW — REVIEW DATA';
+
+  html+=`<div class="sec" id="ext-history"><div class="sec-title">9 — 7-Day Extended History</div>
+  <div class="kgrid kg3" style="margin-bottom:12px">
+    <div class="card">
+      <div class="kv" style="color:${_reliCol}">${_reliabilityScore}</div>
+      <div class="kl">Data Reliability Score</div>
+      <div class="ks">/100 — ${_reliLabel}</div>
+    </div>
+    <div class="card">
+      <div class="kv">${analyticsSession.confirmedSamples}</div>
+      <div class="kl">Confirmed Readings</div>
+      <div class="ks">Passed 5-sample engine gate</div>
+    </div>
+    <div class="card">
+      <div class="kv" style="color:${_anomalyCount>3?'#f87171':_anomalyCount>0?'#fbbf24':'#34d399'}">${_anomalyCount}</div>
+      <div class="kl">Anomalies Blocked</div>
+      <div class="ks">Spikes + leaks suppressed</div>
+    </div>
+  </div>
+  ${_7hasData?`<div class="card" style="margin-bottom:12px">
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">168-HOUR LEVEL CHART</div>
+    <div class="chart-wrap-lg"><canvas id="hist7C"></canvas></div>
+  </div>`:''}
+  ${_perDayStats.length>0?`<div class="card">
+    <div style="font-size:11px;font-weight:600;color:rgba(180,220,255,.45);letter-spacing:2px;margin-bottom:12px">PER-DAY SUMMARY TABLE</div>
+    <table><tr><th>Day</th><th>Min %</th><th>Max %</th><th>Avg %</th><th>Swing</th><th>Est. Used (L)</th><th>Pattern</th></tr>
+    ${_perDayStats.map(r=>`<tr>
+      <td style="font-weight:600">${r.label}</td>
+      <td class="tc-warn">${r.min}%</td>
+      <td class="tc-ok">${r.max}%</td>
+      <td>${r.avg}%</td>
+      <td style="color:${r.swing>20?'#f87171':r.swing>10?'#fbbf24':'#34d399'}">${r.swing}%</td>
+      <td style="color:#2DD4BF;font-weight:600">${r.usedL} L</td>
+      <td style="font-size:11px;color:${r.pattern==='High Use'?'#f87171':r.pattern==='Active'?'#fbbf24':r.pattern==='Moderate'?'#2DD4BF':'#34d399'}">${r.pattern}</td>
+    </tr>`).join('')}
+    </table>
+  </div>`:'<div class="card" style="text-align:center;padding:20px;color:rgba(180,220,255,.3);font-size:13px">Not enough 7-day data yet — keep monitoring to build history.</div>'}
+  </div>`;
 
   // ── FOOTER ──
   html+=`<footer>
-    TASNI® Water Intelligence Platform &nbsp;·&nbsp; Report ID: ${Date.now().toString(36).toUpperCase()} &nbsp;·&nbsp; Generated: ${ts}<br>
-    Engine: 5-sample median · ${_MIN_STABLE_DELTA_DAY}%/${_MIN_STABLE_DELTA_NIGHT}% noise floor · ${_SPIKE_LITERS}L 3-reading bounce filter · 7-day history · 90s auto-save<br>
-    Benchmarks: CPHEEO 2013 · WHO 2003 · BIS IS:1172 · Costs: indicative municipal tariff (verify locally)<br>
-    TASNI® Registered Trademark · sales@tasni.in · www.tasni.in
+    TASNI® Water Monitor &nbsp;·&nbsp; Real device data only — no simulated values &nbsp;·&nbsp; Report generated ${ts}<br>
+    For property builders, facilities managers and homeowners. Data accuracy depends on sensor calibration.<br>
+    Contact your TASNI installer for calibration support.
   </footer>`;
 
-  // ── CHART SCRIPTS (includes 7-day chart) ──
+  // ── CHART SCRIPTS ──
   const chartColors=['rgba(251,191,36,.8)','rgba(45,212,191,.8)','rgba(124,58,237,.8)','rgba(56,189,248,.8)'];
-  const _7dSer=JSON.stringify(window.__7dData||[]);
-  const _7dLbl=JSON.stringify(window.__7dLabels||[]);
   html+=`<script>
   window.addEventListener('load',function(){
     Chart.defaults.color='rgba(180,220,255,.5)';
@@ -3823,63 +3411,65 @@ function downloadReport(){
     const _ld=[_pt.morn,_pt.aft,_pt.eve,_pt.ngt];
     const _ll=['🌅 Morning\\n6–12h','☀️ Afternoon\\n12–18h','🌆 Evening\\n18–24h','🌙 Night\\n0–6h'];
     const _cc=${JSON.stringify(chartColors)};
+    // Bar chart
     const bEl=document.getElementById('barC');
     if(bEl)new Chart(bEl,{type:'bar',data:{labels:_ll,datasets:[{data:_ld,backgroundColor:_cc,borderColor:_cc,borderWidth:1,borderRadius:6}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.parsed.y.toFixed(1)+' L'}}},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>' '+c.parsed.y.toFixed(1)+' L'}}},
       scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{beginAtZero:true,ticks:{callback:v=>v+'L'}}}}});
+    // Pie chart
     const pEl=document.getElementById('pieC');
-    if(pEl)new Chart(pEl,{type:'doughnut',data:{labels:['Morning','Afternoon','Evening','Night'],datasets:[{data:_ld.map(v=>Math.max(v,0.001)),backgroundColor:_cc,borderColor:'#040d1a',borderWidth:2}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:'48%',plugins:{legend:{position:'right',labels:{color:'rgba(200,230,255,.7)',boxWidth:12,padding:8}}}}});
+    if(pEl)new Chart(pEl,{type:'doughnut',data:{labels:['Morning','Afternoon','Evening','Night'],
+      datasets:[{data:_ld.map(v=>Math.max(v,0.001)),backgroundColor:_cc,borderColor:'#040d1a',borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'48%',
+      plugins:{legend:{position:'right',labels:{color:'rgba(200,230,255,.7)',boxWidth:12,padding:8}}}}});
+    // History line chart
     const hEl=document.getElementById('histC');
     if(hEl){
-      const _hdata=${JSON.stringify(histData)};const _hlbls=${JSON.stringify(histLabels)};
-      const _ctx=hEl.getContext('2d');const _g=_ctx.createLinearGradient(0,0,0,240);
+      const _hdata=${JSON.stringify(histData)};
+      const _hlbls=${JSON.stringify(histLabels)};
+      const _ctx=hEl.getContext('2d');
+      const _g=_ctx.createLinearGradient(0,0,0,240);
       _g.addColorStop(0,'rgba(45,212,191,.3)');_g.addColorStop(1,'rgba(45,212,191,0)');
-      new Chart(_ctx,{type:'line',data:{labels:_hlbls,datasets:[{label:'Level %',data:_hdata,borderColor:'#2DD4BF',backgroundColor:_g,borderWidth:2.5,fill:true,tension:.35,pointRadius:3,pointBackgroundColor:'#2DD4BF',spanGaps:false}]},
-        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,13,26,.95)',borderColor:'rgba(45,212,191,.3)',borderWidth:1,callbacks:{label:c=>c.parsed.y!=null?' '+c.parsed.y.toFixed(0)+'% level':' No data'}}},
-        scales:{x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{maxTicksLimit:8,font:{size:10}}},y:{min:0,max:100,grid:{color:'rgba(45,212,191,.04)'},ticks:{callback:v=>v+'%',font:{size:10}}}}}});
-    }
-    // 7-day daily consumption stacked bar chart
-    const d7El=document.getElementById('daily7dBarC');
-    if(d7El&&${JSON.stringify(!!window.__daily7dHas)}){
-      const _d7=${JSON.stringify(window.__daily7d||[])};
-      new Chart(d7El.getContext('2d'),{type:'bar',
-        data:{labels:_d7.map(d=>{const p=d.date.split('-');return p[1]+'/'+p[2];}),
-          datasets:[
-            {label:'Morning',data:_d7.map(d=>+(d.morn||0).toFixed(2)),backgroundColor:'rgba(251,191,36,.65)',stack:'s'},
-            {label:'Afternoon',data:_d7.map(d=>+(d.aft||0).toFixed(2)),backgroundColor:'rgba(45,212,191,.65)',stack:'s'},
-            {label:'Evening',data:_d7.map(d=>+(d.eve||0).toFixed(2)),backgroundColor:'rgba(124,58,237,.65)',stack:'s'},
-            {label:'Night',data:_d7.map(d=>+(d.ngt||0).toFixed(2)),backgroundColor:'rgba(56,189,248,.45)',stack:'s'}
-          ]},
-        options:{responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{position:'top',labels:{color:'rgba(180,220,255,.55)',font:{size:9},boxWidth:10}},
-            tooltip:{mode:'index',callbacks:{footer:items=>'Total: '+items.reduce((s,i)=>s+i.parsed.y,0).toFixed(1)+' L'}}},
-          scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:10}}},
-            y:{stacked:true,grid:{color:'rgba(45,212,191,.05)'},ticks:{callback:v=>v+'L',font:{size:10}},beginAtZero:true}}}});
-    }
-    // 7-day level trend
-    const h7El=document.getElementById('hist7dC');
-    if(h7El){
-      const _7d=${_7dSer};const _7lbl=${_7dLbl};
-      const _c2=h7El.getContext('2d');const _g2=_c2.createLinearGradient(0,0,0,240);
-      _g2.addColorStop(0,'rgba(124,58,237,.35)');_g2.addColorStop(1,'rgba(45,212,191,0)');
-      new Chart(_c2,{type:'line',data:{labels:_7lbl,datasets:[{label:'Level %',data:_7d,
-        borderColor:'#a78bfa',backgroundColor:_g2,borderWidth:2,fill:true,tension:.3,
-        pointRadius:0,pointHoverRadius:4,spanGaps:false}]},
+      new Chart(_ctx,{type:'line',data:{labels:_hlbls,datasets:[{label:'Level %',data:_hdata,
+        borderColor:'#2DD4BF',backgroundColor:_g,borderWidth:2.5,fill:true,tension:.35,
+        pointRadius:3,pointBackgroundColor:'#2DD4BF',spanGaps:false}]},
         options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,13,26,.95)',
-          borderColor:'rgba(167,139,250,.3)',borderWidth:1,
-          callbacks:{label:c=>c.parsed.y!=null?' '+c.parsed.y.toFixed(0)+'% level':' No data'}}},
-        scales:{x:{grid:{color:'rgba(45,212,191,.03)'},ticks:{maxTicksLimit:12,font:{size:9},color:'rgba(200,230,255,.3)'}},
-          y:{min:0,max:100,grid:{color:'rgba(45,212,191,.03)'},ticks:{callback:v=>v+'%',font:{size:9}}}}}});
+        borderColor:'rgba(45,212,191,.3)',borderWidth:1,
+        callbacks:{label:c=>c.parsed.y!=null?' '+c.parsed.y.toFixed(0)+'% level':' No data'}}},
+        scales:{x:{grid:{color:'rgba(45,212,191,.04)'},ticks:{maxTicksLimit:8,font:{size:10}}},
+        y:{min:0,max:100,grid:{color:'rgba(45,212,191,.04)'},ticks:{callback:v=>v+'%',font:{size:10}}}}}});
+    }
+    // 7-day line chart
+    const h7El=document.getElementById('hist7C');
+    if(h7El){
+      const _7d=${JSON.stringify(_7dayData)};
+      const _7l=${JSON.stringify(_7dayLabels)};
+      const _7ctx=h7El.getContext('2d');
+      const _7g=_7ctx.createLinearGradient(0,0,0,240);
+      _7g.addColorStop(0,'rgba(124,58,237,.3)');_7g.addColorStop(1,'rgba(124,58,237,0)');
+      new Chart(_7ctx,{type:'line',data:{labels:_7l,datasets:[{label:'Level %',data:_7d,
+        borderColor:'#a78bfa',backgroundColor:_7g,borderWidth:2,fill:true,tension:.25,
+        pointRadius:0,spanGaps:true}]},
+        options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(4,13,26,.95)',
+        borderColor:'rgba(124,58,237,.3)',borderWidth:1,
+        callbacks:{label:c=>c.parsed.y!=null?' '+c.parsed.y.toFixed(0)+'%':' No data'}}},
+        scales:{x:{grid:{color:'rgba(124,58,237,.04)'},ticks:{maxTicksLimit:14,font:{size:9},
+          callback:(v,i)=>_7l[i]||''}},
+        y:{min:0,max:100,grid:{color:'rgba(124,58,237,.04)'},ticks:{callback:v=>v+'%',font:{size:10}}}}}});
     }
   });
   <\/script>`;
 
   html+=`</div></body></html>`;
+
   _downloadBlob(html,`TASNI-Report-${san(tankName).replace(/\s+/g,'-')}-${ds}.html`);
-  showToast('📊 Professional report ready — downloading now','ok',3500);
+  showToast('📊 Report ready — downloading now','ok',3500);
 }
+
+// [initChart & renderChart — full versions defined above with all 4 charts]
 
 // ═══════════════════════════════════════════
 //  ALERT LOG RENDER
