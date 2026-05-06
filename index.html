@@ -796,8 +796,7 @@ const analyticsSession={
   sessionStart: new Date().toISOString(),
   // Confirmed samples (incremented on every real _displayReady reading)
   confirmedSamples:0,
-  // Computed usage rate from actual drop events (L/hr) — used in report
-  computedUsageRate:0,
+
 };
 
 // ── BOOT DISPLAY GUARD ──
@@ -957,6 +956,10 @@ window.addEventListener('load',()=>{
             langEn:    document.getElementById('t-lang-en')?.checked,
             langTe:    document.getElementById('t-lang-te')?.checked,
             langUr:    document.getElementById('t-lang-ur')?.checked,
+            // SW must NOT generate its own status/health notifications.
+            // All notifications are dispatched by push() in the main app.
+            // SW role: only relay showNotification() calls from the app.
+            selfNotify: false,
           }
         });
       };
@@ -1444,12 +1447,10 @@ function ingest(d,fromMQTT=false){
     clearTimeout(_animTimer);
     _animTimer=setTimeout(()=>_setTankAnim(0),10000);
   }
-  // Tell SW the latest level (non-blocking)
-  try{
-    if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
-      navigator.serviceWorker.controller.postMessage({type:'STORE_LEVEL',level:S.m});
-    }
-  }catch(_){}
+  // Note: We do NOT send level to the Service Worker.
+  // All notifications are fired via push() → reg.showNotification().
+  // Sending raw level data to SW risks it constructing its own
+  // misleading status notifications (e.g. "health 100 at 46%").
 
   _resetStaleTimer();
 
@@ -1637,14 +1638,21 @@ function _renderDashInsights(){
   }
   const hs=analyticsSession.healthScore;
   const hcol=hs>=80?'var(--ok)':hs>=50?'var(--warn)':'var(--danger)';
+  // Only show health score once there's enough session data to trust it
+  // (at least 1 usage drop event OR 1 sudden drop OR any night leak recorded)
+  const _hasHealthData=(
+    analyticsSession.events.length>0||
+    analyticsSession.suddenDrops.length>0||
+    analyticsSession.nightLeakLiters>0
+  );
   const dayAvg=analyticsSession.dayReadings.length?Math.round(analyticsSession.dayReadings.reduce((a,b)=>a+b,0)/analyticsSession.dayReadings.length):null;
   const ngtAvg=analyticsSession.nightReadingsPct.length?Math.round(analyticsSession.nightReadingsPct.reduce((a,b)=>a+b,0)/analyticsSession.nightReadingsPct.length):null;
   if(dayAvg!==null||ngtAvg!==null||analyticsSession.fullTankEvents.length>0){
     html+=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
       <div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
-        <div style="font-family:var(--mono);font-size:18px;color:${hcol}">${hs}</div>
-        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-top:3px;font-family:var(--head)">HEALTH</div>
-        <div style="font-size:9px;color:${hcol};margin-top:2px;font-weight:700">${analyticsSession.healthLabel}</div>
+        <div style="font-family:var(--mono);font-size:18px;color:${_hasHealthData?hcol:'var(--muted)'}">${_hasHealthData?hs:'--'}</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-top:3px;font-family:var(--head)">PIPE HEALTH</div>
+        <div style="font-size:9px;color:${_hasHealthData?hcol:'var(--muted)'};margin-top:2px;font-weight:700">${_hasHealthData?analyticsSession.healthLabel:'MONITORING'}</div>
       </div>
       <div style="background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center">
         <div style="font-family:var(--mono);font-size:18px;color:var(--pri)">${dayAvg!=null?dayAvg+'%':'--'}</div>
@@ -1867,7 +1875,11 @@ function push(type,msg,critical=false){
   // ── Notification delivery: try SW-backed first, fall back to direct ──
   // SW-backed notifications work even when the app tab is not in focus.
   // They also survive page-hidden state and background throttling.
-  const notifTitle = 'TASNI Water Monitor';
+  // Build a rich notification title: tank name + current level
+  // This ensures the notification is meaningful even when app is closed.
+  const _tankLabel = S.name||cfg.tankName||'TASNI Water';
+  const _levelLabel = (_displayReady&&S.m!=null) ? ` — ${S.m}%` : '';
+  const notifTitle = `${_tankLabel}${_levelLabel}`;
   const notifOpts = {
     body: _m,
     icon: 'icon.svg',
@@ -1876,7 +1888,7 @@ function push(type,msg,critical=false){
     vibrate: critical ? [200,80,200,80,400] : [100,50,100],
     requireInteraction: critical && type==='ac',
     silent: false,
-    data: { type, ts: Date.now() }
+    data: { type, level: S.m, ts: Date.now() }
   };
 
   if(Notification.permission==='granted'){
@@ -2333,9 +2345,8 @@ function renderDash(){
   bar.style.background=pct<10?'linear-gradient(90deg,#7a0000,#f87171)':pct<30?'linear-gradient(90deg,#806600,#fbbf24)':'linear-gradient(90deg,var(--purple),var(--pri))';
 
   set('volL',S.vol.toFixed(0));set('totalVol',S.total);set('distCm',S.dist.toFixed(1));
-  // Use computed usage rate from events if available (more accurate than device-reported value)
-  const _dispRate=analyticsSession.computedUsageRate>0?analyticsSession.computedUsageRate:S.usage;
-  set('usageRate',_dispRate.toFixed(1));set('uptimeVal',fmtUp(S.up));
+  // Usage rate: always use value reported directly by ESP32 firmware
+  set('usageRate',S.usage>0?S.usage.toFixed(1):'--');set('uptimeVal',fmtUp(S.up));
   set('rssiVal',S.rssi||'--');set('bootVal',S.boot||'--');set('trendLbl',S.t);
   if(S.name)document.getElementById('tankNameLbl').textContent=S.name.toUpperCase();
 
@@ -2363,16 +2374,8 @@ function recordUsageEvent(dropL,fromPct,toPct){
   analyticsSession.totalUsedL+=dropL;
   analyticsSession.events.push({time:now.toLocaleTimeString(),dropL:dropL.toFixed(1),fromPct,toPct,period,ts:Date.now()});
   if(analyticsSession.events.length>60)analyticsSession.events.shift();
-  // Recompute usage rate from the last 3 hours of events
-  const _3h=Date.now()-3*3600000;
-  const _recent=analyticsSession.events.filter(e=>e.ts&&e.ts>_3h);
-  if(_recent.length>=2){
-    const _elapsed=(_recent[_recent.length-1].ts-_recent[0].ts)/3600000; // hours
-    if(_elapsed>0){
-      const _total=_recent.reduce((s,e)=>s+parseFloat(e.dropL),0);
-      analyticsSession.computedUsageRate=_total/_elapsed;
-    }
-  }
+  // Usage rate is read directly from S.usage (ESP32 firmware value).
+  // No PWA-side rate computation — the ESP32 measures this more accurately.
 }
 
 
