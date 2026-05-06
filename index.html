@@ -565,7 +565,13 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
     <div class="card">
-      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">Alert Log<button class="btn btn-d btn-sm" style="padding:4px 10px;font-size:10px" onclick="clearAlerts()">CLEAR</button></div>
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🔔 Notification Center</span>
+        <button class="btn btn-d btn-sm" style="padding:4px 10px;font-size:10px" onclick="clearAlerts()">CLEAR</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.5;padding:6px 10px;background:rgba(45,212,191,.04);border-radius:7px;border:1px solid var(--border)">
+        Shows critical events only: water level alerts, night leaks (&gt;15L overnight), device disconnections. Routine connection messages are suppressed.
+      </div>
       <div id="alertLog"><div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div></div>
     </div>
   </div>
@@ -769,9 +775,11 @@ const analyticsSession={
   readings:[],
   // Full tank events — each time level crosses >= 95% from below
   fullTankEvents:[],   // [{time, pct}]
-  // Night leakage tracking (22:00–06:00)
+  // Night leakage tracking (22:00–06:00) — industry-standard MNF method
   nightReadings:[],    // [{time, pct}] during night hours
   nightLeakDetected:false,
+  nightLeakCritical:false,
+  nightLeakDate:null,  // date string of current accumulation window (resets each night)
   nightLeakLiters:0,
   // Day/night averages
   dayReadings:[],      // pct values 06:00–22:00
@@ -1065,6 +1073,21 @@ async function fetchSensor(ip){
   updatePill();
 }
 
+// ── Broker connection toast limiter ──
+// Shows toast max 4× per broker per day. NEVER logs to Alert Log —
+// user only cares about water level, leaks and disconnections, not routine handshakes.
+function _brokerConnToast(which){
+  const today=new Date().toDateString();
+  const key='tasni_conn_count';
+  let c;try{c=JSON.parse(localStorage.getItem(key)||'null');}catch(_){c=null;}
+  if(!c||c.date!==today)c={date:today,p:0,b:0};
+  const bk=which==='primary'?'p':'b';
+  if(c[bk]<4){
+    c[bk]++;try{localStorage.setItem(key,JSON.stringify(c));}catch(_){}
+    showToast('☁️ '+(which==='primary'?'Primary':'Backup')+' MQTT ready','ok',1500);
+  }
+}
+
 // ═══════════════════════════════════════════════════════
 //  DUAL MQTT ENGINE — Primary + Backup auto-failover
 //  Both run simultaneously as independent clients
@@ -1136,8 +1159,8 @@ function _connectPrimary(mc){
       _lastAck=Date.now();_primaryOk=true;_updateBrokerPills();unlockAch(3);
       const t=mc.topic||'tasni-water/+/state';
       mqttPrimary.subscribe(t,{qos:1});
-      if(!_silent){showToast('☁️ Primary MQTT connected','ok',2500);push('ai','☁️ Primary broker connected');}
-      else showToast('🔄 Primary reconnected','ok',2000);
+      if(!_silent){_brokerConnToast('primary');}
+      // Silent reconnects: no toast, no log — avoid notification fatigue
       _silent=true;
       _startHBPrimary(mc);
     });
@@ -1170,8 +1193,8 @@ function _connectBackup(mc){
       _lastAck2=Date.now();_backupOk=true;_updateBrokerPills();
       const t=(mc.topic||_mqttCfg?.topic||'tasni-water/+/state');
       mqttBackup.subscribe(t,{qos:1});
-      if(!_silent2){showToast('☁️ Backup MQTT connected','ok',2500);push('ai','☁️ Backup broker connected');}
-      else showToast('🔄 Backup reconnected','ok',2000);
+      if(!_silent2){_brokerConnToast('backup');}
+      // Silent reconnects: no toast, no log
       _silent2=true;
       _startHBBackup(mc);
     });
@@ -1473,11 +1496,34 @@ function ingest(d,fromMQTT=false){
         if(analyticsSession.suddenDrops.length>30)analyticsSession.suddenDrops.shift();
       }
 
-      // Night leakage: track drops during night hours
-      if(_isNight&&prev-S.m>=2){
+      // ── Night Leakage Detection — Industry-Standard Minimum Night Flow (MNF) method ──
+      // Standard: any drop during 10 PM–6 AM that is NOT a known usage event is flagged.
+      // Alert threshold 1: >15 L overnight  (≈1.875 L/hr avg — above normal background)
+      // Alert threshold 2: >40 L overnight  (≈5 L/hr — significant pipe/valve fault)
+      // Daily reset: accumulator clears at start of each night window (new date after 6 AM)
+      const NIGHT_LEAK_WARN_L  = 15;  // ≈1.5% of 1000L tank — suspected leak
+      const NIGHT_LEAK_CRIT_L  = 40;  // ≈4%   of 1000L tank — serious fault
+      if(_isNight && prev-S.m >= 1){ // track any ≥1% drop during night hours
+        // Daily reset: new accumulation window each night
+        const _nightDate = new Date().toLocaleDateString();
+        if(analyticsSession.nightLeakDate !== _nightDate){
+          analyticsSession.nightLeakDate      = _nightDate;
+          analyticsSession.nightLeakLiters    = 0;
+          analyticsSession.nightLeakDetected  = false;
+          analyticsSession.nightLeakCritical  = false;
+        }
         const ll=(prev-S.m)/100*S.total;
         analyticsSession.nightLeakLiters+=ll;
-        if(analyticsSession.nightLeakLiters>20)analyticsSession.nightLeakDetected=true;
+        // Threshold 1 — suspected leak
+        if(!analyticsSession.nightLeakDetected && analyticsSession.nightLeakLiters>=NIGHT_LEAK_WARN_L){
+          analyticsSession.nightLeakDetected=true;
+          push('aw','🚿 NIGHT LEAK DETECTED: '+analyticsSession.nightLeakLiters.toFixed(0)+'L lost 10PM–6AM. Suspected pipe/valve leak. Inspect plumbing immediately.');
+        }
+        // Threshold 2 — critical fault
+        if(!analyticsSession.nightLeakCritical && analyticsSession.nightLeakLiters>=NIGHT_LEAK_CRIT_L){
+          analyticsSession.nightLeakCritical=true;
+          push('ac','🚨 CRITICAL NIGHT LEAK: '+analyticsSession.nightLeakLiters.toFixed(0)+'L lost overnight! Serious pipe/valve fault — shut off main supply now!');
+        }
       }
     }
 
@@ -1601,13 +1647,35 @@ function _renderDashInsights(){
   const el=document.getElementById('dashInsights');
   if(!el||!_displayReady||demoMode)return;
   let html='';
-  if(analyticsSession.nightLeakDetected){
-    html+=`<div style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
-      <span style="font-size:18px">🚨</span>
+  // Night leak status — always show during night hours or if detected
+  const _nowH=new Date().getHours();
+  const _isNightNow=_nowH>=22||_nowH<6;
+  if(analyticsSession.nightLeakCritical){
+    html+=`<div style="background:rgba(248,113,113,.13);border:1px solid rgba(248,113,113,.4);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:20px">🚨</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#f87171;letter-spacing:1px;font-family:var(--head)">CRITICAL NIGHT LEAK</div>
+        <div style="font-size:11px;color:rgba(248,113,113,.9);margin-top:3px">${analyticsSession.nightLeakLiters.toFixed(0)}L lost overnight. Serious fault — check main supply valve immediately.</div>
+      </div></div>`;
+  } else if(analyticsSession.nightLeakDetected){
+    html+=`<div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:18px">🚿</span>
       <div>
         <div style="font-size:12px;font-weight:700;color:#f87171;letter-spacing:1px;font-family:var(--head)">NIGHT LEAKAGE DETECTED</div>
-        <div style="font-size:11px;color:rgba(248,113,113,.8);margin-top:3px">~${analyticsSession.nightLeakLiters.toFixed(0)} L lost between 10 PM–6 AM. Check pipes &amp; valves.</div>
+        <div style="font-size:11px;color:rgba(248,113,113,.8);margin-top:3px">${analyticsSession.nightLeakLiters.toFixed(0)}L lost 10PM–6AM (industry flag: &gt;15L). Check pipes &amp; valves.</div>
       </div></div>`;
+  } else if(_isNightNow && analyticsSession.nightLeakLiters>0){
+    const pctOfThresh=Math.min(100,(analyticsSession.nightLeakLiters/15)*100);
+    html+=`<div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:10px;padding:11px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:11px;font-weight:700;color:var(--warn);letter-spacing:1px;font-family:var(--head)">🌙 NIGHT MONITORING</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--warn)">${analyticsSession.nightLeakLiters.toFixed(1)}L / 15L</span>
+      </div>
+      <div style="height:4px;background:rgba(251,191,36,.15);border-radius:2px;overflow:hidden">
+        <div style="height:100%;width:${pctOfThresh}%;background:var(--warn);border-radius:2px;transition:width 1s"></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:5px">Monitoring for leaks. Alert fires at 15L overnight loss.</div>
+    </div>`;
   }
   const hs=analyticsSession.healthScore;
   const hcol=hs>=80?'var(--ok)':hs>=50?'var(--warn)':'var(--danger)';
@@ -1687,30 +1755,26 @@ function checkAlerts(prev,cur,isFull){
   const dropping = cur < prev;
   const rising   = cur > prev;
 
-  // ── EVERY 10% DROP — multilingual, push-backed notification ──
+  // ── EVERY 10% DROP — multilingual speech only, NOT logged to notification center ──
+  // Level alerts happen too frequently to be useful in the log; critical/low handle that.
   if(dropping && curBand < prevBand){
     for(let b = prevBand - 1; b >= curBand && b >= 0; b--){
       const crossPct = b * 10;
-      // Fire only if we haven't already notified this band in the downward direction
       if(_lastAlertBandDown === null || b < _lastAlertBandDown){
         _lastAlertBandDown = b;
-        _lastAlertBandUp   = null; // reset upward tracking on drop
-        const msg = _buildLevelMsg(cur, 'down');
-        push('aw', msg);
-        _speakLevelAlert(cur, 'down');
+        _lastAlertBandUp   = null;
+        _speakLevelAlert(cur, 'down'); // voice only — no alert log entry
       }
     }
   }
 
-  // ── EVERY 10% RISE — multilingual, push-backed notification ──
+  // ── EVERY 10% RISE — speech only, NOT logged to notification center ──
   if(rising && curBand > prevBand){
     for(let b = prevBand + 1; b <= curBand && b <= 10; b++){
       if(_lastAlertBandUp === null || b > _lastAlertBandUp){
         _lastAlertBandUp   = b;
-        _lastAlertBandDown = null; // reset downward tracking on rise
-        const msg = _buildLevelMsg(cur, 'up');
-        push('ai', msg);
-        _speakLevelAlert(cur, 'up');
+        _lastAlertBandDown = null;
+        _speakLevelAlert(cur, 'up'); // voice only — no alert log entry
       }
     }
   }
@@ -1893,6 +1957,7 @@ function _markStale(){
     _lastAlertBandDown = null;
     _lastAlertBandUp   = null;
     showToast('📡 No data — device may be offline','warn',4000);
+    push('aw','📡 DEVICE OFFLINE: No data received. Check WiFi / MQTT connection.');
   }
   renderDash();
 }
@@ -2302,16 +2367,55 @@ function recordUsageEvent(dropL,fromPct,toPct){
 
 
 // ═══════════════════════════════════════════
-//  ALERT LOG RENDER
+//  ALERT LOG — Priority Notification Center
+//  Shows only meaningful events: water level, leaks, disconnections.
+//  Broker "connected" messages are intentionally excluded.
 // ═══════════════════════════════════════════
+// Patterns of low-priority connection noise to suppress from the log
+const _NOISE_PATTERNS=[
+  /broker connected/i, /primary broker/i, /backup broker/i,
+  /mqtt connected/i,   /mqtt disconnected/i,
+  /notifications enabled/i,
+  /wifi sent/i,        /calibration saved/i,
+  /telegram saved/i,   /sheets saved/i,
+  /telegram test/i,
+];
+function _isNoise(msg){ return _NOISE_PATTERNS.some(p=>p.test(msg)); }
+
 function renderAlertLog(){
   const el=document.getElementById('alertLog');
-  if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div>';return;}
-  el.innerHTML=alerts.slice(0,10).map(a=>`
-    <div class="alert-item ${a.type}">
-      <div class="adot"></div>
-      <div><div class="al-msg">${a.msg}</div><div class="al-time">${new Date(a.time).toLocaleString()}</div></div>
-    </div>`).join('');
+  // Filter out low-priority noise from stored alerts
+  const important=alerts.filter(a=>!_isNoise(a.msg));
+  if(!important.length){
+    el.innerHTML='<div style="text-align:center;padding:30px 16px;color:var(--muted);font-size:13px">'+
+      '<div style="font-size:24px;margin-bottom:10px;opacity:.4">🔔</div>'+
+      '<div style="font-weight:700;letter-spacing:1px;font-family:var(--head);font-size:11px;margin-bottom:6px">NO ALERTS</div>'+
+      '<div style="font-size:11px;line-height:1.6">Critical, low water, leaks and disconnection events will appear here</div></div>';
+    return;
+  }
+  const CATS={
+    ac:{icon:'🚨',label:'CRITICAL', bg:'rgba(248,113,113,.08)',border:'rgba(248,113,113,.3)',col:'var(--danger)'},
+    aw:{icon:'⚠️', label:'WARNING',  bg:'rgba(251,191,36,.07)', border:'rgba(251,191,36,.3)', col:'var(--warn)'},
+    ai:{icon:'ℹ️', label:'INFO',     bg:'rgba(45,212,191,.05)', border:'rgba(45,212,191,.2)', col:'var(--pri)'},
+  };
+  el.innerHTML=important.slice(0,12).map(a=>{
+    const c=CATS[a.type]||CATS.ai;
+    const ts=new Date(a.time);
+    const isToday=ts.toDateString()===new Date().toDateString();
+    const timeStr=isToday?ts.toLocaleTimeString():ts.toLocaleDateString()+' '+ts.toLocaleTimeString();
+    return `<div class="alert-item ${a.type}" style="background:${c.bg};border-left:3px solid ${c.border};border-radius:0 8px 8px 0;padding:11px 12px;margin-bottom:8px;border-bottom:none">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="font-size:16px;line-height:1;flex-shrink:0;margin-top:1px">${c.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span style="font-size:9px;font-weight:800;letter-spacing:2px;color:${c.col};font-family:var(--head)">${c.label}</span>
+          </div>
+          <div class="al-msg" style="font-size:12.5px;line-height:1.5">${a.msg}</div>
+          <div class="al-time" style="margin-top:5px;font-size:10px;color:var(--muted)">🕐 ${timeStr}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════
