@@ -266,8 +266,6 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .chip.on{border-color:var(--ok);color:var(--ok)}
 .chip.on .cd{background:var(--ok);box-shadow:0 0 6px var(--ok)}
 
-/* Chart */
-.chart-box{position:relative;height:175px}
 
 /* Usage bars */
 .ubar-row{margin:8px 0}
@@ -280,16 +278,6 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 .fc-row:last-child{border-bottom:none}
 .fc-val{font-family:var(--mono);color:var(--pri)}
 
-/* Analytics enhanced */
-.analytics-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
-.asumm{background:var(--surf2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center}
-.asumm-val{font-family:var(--mono);font-size:18px;color:var(--pri);line-height:1}
-.asumm-lbl{font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-top:4px;font-family:var(--head)}
-.session-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
-.session-item:last-child{border-bottom:none}
-.session-time{font-family:var(--mono);color:var(--muted);font-size:10px}
-.session-vol{font-family:var(--mono);color:var(--pri);font-size:13px}
-.download-btn-wrap{margin-top:12px}
 
 /* Alerts */
 .notif-bar{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(0,50,120,.5),rgba(0,30,80,.7));border:1px solid rgba(45,212,191,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px}
@@ -474,15 +462,11 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="chips">
       <div class="chip" id="chip-local"><div class="cd"></div>LOCAL WIFI</div>
       <div class="chip" id="chip-mqtt"><div class="cd"></div>MQTT</div>
+      <div class="chip hidden" id="chip-both-btn" onclick="enableBothMode()" style="cursor:pointer;border-color:rgba(45,212,191,.4);color:var(--pri)"><div class="cd" style="background:var(--pri);box-shadow:0 0 6px var(--pri)"></div>BOTH MODE</div>
     </div>
-    <!-- Both Mode offer — shown when WiFi is active and MQTT is configured but not yet running together -->
-    <div id="bothModeBanner" class="hidden" style="display:none;align-items:center;gap:10px;background:linear-gradient(135deg,rgba(45,212,191,.07),rgba(124,58,237,.07));border:1px solid rgba(45,212,191,.18);border-radius:10px;padding:10px 14px;margin-bottom:10px">
-      <div style="font-size:18px">⚡</div>
-      <div style="flex:1">
-        <div style="font-size:12px;font-weight:700;color:var(--pri);font-family:var(--head);letter-spacing:1px">BOTH MODE AVAILABLE</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:1px">WiFi active — enable MQTT simultaneously for maximum reliability</div>
-      </div>
-      <button class="btn btn-p btn-sm" onclick="enableBothMode()">ENABLE</button>
+    <!-- Both-mode active banner -->
+    <div id="both-mode-banner" class="hidden" style="background:linear-gradient(135deg,rgba(45,212,191,.08),rgba(124,58,237,.08));border:1px solid rgba(45,212,191,.2);border-radius:9px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:1px;font-family:var(--head);color:var(--pri)">
+      <span style="font-size:14px">⚡</span>BOTH MODES ACTIVE — WiFi + MQTT running simultaneously for maximum reliability
     </div>
     <div class="card" style="padding:0;overflow:hidden">
       <div class="tank-section">
@@ -566,6 +550,18 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
         <div class="tog-row" style="padding:7px 0"><div><div class="tog-lbl" style="font-size:13px">🇮🇳 Telugu</div></div><label class="toggle"><input type="checkbox" id="t-lang-te" checked><div class="tslider"></div></label></div>
         <div class="tog-row" style="padding:7px 0;border-bottom:none"><div><div class="tog-lbl" style="font-size:13px">🇮🇳 Urdu</div></div><label class="toggle"><input type="checkbox" id="t-lang-ur" checked><div class="tslider"></div></label></div>
         <div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5">Voice speaks only in selected languages on Low, Critical &amp; Full alerts.</div>
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;font-family:var(--head)">🌙 NIGHT LEAK DETECTION (10 PM – 6 AM)</div>
+        <div class="tog-row"><div><div class="tog-lbl">🚨 Night Leak Alert</div><div class="tog-sub">Alert when cumulative overnight drop exceeds threshold</div></div><label class="toggle"><input type="checkbox" id="t-nightleak" checked><div class="tslider"></div></label></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+          <label style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);white-space:nowrap">ALERT AFTER</label>
+          <input class="form-in" id="t-nightleak-threshold" type="number" value="20" min="5" max="200" style="width:80px;text-align:center">
+          <span style="font-size:12px;color:var(--muted);white-space:nowrap">litres lost at night</span>
+          <button class="btn btn-o btn-sm" onclick="saveNightLeakThreshold()">SAVE</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5">Default: 20 L. Fires once when threshold is crossed, then again every 10 L. Resets at 6 AM.</div>
+
       </div>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;font-family:var(--head)">SOUND PREVIEW</div>
@@ -731,6 +727,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     <span class="nb-lbl">Tank</span>
   </button>
+
   <button class="nb" id="nb-alerts" onclick="goTab('alerts',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
     <div class="nb-badge hidden" id="alertBadge">0</div>
@@ -866,10 +863,10 @@ const _bootGuardTimer=setTimeout(()=>{
 //  ALERT TOGGLE PERSISTENCE
 //  FIX: toggles persist across app close/open
 // ═══════════════════════════════════════════
-const ALERT_TOGGLE_IDS=['t-crit','t-low','t-drop','t-fill','t-full','t-sound','t-lang-en','t-lang-te','t-lang-ur'];
+const ALERT_TOGGLE_IDS=['t-crit','t-low','t-drop','t-fill','t-full','t-sound','t-nightleak','t-lang-en','t-lang-te','t-lang-ur'];
 const ALERT_TOGGLE_DEFAULTS={
   't-crit':true,'t-low':true,'t-drop':true,'t-fill':true,'t-full':true,'t-sound':true,
-  't-lang-en':true,'t-lang-te':true,'t-lang-ur':true
+  't-nightleak':true,'t-lang-en':true,'t-lang-te':true,'t-lang-ur':true
 };
 function loadAlertPrefs(){
   let prefs=JSON.parse(localStorage.getItem(ALERT_PREFS_KEY)||'null');
@@ -930,6 +927,7 @@ const ACHIEVEMENTS=[
 window.addEventListener('load',()=>{
   loadFormValues();
   loadAlertPrefs();
+  loadNightLeakThreshold();
   initAlertToggles();
   renderTips();
   renderAchievements();
@@ -940,37 +938,66 @@ window.addEventListener('load',()=>{
   _loadHourly();
   renderDash();
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').then(async reg=>{
-      // Cache the SW registration immediately for notification delivery
-      _swReg=reg;
-      _flushNotifQueue();
-      // Wait for SW to become active before sending config
-      const sw=reg.installing||reg.waiting||reg.active;
-      const sendCfg=()=>{
-        const ctrl=navigator.serviceWorker.controller;
-        if(ctrl){
-          ctrl.postMessage({type:'STORE_CONFIG',config:{
-            ip:cfg.ip,broker:cfg.broker,
-            alertCrit:document.getElementById('t-crit')?.checked,
-            alertLow:document.getElementById('t-low')?.checked,
-            alertDrop:document.getElementById('t-drop')?.checked,
-            alertFill:document.getElementById('t-fill')?.checked,
-          }});
-        }
+    navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(async reg=>{
+      // ── Full config sync — includes all alert toggles so SW can fire accurate alerts ──
+      const sendFullCfg = () => {
+        const ctrl = navigator.serviceWorker.controller;
+        if(!ctrl) return;
+        ctrl.postMessage({
+          type: 'STORE_CONFIG',
+          config: {
+            ip: cfg.ip,
+            broker: cfg.broker,
+            topic: cfg.topic,
+            alertCrit: document.getElementById('t-crit')?.checked,
+            alertLow:  document.getElementById('t-low')?.checked,
+            alertDrop: document.getElementById('t-drop')?.checked,
+            alertFill: document.getElementById('t-fill')?.checked,
+            alertFull: document.getElementById('t-full')?.checked,
+            langEn:    document.getElementById('t-lang-en')?.checked,
+            langTe:    document.getElementById('t-lang-te')?.checked,
+            langUr:    document.getElementById('t-lang-ur')?.checked,
+          }
+        });
       };
-      // If controller already exists send now, else wait for it
-      if(navigator.serviceWorker.controller){sendCfg();}
-      else{navigator.serviceWorker.addEventListener('controllerchange',sendCfg,{once:true});}
-      // Periodic Background Sync
+
+      // If controller already exists send now, else wait for controllerchange
+      if(navigator.serviceWorker.controller){ sendFullCfg(); }
+      else { navigator.serviceWorker.addEventListener('controllerchange', sendFullCfg, {once:true}); }
+
+      // Re-sync config whenever alert toggles change
+      ALERT_TOGGLE_IDS.forEach(id=>{
+        document.getElementById(id)?.addEventListener('change', ()=>{
+          setTimeout(sendFullCfg, 100); // small delay so toggle state is committed
+        });
+      });
+
+      // ── Force SW update check on every page load ──
+      try{ await reg.update(); }catch(_){}
+
+      // ── Periodic Background Sync — keep alerting even if PWA not open ──
       if('periodicSync' in reg){
         try{
-          const status=await navigator.permissions.query({name:'periodic-background-sync'});
-          if(status.state==='granted'){
-            await reg.periodicSync.register('tasni-monitor',{minInterval:15*60*1000});
+          const status = await navigator.permissions.query({name:'periodic-background-sync'});
+          if(status.state === 'granted'){
+            await reg.periodicSync.register('tasni-monitor', {minInterval: 5 * 60 * 1000}); // 5 min
           }
         }catch(_){}
       }
-      if('sync' in reg){try{await reg.sync.register('tasni-check');}catch(_){}}
+
+      // ── One-time background sync ──
+      if('sync' in reg){ try{ await reg.sync.register('tasni-check'); }catch(_){} }
+
+      // ── Listen for SW-initiated messages (e.g. reconnect requests) ──
+      navigator.serviceWorker.addEventListener('message', evt => {
+        if(!evt.data) return;
+        if(evt.data.type === 'REQUEST_RECONNECT'){
+          // SW is asking us to reconnect — this happens after a background sync
+          if(_mqttCfg && (!mqttPrimary || !mqttPrimary.connected)) _connectPrimary(_mqttCfg);
+          if(_mqttCfg2 && (!mqttBackup || !mqttBackup.connected)) _connectBackup(_mqttCfg2);
+        }
+      });
+
     }).catch(()=>{});
   }
   unlockAch(0);
@@ -1122,8 +1149,7 @@ function _connectPrimary(mc){
       _lastAck=Date.now();_primaryOk=true;_updateBrokerPills();unlockAch(3);
       const t=mc.topic||'tasni-water/+/state';
       mqttPrimary.subscribe(t,{qos:1});
-      if(!_silent){showToast('☁️ Primary MQTT connected','ok',2500);push('ai','☁️ Primary broker connected');}
-      else showToast('🔄 Primary reconnected','ok',2000);
+      showToast(_silent?'🔄 Primary reconnected':'☁️ Primary MQTT connected','ok',2000);
       _silent=true;
       _startHBPrimary(mc);
     });
@@ -1156,8 +1182,7 @@ function _connectBackup(mc){
       _lastAck2=Date.now();_backupOk=true;_updateBrokerPills();
       const t=(mc.topic||_mqttCfg?.topic||'tasni-water/+/state');
       mqttBackup.subscribe(t,{qos:1});
-      if(!_silent2){showToast('☁️ Backup MQTT connected','ok',2500);push('ai','☁️ Backup broker connected');}
-      else showToast('🔄 Backup reconnected','ok',2000);
+      showToast(_silent2?'🔄 Backup reconnected':'☁️ Backup MQTT connected','ok',2000);
       _silent2=true;
       _startHBBackup(mc);
     });
@@ -1255,36 +1280,47 @@ function updatePill(){
   const mc=document.getElementById('chip-mqtt').classList.contains('on');
   const pill=document.getElementById('connPill');
   pill.className='conn-pill';
+
+  // Show "BOTH MODE" suggestion chip when WiFi is available but Both not yet active
+  const bothBtn = document.getElementById('chip-both-btn');
+  const bothBanner = document.getElementById('both-mode-banner');
+  if(lc && !mc && cfg.broker && !_bothModeActive){
+    // Local WiFi is up and MQTT config exists but not running — offer Both Mode
+    if(bothBtn) bothBtn.classList.remove('hidden');
+  } else if(lc && mc && _bothModeActive){
+    if(bothBtn) bothBtn.classList.add('hidden');
+    if(bothBanner) bothBanner.classList.remove('hidden');
+  } else {
+    if(bothBtn) bothBtn.classList.add('hidden');
+    if(bothBanner) bothBanner.classList.add('hidden');
+  }
+
   if(lc&&mc)    {pill.classList.add('pill-both'); document.getElementById('connLbl').textContent='BOTH';}
   else if(lc)   {pill.classList.add('pill-local');document.getElementById('connLbl').textContent='LOCAL';}
   else if(mc)   {pill.classList.add('pill-mqtt'); document.getElementById('connLbl').textContent='MQTT';}
   else if(demoMode){pill.classList.add('pill-demo');document.getElementById('connLbl').textContent='DEMO';}
   else          {document.getElementById('connLbl').textContent='OFFLINE';}
-
-  // Show "Both Mode" offer only when:
-  // WiFi is active, MQTT is configured, but MQTT is not yet connected (not both already running)
-  const banner=document.getElementById('bothModeBanner');
-  if(banner){
-    const mqttConfigured=!!(cfg.broker&&cfg.broker.trim());
-    const shouldShow = lc && mqttConfigured && !mc && !demoMode;
-    banner.style.display=shouldShow?'flex':'none';
-    banner.classList.toggle('hidden',!shouldShow);
-  }
 }
 
-// Enable Both Mode — starts MQTT alongside active WiFi poll
+// ── BOTH MODE — enables WiFi + MQTT simultaneously for maximum reliability ──
+let _bothModeActive = false;
 function enableBothMode(){
-  if(!cfg.broker){showToast('Set MQTT broker in Settings first','warn',3500);return;}
-  _silent=false;
-  _connectMQTT({host:cfg.broker,port:cfg.port||8084,user:cfg.mquser,pass:cfg.mqpass,topic:cfg.topic||'tasni-water/+/state'});
-  if(cfg.broker2){
-    _silent2=false;
-    _connectMQTT2({host:cfg.broker2,port:cfg.port2||8084,user:cfg.mquser2,pass:cfg.mqpass2,topic:cfg.topic||'tasni-water/+/state'});
+  if(_bothModeActive) return;
+  _bothModeActive = true;
+  // Activate MQTT if configured but not running
+  if(cfg.broker && (!mqttPrimary || !mqttPrimary.connected)){
+    _silent = false;
+    _connectMQTT({host:cfg.broker, port:cfg.port||8084, user:cfg.mquser, pass:cfg.mqpass, topic:cfg.topic||'tasni-water/+/state'});
   }
-  showToast('⚡ Both Mode starting…','info',2500);
-  // Hide banner immediately; updatePill will re-evaluate after connect
-  const banner=document.getElementById('bothModeBanner');
-  if(banner){banner.style.display='none';banner.classList.add('hidden');}
+  if(cfg.broker2 && (!mqttBackup || !mqttBackup.connected)){
+    _silent2 = false;
+    _connectMQTT2({host:cfg.broker2, port:cfg.port2||8084, user:cfg.mquser2, pass:cfg.mqpass2, topic:cfg.topic||'tasni-water/+/state'});
+  }
+  // Ensure WiFi poll is running
+  if(cfg.ip) startPoll(cfg.ip);
+  showToast('⚡ Both Modes active — WiFi + MQTT running', 'ok', 3500);
+  document.getElementById('chip-both-btn')?.classList.add('hidden');
+  document.getElementById('both-mode-banner')?.classList.remove('hidden');
 }
 
 // ═══════════════════════════════════════════
@@ -1359,6 +1395,7 @@ function ingest(d,fromMQTT=false){
       clearTimeout(_bootGuardTimer);
       _bootGuardActive=false;
       if(!demoMode)setTimeout(()=>{try{playConnectSound();}catch(_){}},200);
+      _autoPromptNotif();
     } else {
       // Still inside 10s window — keep NIL on screen, wait for fresher data
       renderDash();
@@ -1448,10 +1485,25 @@ function ingest(d,fromMQTT=false){
       }
 
       // Night leakage: track drops during night hours
+      // Threshold: 20L (configurable via cfg.nightLeakThreshold)
       if(_isNight&&prev-S.m>=2){
         const ll=(prev-S.m)/100*S.total;
         analyticsSession.nightLeakLiters+=ll;
-        if(analyticsSession.nightLeakLiters>20)analyticsSession.nightLeakDetected=true;
+        const _threshold = parseFloat(cfg.nightLeakThreshold)||20;
+        if(!analyticsSession.nightLeakDetected && analyticsSession.nightLeakLiters>=_threshold){
+          analyticsSession.nightLeakDetected=true;
+          // Push to alert log — this is an important alert
+          if(ck('t-nightleak')) push('ac',`🚨 NIGHT LEAK DETECTED: ${analyticsSession.nightLeakLiters.toFixed(0)} L lost between 10 PM–6 AM. Possible pipe leak — check valves immediately.`,true);
+          if(ck('t-nightleak')&&ck('t-sound'))playSound('critical_alarm');
+        } else if(analyticsSession.nightLeakDetected){
+          // Log ongoing leak milestones every additional 10L at night
+          const _prev = analyticsSession.nightLeakLiters - ll;
+          const _prevMile = Math.floor(_prev/10)*10;
+          const _curMile  = Math.floor(analyticsSession.nightLeakLiters/10)*10;
+          if(_curMile > _prevMile && _curMile > _threshold && ck('t-nightleak')){
+            push('aw',`⚠️ NIGHT LEAK ONGOING: ${analyticsSession.nightLeakLiters.toFixed(0)} L lost so far tonight. Check pipes & stop-cocks.`);
+          }
+        }
       }
     }
 
@@ -1618,61 +1670,106 @@ function _renderDashInsights(){
   el.innerHTML=html;
 }
 
+// ── Level alert state tracking ──
+// Tracks the last 10% band notified for both drops and rises.
+// This ensures every 10% crossing (in either direction) triggers exactly one notification,
+// but avoids duplicate fires if the level oscillates within the same band.
+let _lastAlertBandDown = null;  // last band notified on drop
+let _lastAlertBandUp   = null;  // last band notified on rise
+
+// Build the notification body string for level-step alerts in selected languages
+function _buildLevelMsg(cur, direction){
+  const msgs = [];
+  if(ck('t-lang-en')){
+    msgs.push(direction === 'down'
+      ? `💧 Water level dropped to ${cur}%.`
+      : `💧 Water level rose to ${cur}%.`);
+  }
+  if(ck('t-lang-te')){
+    msgs.push(direction === 'down'
+      ? `💧 నీటి మట్టం ${cur}% కి తగ్గింది.`
+      : `💧 నీటి మట్టం ${cur}% కి పెరిగింది.`);
+  }
+  if(ck('t-lang-ur')){
+    msgs.push(direction === 'down'
+      ? `💧 پانی کی سطح ${cur}% تک گر گئی۔`
+      : `💧 پانی کی سطح ${cur}% تک بڑھ گئی۔`);
+  }
+  // Fallback: always include English if all disabled
+  if(!msgs.length) msgs.push(direction === 'down'
+    ? `💧 Water level dropped to ${cur}%.`
+    : `💧 Water level rose to ${cur}%.`);
+  return msgs.join(' | ');
+}
+
 function checkAlerts(prev,cur,isFull){
   if(prev==null||cur==null)return;
   if(prev===cur)return;
   // Only fire alerts after display is ready — no stale startup triggers
   if(!_displayReady)return;
 
-  // Critical threshold crossing (<10%)
+  const prevBand = Math.floor(prev/10);
+  const curBand  = Math.floor(cur/10);
+  const dropping = cur < prev;
+  const rising   = cur > prev;
+
+  // ── EVERY 10% DROP — multilingual, push-backed notification ──
+  if(dropping && curBand < prevBand){
+    for(let b = prevBand - 1; b >= curBand && b >= 0; b--){
+      const crossPct = b * 10;
+      // Fire only if we haven't already notified this band in the downward direction
+      if(_lastAlertBandDown === null || b < _lastAlertBandDown){
+        _lastAlertBandDown = b;
+        _lastAlertBandUp   = null; // reset upward tracking on drop
+        const msg = _buildLevelMsg(cur, 'down');
+        push('aw', msg);
+        _speakLevelAlert(cur, 'down');
+      }
+    }
+  }
+
+  // ── EVERY 10% RISE — multilingual, push-backed notification ──
+  if(rising && curBand > prevBand){
+    for(let b = prevBand + 1; b <= curBand && b <= 10; b++){
+      if(_lastAlertBandUp === null || b > _lastAlertBandUp){
+        _lastAlertBandUp   = b;
+        _lastAlertBandDown = null; // reset downward tracking on rise
+        const msg = _buildLevelMsg(cur, 'up');
+        push('ai', msg);
+        _speakLevelAlert(cur, 'up');
+      }
+    }
+  }
+
+  // ── CRITICAL threshold crossing (<10%) ──
   if(prev>=10&&cur<10&&ck('t-crit')){
     push('ac','🚨 CRITICAL: Tank at '+cur+'%! Refill immediately.',true);
     if(ck('t-sound'))playSound('critical_alarm');
     _speakAlert(cur,'critical');
-  } else if(prev>=30&&cur<30&&ck('t-low')){
+  }
+
+  // ── LOW threshold crossing (<30%) ──
+  if(prev>=30&&cur<30&&ck('t-low')){
     push('aw','⚠️ LOW: Tank at '+cur+'%. Schedule a refill soon.');
     if(ck('t-sound'))playSound('low_alert');
     _speakAlert(cur,'low');
   }
 
-  // Special 5% chime — only plays ONCE when crossing below 5% (not every drop)
+  // ── Special 5% chime ──
   if(prev>=5&&cur<5&&ck('t-crit')){
     if(ck('t-sound'))playSound('five_pct');
   }
 
-  // ── Every 10% level change — BOTH directions with push notification ──
-  // Fires for each 10% band crossed, up or down
-  const prevBand=Math.floor(prev/10);
-  const curBand =Math.floor(cur/10);
-
-  if(curBand<prevBand){
-    // Level DROPPED across one or more 10% bands
-    for(let b=prevBand-1;b>=curBand&&b>=1;b--){
-      const bandPct=b*10;
-      const notifMsg=_levelChangeMsg(cur,'drop',bandPct);
-      push('aw',notifMsg);
-      _speakLevelChange(cur,'drop');
-    }
-  } else if(curBand>prevBand){
-    // Level ROSE across one or more 10% bands
-    for(let b=prevBand+1;b<=curBand&&b<=9;b++){
-      const bandPct=b*10;
-      const notifMsg=_levelChangeMsg(cur,'rise',bandPct);
-      push('ai',notifMsg);
-      _speakLevelChange(cur,'rise');
-    }
-  }
-
-  // Sudden large drop — leak detection
+  // ── Sudden large drop — leak detection ──
   if(prev-cur>=10&&ck('t-drop'))push('aw','📉 SUDDEN DROP: Level fell '+(prev-cur)+'% — possible leak!');
 
-  // Refill above 90
+  // ── Refill above 90% ──
   if(prev<90&&cur>=90&&ck('t-fill')){
     push('ai','✅ REFILLED: Tank is now above 90%.');
     if(ck('t-sound')&&cur<100)playSound('refill');
   }
 
-  // Full tank
+  // ── Full tank ──
   if(!S._wasFull&&isFull===1&&ck('t-full')){
     push('ai','💧 FULL TANK: Water level is at maximum!');
     if(ck('t-sound'))playSound('full_tank');
@@ -1681,75 +1778,79 @@ function checkAlerts(prev,cur,isFull){
   S._wasFull=isFull===1;
 }
 
-// ── Build multilingual level-change notification message ──
-// Returns a string with text in all user-selected languages combined
-function _levelChangeMsg(level,dir,band){
-  const arrow=dir==='drop'?'📉':'📈';
-  const parts=[];
-  if(ck('t-lang-en')){
-    parts.push(dir==='drop'
-      ? `${arrow} Tank level dropped past ${band}%. Now at ${level}%.`
-      : `${arrow} Tank level rose past ${band}%. Now at ${level}%.`);
-  }
-  if(ck('t-lang-te')){
-    parts.push(dir==='drop'
-      ? `నీటి స్థాయి ${band}% దాటింది. ఇప్పుడు ${level}%.`
-      : `నీటి స్థాయి ${band}% చేరింది. ఇప్పుడు ${level}%.`);
-  }
-  if(ck('t-lang-ur')){
-    parts.push(dir==='drop'
-      ? `پانی کی سطح ${band}% سے گزری۔ اب ${level}% ہے۔`
-      : `پانی کی سطح ${band}% تک پہنچی۔ اب ${level}% ہے۔`);
-  }
-  // Fallback: always include at least an English line
-  if(!parts.length)parts.push(`${arrow} Tank level at ${level}%.`);
-  return parts.join(' | ');
-}
-
-// ── Voice for 10% step crossings ──
-// Debounced so rapid band crossings don't stack up speech
-let _lvlChangeSpeakTimer=null;
-let _lvlChangePending=null;
-function _speakLevelChange(level,dir){
+// ── Concise multilingual voice for level step updates ──
+function _speakLevelAlert(level, direction){
   if(!('speechSynthesis' in window))return;
-  // Cancel any pending queued speech for level changes — speak only the latest
-  clearTimeout(_lvlChangeSpeakTimer);
-  _lvlChangePending={level,dir};
-  _lvlChangeSpeakTimer=setTimeout(()=>{
-    if(!_lvlChangePending)return;
-    const {level:l,dir:d}=_lvlChangePending;
-    _lvlChangePending=null;
-    const allPhrases={
-      drop:[
-        {key:'en',text:`Water level has dropped to ${l} percent.`,lang:'en-IN'},
-        {key:'te',text:`నీటి స్థాయి ${l} శాతానికి తగ్గింది.`,lang:'te-IN'},
-        {key:'ur',text:`پانی کی سطح ${l} فیصد تک گر گئی ہے۔`,lang:'ur-IN'},
-      ],
-      rise:[
-        {key:'en',text:`Water level has risen to ${l} percent.`,lang:'en-IN'},
-        {key:'te',text:`నీటి స్థాయి ${l} శాతానికి పెరిగింది.`,lang:'te-IN'},
-        {key:'ur',text:`پانی کی سطح ${l} فیصد تک بڑھ گئی ہے۔`,lang:'ur-IN'},
-      ],
-    };
-    const phrases=(allPhrases[d]||allPhrases.drop).filter(p=>{
-      if(p.key==='en')return ck('t-lang-en');
-      if(p.key==='te')return ck('t-lang-te');
-      if(p.key==='ur')return ck('t-lang-ur');
-      return true;
-    });
-    if(!phrases.length)return;
-    // Use a single utterance from the first selected language (no chain needed for step alerts)
-    const p=phrases[0];
+  // Only speak if at least one language is selected and it's a notable level
+  if(!ck('t-lang-en')&&!ck('t-lang-te')&&!ck('t-lang-ur'))return;
+  // For every 10% step: use a calm voice. Don't speak for every single % change.
+  const phrases=[];
+  if(ck('t-lang-en')) phrases.push({
+    text: direction==='down'
+      ? `Water level is now ${level} percent.`
+      : `Water level has risen to ${level} percent.`,
+    lang:'en-IN'
+  });
+  if(ck('t-lang-te')) phrases.push({
+    text: direction==='down'
+      ? `నీటి మట్టం ఇప్పుడు ${level} శాతం ఉంది.`
+      : `నీటి మట్టం ${level} శాతానికి పెరిగింది.`,
+    lang:'te-IN'
+  });
+  if(ck('t-lang-ur')) phrases.push({
+    text: direction==='down'
+      ? `پانی کی سطح اب ${level} فیصد ہے۔`
+      : `پانی کی سطح ${level} فیصد تک بڑھ گئی۔`,
+    lang:'ur-IN'
+  });
+  if(!phrases.length)return;
+  clearTimeout(_speechTimeout);
+  speechSynthesis.cancel();
+  _speechBusy=false;
+  _speechBusy=true;
+  _speechTimeout=setTimeout(()=>{_speechBusy=false;speechSynthesis.cancel();},20000);
+  const voices=speechSynthesis.getVoices();
+  let idx=0;
+  function speakNext(){
+    if(idx>=phrases.length){_speechBusy=false;clearTimeout(_speechTimeout);return;}
+    const p=phrases[idx++];
     const utt=new SpeechSynthesisUtterance(p.text);
-    utt.lang=p.lang;utt.rate=0.9;utt.pitch=1.0;utt.volume=0.9;
-    const voices=speechSynthesis.getVoices();
+    utt.lang=p.lang;utt.rate=0.9;utt.pitch=1.0;utt.volume=1.0;
     const match=voices.find(v=>v.lang===p.lang)||voices.find(v=>v.lang.startsWith(p.lang.split('-')[0]))||null;
     if(match)utt.voice=match;
-    try{speechSynthesis.cancel();speechSynthesis.speak(utt);}catch(e){}
-  },600); // 600ms debounce
+    utt.onend=()=>setTimeout(speakNext,600);
+    utt.onerror=()=>setTimeout(speakNext,200);
+    try{speechSynthesis.speak(utt);}catch(e){setTimeout(speakNext,200);}
+  }
+  if(voices.length===0){
+    speechSynthesis.addEventListener('voiceschanged',()=>speakNext(),{once:true});
+    setTimeout(()=>{if(_speechBusy&&idx===0)speakNext();},800);
+  } else {
+    setTimeout(speakNext,100);
+  }
+}
+
+// ── Notification deduplication — prevents identical alerts firing twice within 8 seconds ──
+const _recentPushHashes = new Map(); // hash -> timestamp
+function _isDupePush(msg){
+  const now = Date.now();
+  // Simple hash: first 60 chars
+  const key = msg.slice(0,60);
+  const last = _recentPushHashes.get(key);
+  if(last && now - last < 8000) return true;
+  _recentPushHashes.set(key, now);
+  // Prune old entries
+  if(_recentPushHashes.size > 20){
+    for(const [k,v] of _recentPushHashes){
+      if(now - v > 30000) _recentPushHashes.delete(k);
+    }
+  }
+  return false;
 }
 
 function push(type,msg,critical=false){
+  if(_isDupePush(msg)) return; // deduplicate
+
   // Scrub sensitive server info before storing any alert
   const _m=msg.replace(/[:\s]+\S*\.\S+\.\S+/g,'').replace(/:\s*\d{1,3}(\.\d{1,3}){3}/g,'').replace(/https?:\/\/\S+/g,'').replace(/\[.*?\]/g,'').trim().replace(/:$/,'');
   const a={type,msg:_m,time:new Date().toISOString()};
@@ -1762,42 +1863,75 @@ function push(type,msg,critical=false){
     else if(type==='aw')    navigator.vibrate([150,60,150,60,300]);
     else                    navigator.vibrate([80,40,80]);
   }
-  // Send push notification via SW (works in background)
-  const notifTitle='TASNI Water Monitor';
-  const notifOpts={
-    tag:'tasni-'+type+(critical?'-crit':''),
-    vibrate:critical?[200,80,200,80,400]:[100,50,100],
-    requireInteraction:!!(critical&&type==='ac'),
-    silent:false,
+
+  // ── Notification delivery: try SW-backed first, fall back to direct ──
+  // SW-backed notifications work even when the app tab is not in focus.
+  // They also survive page-hidden state and background throttling.
+  const notifTitle = 'TASNI Water Monitor';
+  const notifOpts = {
+    body: _m,
+    icon: 'icon.svg',
+    badge: 'icon.svg',
+    tag: 'tasni-' + type + '-' + Date.now(), // unique tag so alerts stack, not replace
+    vibrate: critical ? [200,80,200,80,400] : [100,50,100],
+    requireInteraction: critical && type==='ac',
+    silent: false,
+    data: { type, ts: Date.now() }
   };
+
   if(Notification.permission==='granted'){
-    _sendPush(notifTitle,_m,notifOpts);
-  } else if(Notification.permission==='default'){
-    // Queue it — will fire if user grants permission later
-    _notifQueue.push({title:notifTitle,body:_m,opts:notifOpts});
+    // Try Service Worker showNotification first (works in background)
+    navigator.serviceWorker?.ready.then(reg=>{
+      if(reg && reg.showNotification){
+        reg.showNotification(notifTitle, notifOpts).catch(()=>{
+          // SW path failed — fall back to direct Notification API
+          try{ new Notification(notifTitle, notifOpts); }catch(_){}
+        });
+      } else {
+        try{ new Notification(notifTitle, notifOpts); }catch(_){}
+      }
+    }).catch(()=>{
+      // SW not ready — direct path
+      try{ new Notification(notifTitle, notifOpts); }catch(_){}
+    });
   }
-  showToast(_m,type==='ac'?'danger':type==='aw'?'warn':'info',3000);
+
+  showToast(_m, type==='ac'?'danger':type==='aw'?'warn':'info', 3500);
   if(ck('t-sound')&&type==='ac')playSound(type,critical);
-  // Sync alert config to SW so it stays up to date
-  _syncSwConfig();
 }
 function clearAlerts(){alerts=[];localStorage.removeItem('tasni_alerts');renderAlertLog();}
 
-// Keep SW config fresh — called on every push so background notifications have current toggles
-function _syncSwConfig(){
-  try{
-    const ctrl=navigator.serviceWorker?.controller;
-    if(ctrl){
-      ctrl.postMessage({type:'STORE_CONFIG',config:{
-        ip:cfg.ip,broker:cfg.broker,
-        alertCrit:document.getElementById('t-crit')?.checked,
-        alertLow:document.getElementById('t-low')?.checked,
-        alertDrop:document.getElementById('t-drop')?.checked,
-        alertFill:document.getElementById('t-fill')?.checked,
-      }});
-    }
-  }catch(_){}
+// ── Night leak threshold save + load ──
+function saveNightLeakThreshold(){
+  const val=parseInt(document.getElementById('t-nightleak-threshold')?.value)||20;
+  const clamped=Math.max(5,Math.min(500,val));
+  document.getElementById('t-nightleak-threshold').value=clamped;
+  saveCfg({nightLeakThreshold:clamped});
+  showToast('Night leak threshold set to '+clamped+' L','ok',2500);
 }
+function loadNightLeakThreshold(){
+  const el=document.getElementById('t-nightleak-threshold');
+  if(el&&cfg.nightLeakThreshold) el.value=cfg.nightLeakThreshold;
+}
+
+// ── Midnight reset for night leak accumulator ──
+// Resets each night at 6 AM so each night's leak is tracked independently
+(function _scheduleNightLeakReset(){
+  function _doReset(){
+    analyticsSession.nightLeakDetected=false;
+    analyticsSession.nightLeakLiters=0;
+    analyticsSession.nightReadings=[];
+    analyticsSession.nightReadingsPct=[];
+    // Re-schedule for next 6 AM
+    _scheduleNightLeakReset();
+  }
+  const now=new Date();
+  const next6am=new Date(now);
+  next6am.setHours(6,0,0,0);
+  if(next6am<=now) next6am.setDate(next6am.getDate()+1);
+  const ms=next6am-now;
+  setTimeout(_doReset, ms);
+})();
 
 // ═══════════════════════════════════════════
 //  STALENESS WATCHDOG
@@ -1807,13 +1941,34 @@ function _resetStaleTimer(){
   clearTimeout(_staleTimer);
   _staleTimer=setTimeout(_markStale,STALE_MS);
 }
+// ── Broker disconnect rate limiting — max 4 alerts per day ──
+const _BROKER_ALERT_MAX = 4;
+const _BROKER_ALERT_KEY = 'tasni_broker_alerts_day';
+function _canLogBrokerAlert(){
+  const today = new Date().toDateString();
+  let rec;
+  try{ rec = JSON.parse(localStorage.getItem(_BROKER_ALERT_KEY)||'{}'); }catch{ rec={}; }
+  if(rec.day !== today){ rec = {day:today, count:0}; }
+  if(rec.count >= _BROKER_ALERT_MAX) return false;
+  rec.count++;
+  try{ localStorage.setItem(_BROKER_ALERT_KEY, JSON.stringify(rec)); }catch(_){}
+  return true;
+}
+
 function _markStale(){
   if(S.connected){
     S.connected=false;
     _displayReady=false; // force NIL display until new data arrives after reconnect
     _realReadingCount=0;
     _bootGuardActive=false; // after stale, unlock immediately on next reading (no 10s re-lock)
+    // Reset level alert band trackers so alerts fire fresh on reconnect
+    _lastAlertBandDown = null;
+    _lastAlertBandUp   = null;
     showToast('📡 No data — device may be offline','warn',4000);
+    // Log device offline to alert log (important — max 4/day to avoid spam)
+    if(_canLogBrokerAlert()){
+      push('aw','📡 DEVICE OFFLINE — No data received for 30 seconds. Tank monitoring interrupted.');
+    }
   }
   renderDash();
 }
@@ -2192,12 +2347,14 @@ function renderDash(){
 
   document.getElementById('estEmpty').textContent=S.usage>0?fmtHrs(S.vol/S.usage):'∞';
   if(S.lastUpdate)set('updLbl','Updated '+S.lastUpdate.toLocaleTimeString());
+
+
 }
 
-// ═══════════════════════════════════════════
-//  ANALYTICS DATA COLLECTION (session only — no chart rendering)
-// ═══════════════════════════════════════════
-
+// ═══════════════════════════════════════════════════════
+//  ANALYTICS — charts + correct real data only
+//  Charts: donut (level), line (history), bar (time of day), pie (usage split)
+// ═══════════════════════════════════════════════════════
 function recordUsageEvent(dropL,fromPct,toPct){
   const now=new Date();
   const h=now.getHours();
@@ -2219,17 +2376,39 @@ function recordUsageEvent(dropL,fromPct,toPct){
 }
 
 
+
 // ═══════════════════════════════════════════
 //  ALERT LOG RENDER
 // ═══════════════════════════════════════════
 function renderAlertLog(){
   const el=document.getElementById('alertLog');
-  if(!alerts.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No alerts yet</div>';return;}
-  el.innerHTML=alerts.slice(0,10).map(a=>`
-    <div class="alert-item ${a.type}">
-      <div class="adot"></div>
-      <div><div class="al-msg">${a.msg}</div><div class="al-time">${new Date(a.time).toLocaleString()}</div></div>
-    </div>`).join('');
+  if(!alerts.length){
+    el.innerHTML='<div style="text-align:center;padding:28px 16px;color:var(--muted);font-size:12px;letter-spacing:1px;font-family:var(--head)">NO ALERTS — TANK IS BEING MONITORED</div>';
+    return;
+  }
+  // Show max 20 alerts, most recent first
+  el.innerHTML=alerts.slice(0,20).map(a=>{
+    const d=new Date(a.time);
+    const timeStr=d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    const dateStr=d.toLocaleDateString([],{month:'short',day:'numeric'});
+    const isCrit=a.type==='ac';
+    const isWarn=a.type==='aw';
+    const bgCol=isCrit?'rgba(248,113,113,.07)':isWarn?'rgba(251,191,36,.05)':'rgba(45,212,191,.04)';
+    const bdCol=isCrit?'rgba(248,113,113,.2)':isWarn?'rgba(251,191,36,.15)':'rgba(45,212,191,.1)';
+    const dotCol=isCrit?'var(--danger)':isWarn?'var(--warn)':'var(--pri)';
+    const label=isCrit?'CRITICAL':isWarn?'WARNING':'INFO';
+    const labelCol=isCrit?'rgba(248,113,113,.8)':isWarn?'rgba(251,191,36,.8)':'rgba(45,212,191,.7)';
+    return`<div class="alert-item ${a.type}" style="background:${bgCol};border:1px solid ${bdCol};border-radius:9px;margin-bottom:6px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start">
+      <div style="width:7px;height:7px;border-radius:50%;background:${dotCol};box-shadow:0 0 6px ${dotCol};flex-shrink:0;margin-top:5px${isCrit?';animation:sblink 1s step-end infinite':''}"></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${labelCol};font-family:var(--head)">${label}</span>
+          <span style="font-size:10px;color:rgba(180,220,255,.3);font-family:var(--mono)">${dateStr} ${timeStr}</span>
+        </div>
+        <div style="font-size:12px;font-weight:500;line-height:1.5;color:var(--text)">${a.msg}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════
@@ -2254,71 +2433,54 @@ function startDemo(){
 }
 
 // ═══════════════════════════════════════════
-//  NOTIFICATION SYSTEM — Service Worker backed
-//  Uses registration.showNotification() so alerts fire even in background
-//  Falls back to Notification API if SW not ready
-//  Includes retry queue for failed deliveries
+//  NOTIFICATIONS — SW-backed for background delivery
 // ═══════════════════════════════════════════
-
-// Pending notification queue — holds notifs that couldn't fire yet (SW not ready)
-const _notifQueue=[];
-let _swReg=null; // cached SW registration
-
-// Store SW registration as soon as it's available
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.ready.then(reg=>{ _swReg=reg; _flushNotifQueue(); }).catch(()=>{});
-}
-
-// Send a notification — prefers SW registration (works in background), falls back gracefully
-function _sendPush(title,body,opts={}){
-  if(Notification.permission!=='granted')return;
-  const options={
-    body,
-    icon:'icon.svg',
-    badge:'icon.svg',
-    ...opts,
-  };
-  // Try SW registration first — works in background tab
-  if(_swReg){
-    try{_swReg.showNotification(title,options);return;}catch(e){}
-  }
-  // Try via serviceWorker.ready (async)
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.ready.then(reg=>{
-      _swReg=reg;
-      try{reg.showNotification(title,options);}catch(e){
-        // Absolute fallback: direct Notification
-        try{new Notification(title,options);}catch(_){}
-      }
-    }).catch(()=>{
-      try{new Notification(title,options);}catch(_){}
-    });
-    return;
-  }
-  // No SW: direct Notification
-  try{new Notification(title,options);}catch(_){}
-}
-
-function _flushNotifQueue(){
-  while(_notifQueue.length){
-    const n=_notifQueue.shift();
-    _sendPush(n.title,n.body,n.opts);
-  }
-}
-
 function askNotif(){
+  if(!('Notification' in window)){showToast('Notifications not supported on this browser','warn',3500);return;}
   Notification.requestPermission().then(p=>{
     if(p==='granted'){
       document.getElementById('notifBar').classList.add('hidden');
       unlockAch(2);
-      push('ai','🔔 Notifications enabled!');
-      // Flush any queued notifications
-      _flushNotifQueue();
+      showToast('🔔 Notifications active — you will receive background alerts','ok',4000);
+      // Send a silent test to confirm SW path is working
+      navigator.serviceWorker?.ready.then(reg=>{
+        if(reg && reg.showNotification){
+          reg.showNotification('TASNI Notifications Active', {
+            body:'You will now receive water level alerts in the background.',
+            icon:'icon.svg', badge:'icon.svg', silent:true, tag:'tasni-notif-confirm'
+          }).catch(()=>{});
+        }
+      }).catch(()=>{});
+    } else if(p==='denied'){
+      showToast('Notifications blocked — enable in browser settings','warn',5000);
     }
   });
 }
+
 function checkNotifPerm(){
-  if(Notification.permission==='granted')document.getElementById('notifBar').classList.add('hidden');
+  if(!('Notification' in window)) return;
+  if(Notification.permission==='granted'){
+    document.getElementById('notifBar').classList.add('hidden');
+  } else if(Notification.permission==='default'){
+    // Only show the bar if not yet decided — auto-prompt on first data arrival
+    document.getElementById('notifBar').classList.remove('hidden');
+  }
+}
+
+// ── Auto-prompt for notification permission on first real data ──
+// Called once after _displayReady becomes true. Prompts only if never asked.
+let _notifPrompted = false;
+function _autoPromptNotif(){
+  if(_notifPrompted) return;
+  if(!('Notification' in window)) return;
+  if(Notification.permission !== 'default') return; // already decided
+  _notifPrompted = true;
+  // Small delay so it doesn't feel intrusive
+  setTimeout(()=>{
+    if(Notification.permission === 'default'){
+      showToast('🔔 Enable notifications to get level alerts in background','info',5000);
+    }
+  }, 3000);
 }
 
 // ═══════════════════════════════════════════
@@ -2357,9 +2519,52 @@ function unlockAch(i){const e=JSON.parse(localStorage.getItem('tasni_ach')||'[0]
 // ═══════════════════════════════════════════
 async function saveWifi(){
   const ip=g('c-ip'),ssid=g('c-ssid'),password=g('c-pass');
-  saveCfg({ip,ssid});unlockAch(4);
-  if(ip&&ssid){try{await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password})});push('ai','✅ WiFi sent to device at '+ip);}catch{push('aw','⚠️ Could not reach device. Saved locally.');}}
-  if(ip)startPoll(ip);
+  if(!ip){showToast('⚠️ Enter device IP first','warn',3000);return;}
+  // Save all credentials to localStorage immediately
+  saveCfg({ip,ssid,wifiPass:password});
+  unlockAch(4);
+  if(ssid){
+    showToast('Sending WiFi to device…','info',1500);
+    try{
+      const r=await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password}),signal:AbortSignal.timeout(6000)});
+      if(!r.ok){showToast('⚠️ Device returned error — check credentials','warn',4000);return;}
+      // Validate: re-fetch /status or /config to confirm WiFi accepted
+      // ESP32 typically responds with {ok:true} or {error:'wrong_password'}
+      let resp={};
+      try{resp=await r.json();}catch(_){}
+      if(resp.error==='wrong_password'||resp.status==='wrong_password'){
+        _showCredentialError('WiFi Password','The password for "'+ssid+'" was rejected by the device. Please check and re-enter the correct password.');
+        // Revert stored password to previous
+        saveCfg({wifiPass:''});
+        return;
+      }
+      showToast('✅ WiFi credentials saved to device','ok',3000);
+      startPoll(ip);
+    }catch(e){
+      // Connection error — credentials already saved locally
+      showToast('⚠️ Device unreachable — credentials saved locally','warn',3000);
+      startPoll(ip);
+    }
+  } else {
+    startPoll(ip);
+  }
+}
+
+// ── Credential error modal — clear, actionable wrong-password alert ──
+function _showCredentialError(field, message){
+  // Remove any existing error popup
+  document.getElementById('_credErr')?.remove();
+  const el=document.createElement('div');
+  el.id='_credErr';
+  el.style.cssText='position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);padding:20px';
+  el.innerHTML=`<div style="background:#050e20;border:1px solid rgba(248,113,113,.5);border-radius:18px;padding:24px 22px;width:100%;max-width:360px;box-shadow:0 0 40px rgba(248,113,113,.2)">
+    <div style="font-size:28px;text-align:center;margin-bottom:12px">❌</div>
+    <div style="font-family:var(--head);font-size:14px;font-weight:900;color:#f87171;letter-spacing:1px;margin-bottom:8px;text-align:center">WRONG ${field.toUpperCase()}</div>
+    <div style="font-size:13px;color:rgba(248,113,113,.85);line-height:1.65;margin-bottom:20px;text-align:center">${message}</div>
+    <button onclick="document.getElementById('_credErr').remove()" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(248,113,113,.4);background:rgba(248,113,113,.1);color:#f87171;font-family:var(--head);font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer">OK — I'll fix it</button>
+  </div>`;
+  document.body.appendChild(el);
+  el.onclick=e=>{if(e.target===el)el.remove();};
 }
 // ══════════════════════════════════════════
 //  TELEGRAM
@@ -2418,8 +2623,24 @@ async function saveTelegram(){
   const chatid=g('c-tgchat').trim();
   if(!token){showToast('Enter bot token first','warn');return;}
   if(!chatid){showToast('Enter chat ID first','warn');return;}
+  // Save to localStorage immediately
   saveCfg({tgToken:token,tgChat:chatid});
   _updateTgStatus();
+  // Validate token by calling Telegram getMe API — instant and free
+  showToast('Validating token…','info',1500);
+  try{
+    const validR=await fetch(`https://api.telegram.org/bot${token}/getMe`,{signal:AbortSignal.timeout(6000)});
+    const validD=await validR.json();
+    if(!validD.ok){
+      _showCredentialError('Telegram Bot Token','The bot token is invalid or has been revoked. Please create a new bot via @BotFather and copy the correct token.');
+      saveCfg({tgToken:'',tgChat:''});
+      _updateTgStatus();
+      return;
+    }
+  }catch(e){
+    // Network error — skip validation but keep saved
+    showToast('⚠️ Could not validate token (offline?) — saved locally','warn',3000);
+  }
   if(ip){
     try{
       const r=await fetch(`http://${ip}/save-telegram`,{
@@ -2428,19 +2649,15 @@ async function saveTelegram(){
         signal:AbortSignal.timeout(5000)
       });
       if(r.ok){
-        push('ai','✅ Telegram saved to device at '+ip);
-        showToast('Telegram saved to device!','ok',3000);
+        showToast('✅ Telegram saved to device','ok',3000);
       } else {
-        push('aw','⚠️ Device responded with error. Check IP.');
-        showToast('Device returned error — check IP','warn');
+        showToast('⚠️ Device returned error — check IP','warn',3500);
       }
     }catch(e){
-      push('aw','⚠️ Could not reach device at '+ip+'. Credentials saved locally.');
-      showToast('Saved locally — device unreachable','warn',3000);
+      showToast('⚠️ Device unreachable — credentials saved locally','warn',3000);
     }
   } else {
-    push('ai','ℹ️ Telegram credentials saved. Enter device IP in WiFi settings to push to device.');
-    showToast('Saved — add device IP to push to device','info',3500);
+    showToast('✅ Telegram saved — add device IP to push to device','info',3500);
   }
 }
 
@@ -2462,10 +2679,9 @@ async function testTelegram(){
     const d=await r.json();
     if(d.ok){
       showToast('✅ Test message sent! Check Telegram.','ok',4000);
-      push('ai','✅ Telegram test message delivered successfully.');
     } else {
       showToast('Telegram error: '+d.description,'danger',5000);
-      push('aw','⚠️ Telegram: '+d.description);
+      showToast('⚠️ Telegram error: '+d.description,'warn',5000);
     }
   }catch(e){
     showToast('Could not reach Telegram API','danger',4000);
@@ -2500,28 +2716,66 @@ async function saveCalib(){
   saveCfg({emptyDist:empty,fullDist:full,volume,tankName:name});
   S.total=parseFloat(volume)||1000;
   document.getElementById('tankNameLbl').textContent=name.toUpperCase();
-  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});push('ai','✅ Calibration saved.');}catch{push('aw','⚠️ Calibration saved locally.');}}
+  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});showToast('✅ Calibration saved to device','ok',3000);}catch{showToast('⚠️ Device unreachable — saved locally','warn',3000);}}
 }
 async function captureEmpty(){
-  if(!cfg.ip){push('aw','⚠️ Enter device IP first.');return;}
+  if(!cfg.ip){showToast('⚠️ Enter device IP first','warn',3000);return;}
   try{const r=await fetch(`http://${cfg.ip}/capture-empty`);const d=await r.json();
-    if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);push('ai','📷 Empty captured: '+d.empty.toFixed(1)+' cm');}
-    else push('aw','⚠️ '+(d.msg||'Sensor error'));
-  }catch{push('aw','⚠️ Could not reach device at '+cfg.ip);}
+    if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);showToast('📷 Empty captured: '+d.empty.toFixed(1)+' cm','ok',3000);}
+    else showToast('⚠️ '+(d.msg||'Sensor error'),'warn',3000);
+  }catch{showToast('⚠️ Could not reach device at '+cfg.ip,'warn',3000);}
 }
 async function saveSheets(){
   const ip=cfg.ip,deploymentid=g('c-shid'),sheetname=g('c-shname'),enabled=document.getElementById('c-shenable').checked;
   saveCfg({sheetsId:deploymentid,sheetsName:sheetname});
-  if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});push('ai','✅ Sheets saved.');}catch{push('aw','⚠️ Saved locally.');}}
+  if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});showToast('✅ Sheets saved to device','ok',3000);}catch{showToast('⚠️ Device unreachable — saved locally','warn',3000);}}
 }
 function saveMQTT(){
   const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8084,mquser=g('c-mquser'),mqpass=g('c-mqpass');
   const topic=g('c-mqtopic')||'tasni-water/+/state';
   const host2=g('c-mqb2'),port2=parseInt(g('c-mqp2'))||8084,mquser2=g('c-mquser2'),mqpass2=g('c-mqpass2');
+  if(!host&&!host2){showToast('Enter at least one broker host','warn');return;}
+  // Save all credentials to localStorage immediately
   saveCfg({broker:host,port,mquser,mqpass,topic,broker2:host2,port2,mquser2,mqpass2});
-  if(host){_silent=false;_connectMQTT({host,port,user:mquser,pass:mqpass,topic});}
-  if(host2){_silent2=false;_connectMQTT2({host:host2,port:port2,user:mquser2,pass:mqpass2,topic});}
-  if(!host&&!host2)showToast('Enter at least one broker host','warn');
+  showToast('Connecting to broker…','info',1500);
+  // Connect with validation callbacks
+  if(host){
+    _silent=false;
+    _connectMQTTWithValidation({host,port,user:mquser,pass:mqpass,topic},1);
+  }
+  if(host2){
+    _silent2=false;
+    _connectMQTTWithValidation({host:host2,port:port2,user:mquser2,pass:mqpass2,topic},2);
+  }
+}
+
+// Connect MQTT and detect authentication failure (wrong password/username)
+function _connectMQTTWithValidation(mc, brokerNum){
+  // Use existing connect function — attach a one-time error handler for auth errors
+  if(brokerNum===1) _connectMQTT(mc);
+  else _connectMQTT2(mc);
+
+  // Monitor for CONNACK auth errors (code 4 = bad credentials, code 5 = not authorized)
+  const client = brokerNum===1 ? mqttPrimary : mqttBackup;
+  if(!client) return;
+  // MQTT.js fires 'error' with code info for auth failures
+  const _authErrHandler = (err) => {
+    const msg = (err.message||'').toLowerCase();
+    const isAuth = err.code===4||err.code===5||msg.includes('not authorized')||msg.includes('bad user')||msg.includes('auth')||msg.includes('connect error');
+    if(isAuth){
+      _showCredentialError(
+        `MQTT Broker ${brokerNum===1?'Primary':'Backup'} Password`,
+        `Authentication failed for broker "${mc.host}". The username or password was rejected. Please verify your MQTT credentials and try again.`
+      );
+      // Revert this broker's credentials so they don't persist as bad creds
+      if(brokerNum===1) saveCfg({mquser:'',mqpass:''});
+      else saveCfg({mquser2:'',mqpass2:''});
+    }
+  };
+  setTimeout(()=>{
+    const c=brokerNum===1?mqttPrimary:mqttBackup;
+    if(c) c.once('error',_authErrHandler);
+  },200); // small delay so the client object is set
 }
 function disconnMQTT(){
   if(mqttPrimary){try{mqttPrimary.end(true);}catch(_){}mqttPrimary=null;}
@@ -2531,7 +2785,7 @@ function disconnMQTT(){
   clearTimeout(_wdTimer);clearTimeout(_wdTimer2);
   _primaryOk=false;_backupOk=false;
   _updateBrokerPills();
-  push('ai','ℹ️ MQTT disconnected (both brokers).');
+  showToast('MQTT disconnected','info',2000);
 }
 function resetApp(){if(!confirm('Clear all local data?'))return;localStorage.clear();alerts=[];renderAlertLog();location.reload();}
 
@@ -2548,6 +2802,7 @@ function goTab(name,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
+  if(name==='analytics'){unlockAch(1);}
   if(name==='tips'){unlockAch(5);renderTips();}
   if(name==='settings'){unlockAch(4);_updateTgStatus();_renderTgCmds();}
 }
