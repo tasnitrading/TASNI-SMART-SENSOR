@@ -720,6 +720,115 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="sec-hd" style="margin-top:18px">ACHIEVEMENTS</div>
     <div class="ach-grid" id="achGrid"></div>
   </div>
+
+  <!-- ANALYTICS -->
+  <div class="tab" id="tab-analytics">
+    <!-- Header row -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div style="font-family:var(--head);font-size:12px;font-weight:900;color:var(--pri);letter-spacing:2px">ANALYTICS</div>
+        <div id="an-sync-lbl" style="font-size:10px;color:var(--muted);margin-top:2px;font-family:var(--mono)">Waiting for data…</div>
+      </div>
+      <button class="btn btn-o btn-sm" onclick="exportAnalyticsCSV()" style="font-size:10px;padding:6px 12px;letter-spacing:1px">
+        📥 EXPORT CSV
+      </button>
+    </div>
+
+    <!-- Live Level Sparkline -->
+    <div class="card" style="padding:12px 14px">
+      <div class="card-title" style="margin-bottom:8px">📈 LEVEL HISTORY (LIVE)</div>
+      <canvas id="an-chart-level" height="80" style="width:100%;display:block;border-radius:4px"></canvas>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <span style="font-size:9px;font-family:var(--mono);color:var(--muted)" id="an-ch-min">MIN: --</span>
+        <span style="font-size:9px;font-family:var(--mono);color:var(--muted)" id="an-ch-avg">AVG: --</span>
+        <span style="font-size:9px;font-family:var(--mono);color:var(--muted)" id="an-ch-max">MAX: --</span>
+      </div>
+    </div>
+
+    <!-- Period usage bar chart -->
+    <div class="card" style="padding:12px 14px">
+      <div class="card-title" style="margin-bottom:10px">🕐 USAGE BY TIME OF DAY</div>
+      <canvas id="an-chart-period" height="90" style="width:100%;display:block"></canvas>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:10px" id="an-period-vals"></div>
+    </div>
+
+    <!-- Health + Night Leak + Stats row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="card" style="padding:12px;text-align:center;margin-bottom:0">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);font-family:var(--head);margin-bottom:8px">PIPE HEALTH</div>
+        <div id="an-health-ring" style="position:relative;width:64px;height:64px;margin:0 auto 6px">
+          <canvas id="an-chart-health" width="64" height="64"></canvas>
+          <div id="an-health-num" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:16px;font-weight:700;color:var(--ok)">--</div>
+        </div>
+        <div id="an-health-lbl" style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--ok);font-family:var(--head)">GOOD</div>
+      </div>
+      <div class="card" style="padding:12px;margin-bottom:0">
+        <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);font-family:var(--head);margin-bottom:8px">SESSION STATS</div>
+        <div id="an-session-stats" style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--muted)">Samples</span><span id="an-s-samples" style="font-size:10px;font-family:var(--mono);color:var(--text)">--</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--muted)">Total Used</span><span id="an-s-used" style="font-size:10px;font-family:var(--mono);color:var(--pri)">-- L</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--muted)">Day Avg</span><span id="an-s-dayavg" style="font-size:10px;font-family:var(--mono);color:var(--text)">--%</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--muted)">Night Avg</span><span id="an-s-ngtavg" style="font-size:10px;font-family:var(--mono);color:var(--purple)">--%</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--muted)">Full Refills</span><span id="an-s-refills" style="font-size:10px;font-family:var(--mono);color:var(--ok)">--</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Night Leak card -->
+    <div class="card" id="an-nightleak-card" style="padding:12px 14px;margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:8px">🌙 NIGHT LEAK MONITOR (10 PM–6 AM)</div>
+      <div id="an-nightleak-body">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div id="an-nl-bar-wrap" style="height:8px;background:rgba(45,212,191,.1);border-radius:4px;overflow:hidden">
+              <div id="an-nl-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--ok),var(--warn));border-radius:4px;transition:width .8s ease"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:5px">
+              <span style="font-size:10px;font-family:var(--mono);color:var(--muted)">0 L</span>
+              <span id="an-nl-val" style="font-size:10px;font-family:var(--mono);color:var(--warn)">0 L lost</span>
+              <span id="an-nl-thresh" style="font-size:10px;font-family:var(--mono);color:var(--muted)">/ 20 L threshold</span>
+            </div>
+          </div>
+          <div id="an-nl-status" style="font-size:20px">✅</div>
+        </div>
+        <div id="an-nl-msg" style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5">No overnight leakage detected this session.</div>
+      </div>
+    </div>
+
+    <!-- Sudden Drops log -->
+    <div class="card" style="padding:12px 14px;margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+        ⚡ SUDDEN DROPS (≥5%)<span id="an-drops-badge" style="font-size:10px;font-family:var(--mono);color:var(--warn)">--</span>
+      </div>
+      <div id="an-drops-log" style="max-height:140px;overflow-y:auto">
+        <div style="text-align:center;padding:18px;color:var(--muted);font-size:11px;font-family:var(--head);letter-spacing:1px">NO SUDDEN DROPS DETECTED</div>
+      </div>
+    </div>
+
+    <!-- Full refill events -->
+    <div class="card" style="padding:12px 14px;margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:8px">💧 FULL TANK EVENTS</div>
+      <div id="an-refill-log" style="max-height:120px;overflow-y:auto">
+        <div style="text-align:center;padding:18px;color:var(--muted);font-size:11px;font-family:var(--head);letter-spacing:1px">NO REFILL EVENTS YET</div>
+      </div>
+    </div>
+
+    <!-- Usage events log -->
+    <div class="card" style="padding:12px 14px;margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+        📋 USAGE EVENT LOG<span style="font-size:10px;font-family:var(--mono);color:var(--muted)" id="an-events-count">0 events</span>
+      </div>
+      <div id="an-events-log" style="max-height:180px;overflow-y:auto">
+        <div style="text-align:center;padding:18px;color:var(--muted);font-size:11px;font-family:var(--head);letter-spacing:1px">NO USAGE EVENTS YET</div>
+      </div>
+    </div>
+
+    <!-- Stored data badge -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;padding:8px;background:rgba(45,212,191,.04);border:1px solid var(--border);border-radius:8px">
+      <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">💾 DATA PERSISTED IN DEVICE STORAGE</span>
+      <span id="an-idb-badge" style="font-size:10px;font-family:var(--mono);color:var(--pri)">--</span>
+    </div>
+  </div>
 </main>
 
 <nav>
@@ -732,6 +841,10 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
     <div class="nb-badge hidden" id="alertBadge">0</div>
     <span class="nb-lbl">Alerts</span>
+  </button>
+  <button class="nb" id="nb-analytics" onclick="goTab('analytics',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span class="nb-lbl">Analyse</span>
   </button>
   <button class="nb" id="nb-settings" onclick="goTab('settings',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -1529,6 +1642,13 @@ function ingest(d,fromMQTT=false){
 
   checkAlerts(prev,S.m,S.isFull);
   renderDash();_renderDashInsights();
+  // ── Analytics: live update if tab open + always persist to IDB ──
+  if(_displayReady&&!demoMode){
+    _persistAnalyticsToIDB();
+    if(document.getElementById('tab-analytics')?.classList.contains('active')){
+      renderAnalyticsFull();
+    }
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -2805,11 +2925,491 @@ function goTab(name,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
-  if(name==='analytics'){unlockAch(1);}
+  if(name==='analytics'){unlockAch(1);renderAnalyticsFull();}
   if(name==='tips'){unlockAch(5);renderTips();}
   if(name==='settings'){unlockAch(4);_updateTgStatus();_renderTgCmds();}
 }
 function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ANALYTICS ENGINE — Full render, IDB persistence, CSV export
+// ═══════════════════════════════════════════════════════════════════
+
+// ── IDB persistence helpers (analytics namespace) ──
+const AN_DB='tasni_analytics_v1';
+function _anOpenDb(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(AN_DB,1);
+    r.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('session')) db.createObjectStore('session');
+    };
+    r.onsuccess=e=>res(e.target.result);
+    r.onerror=e=>rej(e.target.error);
+  });
+}
+async function _anSet(key,val){
+  try{
+    const db=await _anOpenDb();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction('session','readwrite');
+      tx.objectStore('session').put(val,key);
+      tx.oncomplete=()=>res();
+      tx.onerror=e=>rej(e.target.error);
+    });
+  }catch(e){console.warn('[TASNI AN] IDB set error:',e);}
+}
+async function _anGet(key){
+  try{
+    const db=await _anOpenDb();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction('session','readonly');
+      const req=tx.objectStore('session').get(key);
+      req.onsuccess=e=>res(e.target.result??null);
+      req.onerror=e=>rej(e.target.error);
+    });
+  }catch(e){return null;}
+}
+
+// ── Persist current analyticsSession to IDB ──
+let _anPersistTimer=null;
+function _persistAnalyticsToIDB(){
+  // Debounce — at most once every 5s
+  clearTimeout(_anPersistTimer);
+  _anPersistTimer=setTimeout(async()=>{
+    try{
+      const snap={
+        events:analyticsSession.events.slice(-200),
+        periodTotals:{...analyticsSession.periodTotals},
+        totalUsedL:analyticsSession.totalUsedL,
+        readings:analyticsSession.readings.slice(-500),
+        fullTankEvents:analyticsSession.fullTankEvents.slice(-50),
+        nightLeakDetected:analyticsSession.nightLeakDetected,
+        nightLeakLiters:analyticsSession.nightLeakLiters,
+        dayReadings:analyticsSession.dayReadings.slice(-500),
+        nightReadingsPct:analyticsSession.nightReadingsPct.slice(-500),
+        suddenDrops:analyticsSession.suddenDrops.slice(-30),
+        healthScore:analyticsSession.healthScore,
+        healthLabel:analyticsSession.healthLabel,
+        sessionStart:analyticsSession.sessionStart,
+        confirmedSamples:analyticsSession.confirmedSamples,
+        savedAt:Date.now()
+      };
+      await _anSet('session_snap',snap);
+      const el=document.getElementById('an-idb-badge');
+      if(el){
+        const kb=Math.round(JSON.stringify(snap).length/1024);
+        el.textContent=`${snap.confirmedSamples} samples · ~${kb} KB`;
+      }
+    }catch(e){console.warn('[TASNI AN] persist error:',e);}
+  },5000);
+}
+
+// ── Restore from IDB on startup ──
+async function _restoreAnalyticsFromIDB(){
+  try{
+    const snap=await _anGet('session_snap');
+    if(!snap)return;
+    // Only restore if saved within last 24h AND same session date
+    if(Date.now()-snap.savedAt>86400000)return;
+    // Merge into analyticsSession (non-destructive)
+    if(snap.events?.length) analyticsSession.events=snap.events;
+    if(snap.periodTotals) Object.assign(analyticsSession.periodTotals,snap.periodTotals);
+    if(snap.totalUsedL) analyticsSession.totalUsedL=snap.totalUsedL;
+    if(snap.readings?.length) analyticsSession.readings=snap.readings;
+    if(snap.fullTankEvents?.length) analyticsSession.fullTankEvents=snap.fullTankEvents;
+    if(snap.nightLeakDetected!=null) analyticsSession.nightLeakDetected=snap.nightLeakDetected;
+    if(snap.nightLeakLiters!=null) analyticsSession.nightLeakLiters=snap.nightLeakLiters;
+    if(snap.dayReadings?.length) analyticsSession.dayReadings=snap.dayReadings;
+    if(snap.nightReadingsPct?.length) analyticsSession.nightReadingsPct=snap.nightReadingsPct;
+    if(snap.suddenDrops?.length) analyticsSession.suddenDrops=snap.suddenDrops;
+    if(snap.healthScore!=null) analyticsSession.healthScore=snap.healthScore;
+    if(snap.healthLabel) analyticsSession.healthLabel=snap.healthLabel;
+    if(snap.confirmedSamples) analyticsSession.confirmedSamples=snap.confirmedSamples;
+    console.log('[TASNI AN] Restored from IDB:',snap.confirmedSamples,'samples');
+  }catch(e){console.warn('[TASNI AN] restore error:',e);}
+}
+
+// Run restore on load
+_restoreAnalyticsFromIDB();
+
+// ── Canvas drawing helpers ──
+function _anCtx(id){
+  const c=document.getElementById(id);
+  if(!c)return null;
+  c.width=c.offsetWidth*window.devicePixelRatio||c.offsetWidth;
+  return {c,ctx:c.getContext('2d'),w:c.width,h:c.height};
+}
+
+function _drawSparkline(canvasId,data,opts={}){
+  const el=document.getElementById(canvasId);
+  if(!el||!data.length)return;
+  const dpr=window.devicePixelRatio||1;
+  el.width=el.offsetWidth*dpr;
+  el.height=el.offsetHeight*dpr;
+  const ctx=el.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W=el.offsetWidth,H=el.offsetHeight;
+  const pad={t:6,b:18,l:4,r:4};
+  const cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
+  const min=opts.min??Math.max(0,Math.min(...data)-5);
+  const max=opts.max??Math.min(100,Math.max(...data)+5);
+  const range=max-min||1;
+  const xStep=cW/(data.length-1||1);
+  const toY=v=>pad.t+cH*(1-(v-min)/range);
+
+  // Grid lines
+  ctx.strokeStyle='rgba(45,212,191,0.07)';ctx.lineWidth=1;
+  [25,50,75].forEach(pct=>{
+    const y=pad.t+cH*(1-(pct-min)/range);
+    if(y>=pad.t&&y<=pad.t+cH){
+      ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
+    }
+  });
+
+  // Fill gradient
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+cH);
+  grad.addColorStop(0,'rgba(45,212,191,0.25)');
+  grad.addColorStop(1,'rgba(45,212,191,0.01)');
+  ctx.beginPath();
+  data.forEach((v,i)=>{
+    const x=pad.l+i*xStep,y=toY(v);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.lineTo(pad.l+(data.length-1)*xStep,pad.t+cH);
+  ctx.lineTo(pad.l,pad.t+cH);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+
+  // Line
+  ctx.beginPath();ctx.strokeStyle='rgba(45,212,191,0.9)';ctx.lineWidth=1.5;ctx.lineJoin='round';
+  data.forEach((v,i)=>{
+    const x=pad.l+i*xStep,y=toY(v);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // Last point dot
+  if(data.length>0){
+    const lx=pad.l+(data.length-1)*xStep,ly=toY(data[data.length-1]);
+    ctx.beginPath();ctx.arc(lx,ly,3,0,Math.PI*2);
+    ctx.fillStyle='#2DD4BF';ctx.fill();
+  }
+
+  // Time labels
+  if(data.length>=2){
+    ctx.fillStyle='rgba(180,220,255,0.35)';ctx.font=`${9*dpr/dpr}px monospace`;ctx.textAlign='left';
+    ctx.fillText('oldest',pad.l,H-3);
+    ctx.textAlign='right';
+    ctx.fillText('now',W-pad.r,H-3);
+  }
+}
+
+function _drawPeriodBars(canvasId,totals){
+  const el=document.getElementById(canvasId);
+  if(!el)return;
+  const dpr=window.devicePixelRatio||1;
+  el.width=el.offsetWidth*dpr;
+  el.height=el.offsetHeight*dpr;
+  const ctx=el.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W=el.offsetWidth,H=el.offsetHeight;
+  const periods=[
+    {key:'morn',label:'MORNING',col:'rgba(251,191,36,0.85)'},
+    {key:'aft', label:'AFTERNOON',col:'rgba(45,212,191,0.85)'},
+    {key:'eve', label:'EVENING',col:'rgba(124,58,237,0.85)'},
+    {key:'ngt', label:'NIGHT',col:'rgba(99,102,241,0.7)'}
+  ];
+  const vals=periods.map(p=>totals[p.key]||0);
+  const maxV=Math.max(...vals,0.1);
+  const barW=Math.floor(W/periods.length)-8;
+  const padB=24,padT=6;
+  const barH=H-padB-padT;
+
+  periods.forEach((p,i)=>{
+    const x=i*(W/periods.length)+4;
+    const frac=vals[i]/maxV;
+    const bH=Math.max(2,frac*barH);
+    const y=padT+barH-bH;
+
+    // bar shadow
+    ctx.fillStyle='rgba(0,0,0,0.3)';
+    ctx.fillRect(x+2,y+2,barW,bH);
+
+    // bar
+    const grad=ctx.createLinearGradient(0,y,0,y+bH);
+    grad.addColorStop(0,p.col);
+    grad.addColorStop(1,p.col.replace('0.85','0.4').replace('0.7','0.3'));
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.roundRect?ctx.roundRect(x,y,barW,bH,3):ctx.rect(x,y,barW,bH);
+    ctx.fill();
+
+    // label
+    ctx.fillStyle='rgba(180,220,255,0.45)';
+    ctx.font=`${8}px monospace`;
+    ctx.textAlign='center';
+    ctx.fillText(p.label.slice(0,3),x+barW/2,H-6);
+  });
+}
+
+function _drawHealthRing(canvasId,score){
+  const el=document.getElementById(canvasId);
+  if(!el)return;
+  const dpr=window.devicePixelRatio||1;
+  el.width=64*dpr;el.height=64*dpr;
+  const ctx=el.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const cx=32,cy=32,r=26,lw=6;
+  const col=score>=80?'#34d399':score>=50?'#fbbf24':'#f87171';
+  // bg track
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.strokeStyle='rgba(45,212,191,0.1)';ctx.lineWidth=lw;ctx.stroke();
+  // filled arc
+  const start=-Math.PI/2;
+  const end=start+(score/100)*Math.PI*2;
+  ctx.beginPath();ctx.arc(cx,cy,r,start,end);
+  ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.lineCap='round';ctx.stroke();
+}
+
+// ── Main analytics render ──
+let _anRenderDebounce=null;
+function renderAnalyticsFull(){
+  // Debounce rapid calls (e.g. from every ingest)
+  clearTimeout(_anRenderDebounce);
+  _anRenderDebounce=setTimeout(_doRenderAnalytics,80);
+}
+
+function _doRenderAnalytics(){
+  const as=analyticsSession;
+  const hasData=as.confirmedSamples>0||as.readings.length>0;
+
+  // Sync label
+  const syncLbl=document.getElementById('an-sync-lbl');
+  if(syncLbl){
+    if(!_displayReady){syncLbl.textContent='Waiting for device…';}
+    else if(demoMode){syncLbl.textContent='Demo mode — analytics disabled';}
+    else{
+      const n=new Date();
+      syncLbl.textContent=`Last updated: ${n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})} · ${as.confirmedSamples} readings`;
+    }
+  }
+
+  if(demoMode||!hasData){return;}
+
+  // ── Level history chart ──
+  const lvlData=as.readings.map(r=>r.m);
+  if(lvlData.length>1){
+    _drawSparkline('an-chart-level',lvlData,{min:0,max:100});
+    const mn=Math.min(...lvlData),mx=Math.max(...lvlData),avg=Math.round(lvlData.reduce((a,b)=>a+b,0)/lvlData.length);
+    const e=id=>document.getElementById(id);
+    if(e('an-ch-min'))e('an-ch-min').textContent=`MIN: ${mn}%`;
+    if(e('an-ch-avg'))e('an-ch-avg').textContent=`AVG: ${avg}%`;
+    if(e('an-ch-max'))e('an-ch-max').textContent=`MAX: ${mx}%`;
+  }
+
+  // ── Period bars ──
+  _drawPeriodBars('an-chart-period',as.periodTotals);
+  const pvEl=document.getElementById('an-period-vals');
+  if(pvEl){
+    const cols={'morn':'rgba(251,191,36,.9)','aft':'rgba(45,212,191,.9)','eve':'rgba(124,58,237,.9)','ngt':'rgba(99,102,241,.8)'};
+    const lbls={'morn':'MORN','aft':'AFT','eve':'EVE','ngt':'NIGHT'};
+    pvEl.innerHTML=Object.entries(as.periodTotals).map(([k,v])=>
+      `<div style="text-align:center">
+        <div style="font-size:11px;font-family:var(--mono);color:${cols[k]};font-weight:700">${v.toFixed(1)}</div>
+        <div style="font-size:8px;color:var(--muted);letter-spacing:1px;font-family:var(--head)">${lbls[k]}<br>L</div>
+      </div>`
+    ).join('');
+  }
+
+  // ── Health ring ──
+  _drawHealthRing('an-chart-health',as.healthScore);
+  const hn=document.getElementById('an-health-num');
+  const hl=document.getElementById('an-health-lbl');
+  const hcol=as.healthScore>=80?'#34d399':as.healthScore>=50?'#fbbf24':'#f87171';
+  if(hn){hn.textContent=as.healthScore;hn.style.color=hcol;}
+  if(hl){hl.textContent=as.healthLabel;hl.style.color=hcol;}
+
+  // ── Session stats ──
+  const dayAvg=as.dayReadings.length?Math.round(as.dayReadings.reduce((a,b)=>a+b,0)/as.dayReadings.length):null;
+  const ngtAvg=as.nightReadingsPct.length?Math.round(as.nightReadingsPct.reduce((a,b)=>a+b,0)/as.nightReadingsPct.length):null;
+  const e=id=>document.getElementById(id);
+  if(e('an-s-samples'))e('an-s-samples').textContent=as.confirmedSamples;
+  if(e('an-s-used'))e('an-s-used').textContent=as.totalUsedL.toFixed(1)+' L';
+  if(e('an-s-dayavg'))e('an-s-dayavg').textContent=dayAvg!=null?dayAvg+'%':'--';
+  if(e('an-s-ngtavg'))e('an-s-ngtavg').textContent=ngtAvg!=null?ngtAvg+'%':'--';
+  if(e('an-s-refills'))e('an-s-refills').textContent=as.fullTankEvents.length;
+
+  // ── Night leak card ──
+  const threshold=parseFloat(cfg.nightLeakThreshold)||20;
+  const nlPct=Math.min(100,(as.nightLeakLiters/threshold)*100);
+  const nlBar=document.getElementById('an-nl-bar');
+  const nlVal=document.getElementById('an-nl-val');
+  const nlStatus=document.getElementById('an-nl-status');
+  const nlMsg=document.getElementById('an-nl-msg');
+  const nlThresh=document.getElementById('an-nl-thresh');
+  if(nlBar)nlBar.style.width=nlPct+'%';
+  if(nlBar)nlBar.style.background=as.nightLeakDetected?'linear-gradient(90deg,#fbbf24,#f87171)':'linear-gradient(90deg,var(--ok),var(--warn))';
+  if(nlVal)nlVal.textContent=as.nightLeakLiters.toFixed(1)+' L lost';
+  if(nlThresh)nlThresh.textContent=`/ ${threshold} L threshold`;
+  if(nlStatus)nlStatus.textContent=as.nightLeakDetected?'🚨':as.nightLeakLiters>0?'⚠️':'✅';
+  if(nlMsg){
+    if(as.nightLeakDetected){
+      nlMsg.style.color='rgba(248,113,113,0.9)';
+      nlMsg.textContent=`🚨 ${as.nightLeakLiters.toFixed(0)} L lost overnight — possible pipe leak. Check valves immediately.`;
+    } else if(as.nightLeakLiters>0){
+      nlMsg.style.color='rgba(251,191,36,0.8)';
+      nlMsg.textContent=`⚠️ ${as.nightLeakLiters.toFixed(1)} L lost during night hours so far.`;
+    } else {
+      nlMsg.style.color='var(--muted)';
+      nlMsg.textContent='No overnight leakage detected this session.';
+    }
+  }
+
+  // ── Sudden drops log ──
+  const dbEl=document.getElementById('an-drops-badge');
+  if(dbEl)dbEl.textContent=as.suddenDrops.length?`${as.suddenDrops.length} events`:'none';
+  const dlEl=document.getElementById('an-drops-log');
+  if(dlEl){
+    if(!as.suddenDrops.length){
+      dlEl.innerHTML='<div style="text-align:center;padding:18px;color:var(--muted);font-size:11px;font-family:var(--head);letter-spacing:1px">NO SUDDEN DROPS DETECTED</div>';
+    } else {
+      dlEl.innerHTML=[...as.suddenDrops].reverse().slice(0,15).map(d=>
+        `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:6px;margin-bottom:4px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15)">
+          <span style="font-size:10px;font-family:var(--mono);color:rgba(251,191,36,.8)">${d.time}</span>
+          <span style="font-size:11px;font-family:var(--mono);color:var(--text)">${d.fromPct}% → ${d.toPct}%</span>
+          <span style="font-size:10px;font-family:var(--mono);color:var(--danger)">-${d.dropL} L</span>
+        </div>`
+      ).join('');
+    }
+  }
+
+  // ── Full tank events ──
+  const reEl=document.getElementById('an-refill-log');
+  if(reEl){
+    if(!as.fullTankEvents.length){
+      reEl.innerHTML='<div style="text-align:center;padding:18px;color:var(--muted);font-size:11px;font-family:var(--head);letter-spacing:1px">NO REFILL EVENTS YET</div>';
+    } else {
+      reEl.innerHTML=[...as.fullTankEvents].reverse().slice(0,10).map(f=>
+        `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:6px;margin-bottom:4px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.15)">
+          <span style="font-size:10px;font-family:var(--mono);color:var(--muted)">${f.time}</span>
+          <span style="font-size:11px;font-family:var(--mono);color:var(--ok)">${f.pct}% · ${f.vol} L</span>
+        </div>`
+      ).join('');
+    }
+  }
+
+  // ── Usage events log ──
+  const evEl=document.getElementById('an-events-log');
+  const evCnt=document.getElementById('an-events-count');
+  if(evCnt)evCnt.textContent=`${as.events.length} events`;
+  if(evEl){
+    if(!as.events.length){
+      evEl.innerHTML='<div style="text-align:center;padding:18px;color:var(--muted);font-size:11px;font-family:var(--head);letter-spacing:1px">NO USAGE EVENTS YET</div>';
+    } else {
+      const periodIcons={'morn':'🌅','aft':'☀️','eve':'🌇','ngt':'🌙'};
+      evEl.innerHTML=[...as.events].reverse().slice(0,25).map(ev=>
+        `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;margin-bottom:3px;background:rgba(45,212,191,0.04);border:1px solid rgba(45,212,191,0.08)">
+          <span style="font-size:13px">${periodIcons[ev.period]||'💧'}</span>
+          <span style="font-size:9px;font-family:var(--mono);color:var(--muted);white-space:nowrap">${ev.time}</span>
+          <span style="font-size:11px;font-family:var(--mono);color:var(--text);flex:1">${ev.fromPct}%→${ev.toPct}%</span>
+          <span style="font-size:11px;font-family:var(--mono);color:var(--pri)">-${ev.dropL} L</span>
+        </div>`
+      ).join('');
+    }
+  }
+
+  // ── IDB badge ──
+  const idbBadge=document.getElementById('an-idb-badge');
+  if(idbBadge&&as.confirmedSamples){
+    idbBadge.textContent=`${as.confirmedSamples} readings stored`;
+  }
+}
+
+// ── Export CSV — PWA-safe via Blob download ──
+function exportAnalyticsCSV(){
+  if(demoMode){showToast('CSV export not available in demo mode','warn',3000);return;}
+  const as=analyticsSession;
+  if(!as.readings.length&&!as.events.length){
+    showToast('No data to export yet — wait for real readings','warn',3000);
+    return;
+  }
+
+  const rows=[];
+  const esc=v=>JSON.stringify(v??'').replace(/^"|"$/g,'');
+
+  // ── Sheet 1: Level Readings ──
+  rows.push('=== LEVEL READINGS ===');
+  rows.push('Timestamp,Level(%),Usage Rate(L/hr)');
+  as.readings.forEach(r=>{
+    const d=new Date(r.t);
+    rows.push(`${d.toLocaleString()},${r.m},${r.usage??''}`);
+  });
+
+  rows.push('');
+
+  // ── Sheet 2: Usage Events ──
+  rows.push('=== USAGE EVENTS ===');
+  rows.push('Time,From(%),To(%),Dropped(L),Period');
+  as.events.forEach(ev=>{
+    rows.push(`${esc(ev.time)},${ev.fromPct},${ev.toPct},${ev.dropL},${ev.period}`);
+  });
+
+  rows.push('');
+
+  // ── Sheet 3: Sudden Drops ──
+  rows.push('=== SUDDEN DROPS ===');
+  rows.push('Time,From(%),To(%),Dropped(L)');
+  as.suddenDrops.forEach(d=>{
+    rows.push(`${esc(d.time)},${d.fromPct},${d.toPct},${d.dropL}`);
+  });
+
+  rows.push('');
+
+  // ── Sheet 4: Full Tank Events ──
+  rows.push('=== FULL TANK EVENTS ===');
+  rows.push('Time,Level(%),Volume(L)');
+  as.fullTankEvents.forEach(f=>{
+    rows.push(`${esc(f.time)},${f.pct},${f.vol}`);
+  });
+
+  rows.push('');
+
+  // ── Sheet 5: Session Summary ──
+  rows.push('=== SESSION SUMMARY ===');
+  rows.push('Metric,Value');
+  rows.push(`Session Start,${esc(as.sessionStart)}`);
+  rows.push(`Total Confirmed Samples,${as.confirmedSamples}`);
+  rows.push(`Total Water Used (L),${as.totalUsedL.toFixed(2)}`);
+  rows.push(`Morning Usage (L),${as.periodTotals.morn.toFixed(2)}`);
+  rows.push(`Afternoon Usage (L),${as.periodTotals.aft.toFixed(2)}`);
+  rows.push(`Evening Usage (L),${as.periodTotals.eve.toFixed(2)}`);
+  rows.push(`Night Usage (L),${as.periodTotals.ngt.toFixed(2)}`);
+  const dayAvg=as.dayReadings.length?Math.round(as.dayReadings.reduce((a,b)=>a+b,0)/as.dayReadings.length):null;
+  const ngtAvg=as.nightReadingsPct.length?Math.round(as.nightReadingsPct.reduce((a,b)=>a+b,0)/as.nightReadingsPct.length):null;
+  rows.push(`Day Average Level (%),${dayAvg??'N/A'}`);
+  rows.push(`Night Average Level (%),${ngtAvg??'N/A'}`);
+  rows.push(`Night Leak Detected,${as.nightLeakDetected}`);
+  rows.push(`Night Leak Total (L),${as.nightLeakLiters.toFixed(2)}`);
+  rows.push(`Sudden Drops (events),${as.suddenDrops.length}`);
+  rows.push(`Full Tank Events,${as.fullTankEvents.length}`);
+  rows.push(`Pipe Health Score,${as.healthScore}`);
+  rows.push(`Pipe Health Label,${as.healthLabel}`);
+  rows.push(`Tank Name,${esc(S.name||cfg.tankName||'TASNI')}`);
+  rows.push(`Export Generated,${new Date().toLocaleString()}`);
+
+  const csv=rows.join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const ts=new Date().toISOString().slice(0,16).replace('T','_').replace(':','-');
+  const fname=`TASNI_analytics_${ts}.csv`;
+
+  // PWA-safe download via <a> click
+  const a=document.createElement('a');
+  a.href=url;a.download=fname;a.style.display='none';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},2000);
+  showToast(`📥 CSV exported: ${fname}`,'ok',4000);
+}
 </script>
 </body>
 </html>
