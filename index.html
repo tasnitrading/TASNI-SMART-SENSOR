@@ -721,110 +721,124 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="ach-grid" id="achGrid"></div>
   </div>
 
-  <!-- ═══════════════ ANALYTICS TAB ═══════════════ -->
+  <!-- ANALYTICS / REPORT TAB -->
   <div class="tab" id="tab-analytics">
 
-    <!-- Toolbar -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <!-- Action bar -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:0 2px">
       <div>
-        <div style="font-family:var(--head);font-size:11px;font-weight:900;letter-spacing:2.5px;color:var(--pri)">ANALYTICS</div>
-        <div id="an-sync-lbl" style="font-size:10px;color:var(--muted);margin-top:2px;font-family:var(--mono)">—</div>
+        <div style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--pri)">DEVICE ANALYTICS</div>
+        <div id="anly-sync-lbl" style="font-size:10px;color:var(--muted);margin-top:1px">Tap Sync to fetch from ESP32</div>
       </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-o btn-sm" onclick="_anRefresh()" style="font-size:10px;padding:6px 10px">⟳ REFRESH</button>
-        <button class="btn btn-p btn-sm" onclick="_anExportCSV()" style="font-size:10px;padding:6px 10px">↓ CSV</button>
-      </div>
-    </div>
-
-    <!-- No-device banner -->
-    <div id="an-no-ip" class="hidden" style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:12px;color:rgba(251,191,36,.85);line-height:1.6">
-      ⚠️ No device IP set — go to <b>Settings → WiFi</b> and enter your ESP32 IP to enable live analytics.
-    </div>
-
-    <!-- Offline banner -->
-    <div id="an-offline" class="hidden" style="background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.2);border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:12px;color:rgba(248,113,113,.85);line-height:1.6">
-      📡 Device unreachable — showing cached analytics data from last sync.
-    </div>
-
-    <!-- KPI strip (5 across) -->
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:10px">
-      <div class="card" style="padding:9px 6px;margin-bottom:0;text-align:center">
-        <div id="an-kpi-used" style="font-family:var(--mono);font-size:15px;color:var(--danger)">—</div>
-        <div style="font-size:7.5px;letter-spacing:1px;color:var(--muted);font-family:var(--head);margin-top:3px">USED<br>TODAY</div>
-      </div>
-      <div class="card" style="padding:9px 6px;margin-bottom:0;text-align:center">
-        <div id="an-kpi-added" style="font-family:var(--mono);font-size:15px;color:var(--ok)">—</div>
-        <div style="font-size:7.5px;letter-spacing:1px;color:var(--muted);font-family:var(--head);margin-top:3px">ADDED<br>TODAY</div>
-      </div>
-      <div class="card" style="padding:9px 6px;margin-bottom:0;text-align:center">
-        <div id="an-kpi-peak" style="font-family:var(--mono);font-size:15px;color:var(--pri)">—</div>
-        <div style="font-size:7.5px;letter-spacing:1px;color:var(--muted);font-family:var(--head);margin-top:3px">SESSION<br>PEAK</div>
-      </div>
-      <div class="card" style="padding:9px 6px;margin-bottom:0;text-align:center">
-        <div id="an-kpi-rate" style="font-family:var(--mono);font-size:15px;color:var(--warn)">—</div>
-        <div style="font-size:7.5px;letter-spacing:1px;color:var(--muted);font-family:var(--head);margin-top:3px">USAGE<br>L/HR</div>
-      </div>
-      <div class="card" style="padding:9px 6px;margin-bottom:0;text-align:center">
-        <div id="an-kpi-leak" style="font-family:var(--mono);font-size:13px;color:var(--ok)">—</div>
-        <div style="font-size:7.5px;letter-spacing:1px;color:var(--muted);font-family:var(--head);margin-top:3px">LEAK<br>CHECK</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-o btn-sm" id="anly-sync-btn" onclick="fetchAnalytics()">⟳ SYNC</button>
+        <button class="btn btn-p btn-sm" id="anly-csv-btn" onclick="downloadCSV()">⬇ CSV</button>
       </div>
     </div>
 
-    <!-- 24-hour level history -->
-    <div class="card" style="padding:12px 14px;margin-bottom:10px">
-      <div class="card-title" style="margin-bottom:3px">📊 TANK LEVEL — LAST 24 HOURS</div>
-      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">One bar per hour · grey = device was off · hover to see value</div>
-      <div id="an-hist-bars" style="display:flex;gap:2px;align-items:flex-end;height:84px;margin-bottom:4px"></div>
-      <div id="an-hist-axis" style="display:flex;gap:2px;font-size:8.5px;color:rgba(180,220,255,.3);font-family:var(--mono)"></div>
-    </div>
+    <!-- Source badge -->
+    <div id="anly-source" style="margin-bottom:10px;display:none"></div>
 
-    <!-- 7-day daily table -->
-    <div class="card" style="padding:12px 14px;margin-bottom:10px">
-      <div class="card-title" style="margin-bottom:3px">📅 7-DAY WATER SUMMARY</div>
-      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Daily consumed vs added · balance = added − used</div>
-      <div id="an-daily-tbl">
-        <div style="text-align:center;padding:18px;color:var(--muted);font-size:10px;font-family:var(--head);letter-spacing:1px">ACCUMULATES AFTER FIRST FULL DAY</div>
+    <!-- Leak warning -->
+    <div id="anly-leak" class="hidden card" style="background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.3);padding:12px 14px;margin-bottom:12px">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:20px">🚨</span>
+        <div>
+          <div style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--danger)">POSSIBLE LEAK DETECTED</div>
+          <div style="font-size:11px;color:rgba(248,113,113,.8);margin-top:3px;line-height:1.5">ESP32 detected &gt;5% level drop over 3 hours with no usage events. Check valves &amp; pipes immediately.</div>
+        </div>
       </div>
     </div>
 
-    <!-- Busiest hours (TOD profile) -->
-    <div class="card" style="padding:12px 14px;margin-bottom:10px">
-      <div class="card-title" style="margin-bottom:3px">🕐 BUSIEST HOURS OF THE DAY</div>
-      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">Average litres consumed per hour · ⭐ = top 3 peak hours</div>
-      <div id="an-tod-chart">
-        <div style="text-align:center;padding:16px;color:var(--muted);font-size:10px;font-family:var(--head);letter-spacing:1px">BUILDING PATTERN — CHECK BACK IN A FEW HOURS</div>
+    <!-- Summary cards 2×3 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="card" style="padding:12px;text-align:center">
+        <div style="font-family:var(--mono);font-size:22px;color:var(--danger)" id="anly-today-consumed">--</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">TODAY USED</div>
+        <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Litres</div>
+      </div>
+      <div class="card" style="padding:12px;text-align:center">
+        <div style="font-family:var(--mono);font-size:22px;color:var(--ok)" id="anly-today-filled">--</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">TODAY FILLED</div>
+        <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Litres</div>
+      </div>
+      <div class="card" style="padding:12px;text-align:center">
+        <div style="font-family:var(--mono);font-size:22px;color:var(--pri)" id="anly-session-peak">--</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">SESSION PEAK</div>
+        <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">% level</div>
+      </div>
+      <div class="card" style="padding:12px;text-align:center">
+        <div style="font-family:var(--mono);font-size:22px;color:var(--warn)" id="anly-session-min">--</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">SESSION MIN</div>
+        <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">% level</div>
+      </div>
+      <div class="card" style="padding:12px;text-align:center">
+        <div style="font-family:var(--mono);font-size:22px;color:var(--pri)" id="anly-sess-consumed">--</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">SESSION USED</div>
+        <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Litres this boot</div>
+      </div>
+      <div class="card" style="padding:12px;text-align:center">
+        <div style="font-family:var(--mono);font-size:19px;color:var(--ok);line-height:1.2" id="anly-last-refill">--</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">LAST REFILL</div>
+        <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Volume added</div>
       </div>
     </div>
 
-    <!-- Usage events log -->
-    <div class="card" style="padding:12px 14px;margin-bottom:10px">
-      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <span>📋 RECENT WATER ACTIVITY</span>
-        <span id="an-ev-count" style="font-size:10px;font-family:var(--mono);color:var(--muted)">—</span>
+    <!-- 24-Hour Level History chart -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px">24-HOUR LEVEL HISTORY</div>
+      <div id="anly-hist-chart" style="width:100%;height:100px;display:flex;align-items:flex-end;gap:2px">
+        <div style="color:var(--muted);font-size:10px;margin:auto;text-align:center;line-height:1.6">No data yet<br><span style="font-size:9px">Sync from device or wait for hourly readings</span></div>
       </div>
-      <div style="font-size:9px;color:var(--muted);margin-bottom:10px">5%+ changes stable for 3+ min · ⚡ = rapid change worth investigating</div>
-      <div id="an-ev-list">
-        <div style="text-align:center;padding:18px;color:var(--muted);font-size:10px;font-family:var(--head);letter-spacing:1px">NO EVENTS RECORDED YET</div>
-      </div>
-    </div>
-
-    <!-- Session + refill footer row -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:14px">
-      <div class="card" style="padding:10px;margin-bottom:0;text-align:center">
-        <div style="font-size:8px;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-bottom:4px">DEVICE UPTIME</div>
-        <div id="an-uptime" style="font-size:13px;font-family:var(--mono);color:var(--pri)">—</div>
-      </div>
-      <div class="card" style="padding:10px;margin-bottom:0;text-align:center">
-        <div style="font-size:8px;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-bottom:4px">LAST REFILL</div>
-        <div id="an-last-refill" style="font-size:13px;font-family:var(--mono);color:var(--ok)">—</div>
-      </div>
-      <div class="card" style="padding:10px;margin-bottom:0;text-align:center">
-        <div style="font-size:8px;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-bottom:4px">TOTAL EVENTS</div>
-        <div id="an-total-ev" style="font-size:13px;font-family:var(--mono);color:var(--text)">—</div>
+      <div style="display:flex;justify-content:space-between;margin-top:5px">
+        <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">24h ago</span>
+        <span style="font-size:9px;color:rgba(45,212,191,.4);font-family:var(--mono)">← hours →</span>
+        <span style="font-size:9px;color:var(--pri);font-family:var(--mono)">Now ▶</span>
       </div>
     </div>
 
-  </div><!-- /tab-analytics -->
+    <!-- 7-Day Daily Summary -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px">7-DAY DAILY SUMMARY</div>
+      <div id="anly-daily-table">
+        <div style="color:var(--muted);font-size:10px;text-align:center;padding:16px;line-height:1.6">No daily data yet<br><span style="font-size:9px">Daily totals accumulate throughout the day and reset at midnight</span></div>
+      </div>
+    </div>
+
+    <!-- Time of Day consumption profile -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:4px">HOURLY USAGE PROFILE</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Avg litres consumed per hour — 24h pattern</div>
+      <div id="anly-tod-chart" style="width:100%;height:60px;display:flex;align-items:flex-end;gap:1px">
+        <div style="color:var(--muted);font-size:10px;margin:auto">No profile data yet</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">12AM</span>
+        <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">6AM</span>
+        <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">12PM</span>
+        <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">6PM</span>
+        <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">11PM</span>
+      </div>
+    </div>
+
+    <!-- Usage Events from ESP32 firmware -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px">FIRMWARE EVENTS LOG</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.5">Real events detected by ESP32: fill / drain / rapid changes confirmed over 3+ minutes</div>
+      <div id="anly-events">
+        <div style="color:var(--muted);font-size:10px;text-align:center;padding:16px;line-height:1.6">No events yet<br><span style="font-size:9px">Events appear after 5%+ level changes lasting 3+ minutes</span></div>
+      </div>
+    </div>
+
+    <!-- Download CSV -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title" style="margin-bottom:8px">DOWNLOAD FULL REPORT</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">Downloads a 3-section CSV from your ESP32 containing: 7-day daily summary, 24h hour-by-hour history, and complete usage events log.</p>
+      <button class="btn btn-p btn-full" onclick="downloadCSV()" style="padding:14px;font-size:13px">⬇ DOWNLOAD REPORT.CSV</button>
+      <div id="anly-csv-note" style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center;line-height:1.5">Device must be reachable on local WiFi.<br>Open in Excel, Google Sheets, or any CSV viewer.</div>
+    </div>
+
+  </div><!-- end tab-analytics -->
 </main>
 
 <nav>
@@ -838,10 +852,6 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="nb-badge hidden" id="alertBadge">0</div>
     <span class="nb-lbl">Alerts</span>
   </button>
-  <button class="nb" id="nb-analytics" onclick="goTab('analytics',this)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    <span class="nb-lbl">Analyse</span>
-  </button>
   <button class="nb" id="nb-settings" onclick="goTab('settings',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     <span class="nb-lbl">Settings</span>
@@ -849,6 +859,10 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <button class="nb" id="nb-tips" onclick="goTab('tips',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
     <span class="nb-lbl">Tips</span>
+  </button>
+  <button class="nb" id="nb-analytics" onclick="goTab('analytics',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span class="nb-lbl">Report</span>
   </button>
 </nav>
 
@@ -1638,8 +1652,6 @@ function ingest(d,fromMQTT=false){
 
   checkAlerts(prev,S.m,S.isFull);
   renderDash();_renderDashInsights();
-  // Live analytics update when tab is open
-  if(_displayReady&&!demoMode)_anOnIngest();
 }
 
 // ═══════════════════════════════════════════
@@ -2916,354 +2928,287 @@ function goTab(name,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
-  if(name==='analytics'){unlockAch(1);_anRefresh();_anStartPolling();}
-  else {_anStopPolling();}
+  if(name==='analytics'){unlockAch(1);fetchAnalytics(true);}
   if(name==='tips'){unlockAch(5);renderTips();}
   if(name==='settings'){unlockAch(4);_updateTgStatus();_renderTgCmds();}
 }
 function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  ANALYTICS ENGINE
-//  Fetches GET /analytics from the device (same JSON the firmware builds).
-//  Falls back to IndexedDB cache when offline.
-//  CSV export = GET /report.csv straight from the device.
-//  Auto-refreshes every 30 s while the tab is active; triggered on every
-//  ingest() so the data stays live when the user is watching.
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+//  ANALYTICS ENGINE v1.0
+//  Fetches from ESP32 /analytics endpoint (GET) and /report.csv
+//  Full offline persistence via IndexedDB — survives browser close
+//  SW also caches analytics so background sync keeps data fresh
+// ═══════════════════════════════════════════════════════════════════
 
-// ── IDB cache (analytics namespace, separate from main app) ──────────────
-const _AN_DB = 'tasni_an_cache_v1';
+const ANLY_IDB_NAME  = 'tasni_anly_db';
+const ANLY_IDB_STORE = 'cache';
+const ANLY_IDB_KEY   = 'latest';
+let _anlyFetching    = false;
+let _anlyLastFetch   = 0;
+let _anlyData        = null;
+let _anlyAutoTimer   = null;  // periodic background refresh while analytics tab is open
 
-function _anDbOpen(){
+// ── IndexedDB helpers ─────────────────────────────────────────────
+function _anlyOpenDb(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open(_AN_DB,1);
-    r.onupgradeneeded=e=>e.target.result.createObjectStore('cache');
-    r.onsuccess=e=>res(e.target.result);
-    r.onerror=e=>rej(e.target.error);
+    const req=indexedDB.open(ANLY_IDB_NAME,1);
+    req.onupgradeneeded=e=>e.target.result.createObjectStore(ANLY_IDB_STORE);
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=e=>rej(e.target.error);
   });
 }
-async function _anCacheSave(data){
+async function _anlySave(data){
   try{
-    const db=await _anDbOpen();
+    const db=await _anlyOpenDb();
     await new Promise((res,rej)=>{
-      const tx=db.transaction('cache','readwrite');
-      tx.objectStore('cache').put({data,ts:Date.now()},'last');
+      const tx=db.transaction(ANLY_IDB_STORE,'readwrite');
+      tx.objectStore(ANLY_IDB_STORE).put({data,ts:Date.now()},ANLY_IDB_KEY);
       tx.oncomplete=res; tx.onerror=e=>rej(e.target.error);
     });
-  }catch(e){console.warn('[AN] IDB save:',e);}
+  }catch(_){}
 }
-async function _anCacheLoad(){
+async function _anlyLoad(){
   try{
-    const db=await _anDbOpen();
-    return await new Promise((res,rej)=>{
-      const tx=db.transaction('cache','readonly');
-      const rq=tx.objectStore('cache').get('last');
-      rq.onsuccess=e=>res(e.target.result??null);
-      rq.onerror=e=>rej(e.target.error);
+    const db=await _anlyOpenDb();
+    return await new Promise(res=>{
+      const req=db.transaction(ANLY_IDB_STORE,'readonly').objectStore(ANLY_IDB_STORE).get(ANLY_IDB_KEY);
+      req.onsuccess=e=>res(e.target.result||null);
+      req.onerror=()=>res(null);
     });
-  }catch(e){return null;}
+  }catch(_){return null;}
 }
 
-// ── Fetch + draw ──────────────────────────────────────────────────────────
-let _anTimer=null;          // auto-refresh interval
-let _anFetching=false;
-let _anLastData=null;       // last successfully parsed data object
-
-async function _anRefresh(){
-  if(_anFetching)return;
-  _anFetching=true;
-  const ip=cfg.ip||'';
-  const noIpEl=document.getElementById('an-no-ip');
-  const offEl=document.getElementById('an-offline');
-  const syncLbl=document.getElementById('an-sync-lbl');
-
-  // Show no-IP banner if no IP configured
-  if(noIpEl){noIpEl.classList.toggle('hidden',!!ip);}
-
+// ── Main fetch function ───────────────────────────────────────────
+async function fetchAnalytics(silent=false){
+  if(_anlyFetching)return;
+  const ip=cfg.ip;
   if(!ip){
-    // Try to show cached data
-    const cached=await _anCacheLoad();
-    if(cached&&cached.data){
-      if(offEl)offEl.classList.remove('hidden');
-      _anDraw(cached.data);
-      if(syncLbl)syncLbl.textContent='Cached · '+new Date(cached.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-    } else {
-      if(syncLbl)syncLbl.textContent='Set device IP in Settings to load analytics';
-    }
-    _anFetching=false;
+    if(!silent)showToast('⚠️ Enter device IP in Settings first','warn',3000);
+    // Still try to load whatever is cached
+    const cached=await _anlyLoad();
+    if(cached&&cached.data){_anlyData=cached.data;renderAnalytics(cached.data,true,cached.ts);}
+    else document.getElementById('anly-sync-lbl').textContent='No IP configured — set in Settings';
     return;
   }
-
-  if(syncLbl)syncLbl.textContent='Fetching from device…';
+  _anlyFetching=true;
+  const btn=document.getElementById('anly-sync-btn');
+  if(btn){btn.textContent='⟳…';btn.disabled=true;}
   try{
-    const res=await fetch(`http://${ip}/analytics`,{signal:AbortSignal.timeout(8000)});
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    const data=await res.json();
-    _anLastData=data;
-    await _anCacheSave(data);
-    if(offEl)offEl.classList.add('hidden');
-    _anDraw(data);
-    if(syncLbl)syncLbl.textContent='Live · '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  }catch(err){
-    // Offline — try cache
-    const cached=await _anCacheLoad();
-    if(cached&&cached.data){
-      if(offEl)offEl.classList.remove('hidden');
-      _anDraw(cached.data);
-      if(syncLbl)syncLbl.textContent='Offline · cached '+new Date(cached.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-    } else {
-      if(syncLbl)syncLbl.textContent='Device unreachable · no cache';
-      if(offEl)offEl.classList.remove('hidden');
+    const r=await fetch(`http://${ip}/analytics`,{signal:AbortSignal.timeout(6000)});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    _anlyData=data; _anlyLastFetch=Date.now();
+    await _anlySave(data);
+    // Also push to SW so background sync has the latest config
+    navigator.serviceWorker?.controller?.postMessage({type:'STORE_ANALYTICS',data});
+    renderAnalytics(data,false);
+    document.getElementById('anly-sync-lbl').textContent='Updated '+new Date().toLocaleTimeString();
+    if(!silent)showToast('✅ Analytics synced from ESP32','ok',2000);
+    unlockAch(1);
+  }catch(e){
+    if(!silent)showToast('⚠️ Device unreachable — showing cached data','warn',3000);
+    const cached=await _anlyLoad();
+    if(cached&&cached.data){_anlyData=cached.data;renderAnalytics(cached.data,true,cached.ts);}
+    else document.getElementById('anly-sync-lbl').textContent='Device offline — no cached data yet';
+  }finally{
+    _anlyFetching=false;
+    if(btn){btn.textContent='⟳ SYNC';btn.disabled=false;}
+  }
+}
+
+// ── CSV download from /report.csv ─────────────────────────────────
+async function downloadCSV(){
+  const ip=cfg.ip;
+  if(!ip){showToast('⚠️ No device IP — set in Settings','warn',3000);return;}
+  const btn=document.getElementById('anly-csv-btn');
+  if(btn){btn.textContent='⬇…';btn.disabled=true;}
+  try{
+    showToast('📊 Fetching 3-section report from ESP32…','info',3000);
+    const r=await fetch(`http://${ip}/report.csv`,{signal:AbortSignal.timeout(12000)});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const text=await r.text();
+    const blob=new Blob([text],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    const d=new Date();
+    const ds=d.getFullYear()+''+String(d.getMonth()+1).padStart(2,'0')+''+String(d.getDate()).padStart(2,'0');
+    a.download='TASNI_Report_'+ds+'.csv';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1200);
+    showToast('✅ Report saved — open in Excel or Sheets','ok',4000);
+  }catch(e){
+    showToast('⚠️ Could not fetch report — is device on local WiFi?','warn',4000);
+  }finally{
+    if(btn){btn.textContent='⬇ CSV';btn.disabled=false;}
+  }
+}
+
+// ── Auto-refresh when analytics tab is open (every 60s) ──────────
+function _anlyStartAuto(){
+  clearInterval(_anlyAutoTimer);
+  if(cfg.ip)_anlyAutoTimer=setInterval(()=>fetchAnalytics(true),60000);
+}
+function _anlyStopAuto(){clearInterval(_anlyAutoTimer);_anlyAutoTimer=null;}
+
+// ── Patch goTab to start/stop auto-refresh ────────────────────────
+const _origGoTab=goTab;
+// (goTab is already updated to call fetchAnalytics on open)
+// Start auto-refresh when analytics opens, stop when leaving
+document.addEventListener('DOMContentLoaded',()=>{},false);
+
+// ── RENDER ────────────────────────────────────────────────────────
+function renderAnalytics(d,fromCache=false,cacheTs=null){
+  // Source badge
+  const src=document.getElementById('anly-source');
+  if(src){
+    src.style.display='block';
+    const ageMin=cacheTs?Math.round((Date.now()-cacheTs)/60000):0;
+    src.innerHTML=fromCache
+      ?`<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:20px;font-size:10px;font-weight:700;font-family:var(--head);color:var(--warn);letter-spacing:1px">📦 CACHED DATA — ${ageMin>0?ageMin+' min ago':'Recent'}</div>`
+      :`<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.2);border-radius:20px;font-size:10px;font-weight:700;font-family:var(--head);color:var(--pri);letter-spacing:1px">⚡ LIVE — from ESP32</div>`;
+  }
+
+  // Leak warning
+  const leakEl=document.getElementById('anly-leak');
+  if(leakEl){d.leak?leakEl.classList.remove('hidden'):leakEl.classList.add('hidden');}
+
+  // Summary cards
+  const daily=d.daily||[];
+  const today=daily.find(x=>x.partial)||null;
+  _anlySet('anly-today-consumed',today?today.consumedL.toFixed(1):'--');
+  _anlySet('anly-today-filled',  today?today.filledL.toFixed(1):'--');
+  const pk=(d.session&&d.session.peak>=0)?d.session.peak:'--';
+  const mn=(d.session&&d.session.min>=0&&d.session.min<=100)?d.session.min:'--';
+  _anlySet('anly-session-peak', pk!=='--'?pk+'%':'--');
+  _anlySet('anly-session-min',  mn!=='--'?mn+'%':'--');
+  _anlySet('anly-sess-consumed',(d.session&&d.session.consumedL>0)?d.session.consumedL.toFixed(1):'--');
+  const rf=d.lastRefill;
+  if(rf&&rf.volL>0){
+    const ageH=d.ts&&rf.ms?(Math.floor((d.ts-rf.ms)/3600000)):0;
+    _anlySet('anly-last-refill',rf.volL.toFixed(0)+'L'+(ageH>0?`<span style="font-size:9px;color:var(--muted);display:block"> ${ageH}h ago</span>`:''));
+  }else{_anlySet('anly-last-refill','--');}
+
+  // Charts
+  _anlyRenderHistChart(d.history||[],d.tank||1000);
+  _anlyRenderDailyTable(d.daily||[]);
+  _anlyRenderTodChart(d.tod||[]);
+  _anlyRenderEvents(d.events||[],d.ts||0);
+}
+
+function _anlySet(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
+
+// ── 24h level history bar chart ──
+function _anlyRenderHistChart(history,tankL){
+  const el=document.getElementById('anly-hist-chart');if(!el)return;
+  // history[0]=newest … [23]=oldest; display left=oldest, right=newest
+  const vals=history.slice(0,24).slice().reverse();
+  if(vals.every(v=>v<0)){
+    el.innerHTML='<div style="color:var(--muted);font-size:10px;margin:auto;text-align:center;line-height:1.6">No hourly data yet<br><span style="font-size:9px">One reading is stored per hour — check back in an hour</span></div>';
+    return;
+  }
+  el.innerHTML=vals.map((v,i)=>{
+    if(v<0){
+      return`<div style="flex:1;height:4px;align-self:flex-end;background:rgba(45,212,191,.08);border-radius:2px 2px 0 0" title="No data for this hour"></div>`;
     }
+    const h=Math.max(4,Math.round((v/100)*96));
+    const col=v<10?'rgba(248,113,113,.85)':v<30?'rgba(251,191,36,.8)':v>=75?'rgba(52,211,153,.7)':'rgba(45,212,191,.7)';
+    const isNow=i===vals.length-1;
+    return`<div title="${v}% · ${Math.round(v/100*tankL)}L · ${24-i-1}h ago" style="flex:1;height:${h}px;background:${col};border-radius:2px 2px 0 0;cursor:default${isNow?';outline:1px solid var(--pri);outline-offset:1px':''}"></div>`;
+  }).join('');
+}
+
+// ── 7-day daily table ──
+function _anlyRenderDailyTable(daily){
+  const el=document.getElementById('anly-daily-table');if(!el)return;
+  const rows=daily.filter(d=>d.dateCode>0);
+  if(!rows.length){
+    el.innerHTML='<div style="color:var(--muted);font-size:10px;text-align:center;padding:14px;line-height:1.6">No daily data yet<br><span style="font-size:9px">Daily totals accumulate throughout the day</span></div>';
+    return;
   }
-  _anFetching=false;
+  const hdr=`<div style="display:grid;grid-template-columns:3fr 2fr 2fr 2fr;gap:2px;padding:5px 4px;border-bottom:1px solid var(--border);margin-bottom:4px">
+    ${['DATE','USED L','FILL L','NET L'].map(h=>`<div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head)">${h}</div>`).join('')}
+  </div>`;
+  const body=rows.map(r=>{
+    const net=r.filledL-r.consumedL;
+    const dc=String(r.dateCode).padStart(8,'0');
+    const dd=dc.slice(6,8),mm=dc.slice(4,6);
+    const netCol=net>=0?'var(--ok)':'var(--danger)';
+    const todayBadge=r.partial?` <span style="font-size:8px;background:rgba(251,191,36,.15);color:var(--warn);padding:1px 5px;border-radius:4px;font-family:var(--head);font-weight:700">TODAY</span>`:'';
+    return`<div style="display:grid;grid-template-columns:3fr 2fr 2fr 2fr;gap:2px;padding:6px 4px;border-bottom:1px solid rgba(45,212,191,.04)">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text)">${dd}/${mm}${todayBadge}</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--danger)">${r.consumedL.toFixed(0)}</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--ok)">${r.filledL.toFixed(0)}</div>
+      <div style="font-family:var(--mono);font-size:11px;color:${netCol};font-weight:700">${net>=0?'+':''}${net.toFixed(0)}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML=hdr+body;
 }
 
-// Called from ingest() to keep analytics live when tab is visible
-function _anMaybeRefresh(){
-  if(!document.getElementById('tab-analytics')?.classList.contains('active'))return;
-  _anRefresh();
-}
-
-// Start / stop 30-second polling when the analytics tab is active
-function _anStartPolling(){
-  _anStopPolling();
-  _anTimer=setInterval(_anRefresh,30000);
-}
-function _anStopPolling(){
-  if(_anTimer){clearInterval(_anTimer);_anTimer=null;}
-}
-
-// Hook tab visibility — start polling when analytics is active, stop otherwise
-document.addEventListener('visibilitychange',()=>{
-  if(document.hidden)_anStopPolling();
-  else if(document.getElementById('tab-analytics')?.classList.contains('active'))_anStartPolling();
-});
-
-// ── Helper: level → CSS colour (matching firmware status colours) ─────────
-function _anLvlCol(p){
-  if(p>=75)return'#4ade80';
-  if(p>=50)return'#86efac';
-  if(p>=25)return'#fbbf24';
-  if(p>=10)return'#f97316';
-  return'#ef4444';
-}
-function _anFmtHr(h){
-  if(h===0)return'12a';if(h===12)return'12p';
-  return(h>12?h-12:h)+(h>=12?'p':'a');
-}
-function _anFmtUptime(s){
-  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);
-  if(h>0)return h+'h '+m+'m'; return m+'m';
-}
-function _anFmtAge(deviceNow,evMs){
-  const s=Math.floor((deviceNow-evMs)/1000);
-  if(s<10)return'just now';if(s<60)return s+'s ago';
-  if(s<3600)return Math.floor(s/60)+'m ago';
-  return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m ago';
-}
-function _anFmtDate(dc){
-  const s=String(dc);
-  if(s.length!==8)return s;
-  return s.substr(6,2)+'/'+s.substr(4,2)+'/'+s.substr(0,4);
-}
-const _anDow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-function _anDowFromCode(dc){
-  const s=String(dc);
-  const dt=new Date(parseInt(s.substr(0,4)),parseInt(s.substr(4,2))-1,parseInt(s.substr(6,2)));
-  return _anDow[dt.getDay()];
-}
-
-// ── Main draw function ─────────────────────────────────────────────────────
-function _anDraw(d){
-  if(!d)return;
-  const now=d.ts||0;
-  const tank=d.tank||1000;
-  const lv=d.live||{};
-  const sess=d.session||{};
-  const daily=(d.daily||[]);
-
-  // KPIs
-  const todayRow=daily.length>0&&daily[0].partial?daily[0]:null;
-  const e=id=>document.getElementById(id);
-
-  if(e('an-kpi-used'))e('an-kpi-used').textContent=todayRow?Math.round(todayRow.consumedL)+'L':'— L';
-  if(e('an-kpi-added'))e('an-kpi-added').textContent=todayRow?Math.round(todayRow.filledL)+'L':'— L';
-  if(e('an-kpi-peak')){
-    const p=sess.peak;
-    e('an-kpi-peak').textContent=p>=0?p+'%':'—';
-    if(p>=0)e('an-kpi-peak').style.color=_anLvlCol(p);
+// ── Time-of-day usage profile ──
+function _anlyRenderTodChart(tod){
+  const el=document.getElementById('anly-tod-chart');if(!el)return;
+  if(!tod.length||tod.every(t=>t.n===0)){
+    el.innerHTML='<div style="color:var(--muted);font-size:10px;margin:auto">No profile data yet — needs 24h+ of runtime</div>';
+    return;
   }
-  if(e('an-kpi-rate'))e('an-kpi-rate').textContent=lv.usage!=null?lv.usage.toFixed(1):'—';
-  if(e('an-kpi-leak')){
-    const leakEl=e('an-kpi-leak');
-    if(d.leak){leakEl.textContent='⚠️ Leak?';leakEl.style.color='var(--warn)';}
-    else{leakEl.textContent='✅ Clear';leakEl.style.color='var(--ok)';}
-  }
-
-  // ── 24-hour history bars ────────────────────────────────────────────────
-  const histBars=e('an-hist-bars');
-  const histAxis=e('an-hist-axis');
-  if(histBars&&histAxis){
-    histBars.innerHTML=''; histAxis.innerHTML='';
-    const hist=d.history||[];
-    const nowHr=new Date().getHours();
-    // hist is newest-first (index 0 = most recent hour)
-    // display left=oldest, right=newest — so reverse
-    const arr=[...hist].reverse();
-    arr.forEach((v,i)=>{
-      const bar=document.createElement('div');
-      bar.style.cssText='flex:1;border-radius:3px 3px 0 0;min-height:3px;cursor:default;transition:opacity .2s;position:relative';
-      const pct=v<0?0:v;
-      bar.style.height=(pct<3?3:pct)+'%';
-      bar.style.background=v<0?'rgba(255,255,255,.1)':_anLvlCol(v);
-      bar.style.opacity=v<0?'0.3':'1';
-      const hoursAgo=hist.length-1-i;   // 0 = most recent
-      const hr=(nowHr-hoursAgo+24)%24;
-      bar.title=v<0?'No data (device off)':'Level: '+v+'% ('+_anFmtHr(hr)+')';
-      histBars.appendChild(bar);
-      const lbl=document.createElement('span');
-      lbl.style.cssText='flex:1;text-align:center;overflow:hidden;white-space:nowrap';
-      lbl.textContent=(hoursAgo===0)?'Now':(hoursAgo%6===0?_anFmtHr(hr):'');
-      histAxis.appendChild(lbl);
-    });
-  }
-
-  // ── 7-day daily table ──────────────────────────────────────────────────
-  const dtEl=e('an-daily-tbl');
-  if(dtEl){
-    if(!daily.length){
-      dtEl.innerHTML='<div style="text-align:center;padding:18px;color:var(--muted);font-size:10px;font-family:var(--head);letter-spacing:1px">NO DAILY DATA — ACCUMULATES AFTER FIRST FULL DAY</div>';
-    } else {
-      let t='<table style="width:100%;border-collapse:collapse;font-size:11px">';
-      t+='<thead><tr>';
-      ['Date','Day','Used','Added','Balance',''].forEach(h=>{
-        t+=`<th style="text-align:left;padding:5px 6px;font-size:9px;color:var(--muted);font-family:var(--head);letter-spacing:1px;border-bottom:1px solid var(--border)">${h}</th>`;
-      });
-      t+='</tr></thead><tbody>';
-      daily.forEach(row=>{
-        const net=row.filledL-row.consumedL;
-        const netStr=(net>=0?'+':'')+Math.round(net)+' L';
-        const netCol=net>0?'var(--ok)':net<0?'var(--danger)':'var(--muted)';
-        const pill=row.partial
-          ?'<span style="font-size:8px;background:rgba(251,191,36,.18);color:#fbbf24;padding:1px 6px;border-radius:8px;font-family:var(--head);letter-spacing:.5px">TODAY</span>'
-          :'<span style="font-size:8px;background:rgba(52,211,153,.12);color:var(--ok);padding:1px 6px;border-radius:8px;font-family:var(--head);letter-spacing:.5px">DONE</span>';
-        t+=`<tr style="border-bottom:1px solid rgba(45,212,191,.05)">
-          <td style="padding:7px 6px;color:var(--text);font-family:var(--mono)">${_anFmtDate(row.date)}</td>
-          <td style="padding:7px 6px;color:var(--muted)">${_anDowFromCode(row.date)}</td>
-          <td style="padding:7px 6px;color:var(--danger);font-weight:600;font-family:var(--mono)">${Math.round(row.consumedL)} L</td>
-          <td style="padding:7px 6px;color:var(--ok);font-weight:600;font-family:var(--mono)">${Math.round(row.filledL)} L</td>
-          <td style="padding:7px 6px;color:${netCol};font-weight:700;font-family:var(--mono)">${net>=0?'<b>':''+(netStr)+(net>=0?'</b>':'')}</td>
-          <td style="padding:7px 4px">${pill}</td>
-        </tr>`;
-      });
-      t+='</tbody></table>';
-      dtEl.innerHTML=t;
-    }
-  }
-
-  // ── Time-of-day usage pattern ──────────────────────────────────────────
-  const todEl=e('an-tod-chart');
-  if(todEl){
-    const tod=d.tod||[];
-    const validTod=tod.filter(b=>b.n>0);
-    if(!validTod.length){
-      todEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:10px;font-family:var(--head);letter-spacing:1px">BUILDING PATTERN — CHECK BACK AFTER A FEW HOURS</div>';
-    } else {
-      todEl.innerHTML='';
-      const maxL=Math.max(...validTod.map(b=>b.avgL),0.01);
-      const sorted=[...validTod].sort((a,b)=>b.avgL-a.avgL);
-      const topSet={};
-      sorted.slice(0,3).forEach(b=>{topSet[b.h]=true;});
-      validTod.forEach(b=>{
-        const isPeak=topSet[b.h];
-        const pct=Math.round(b.avgL/maxL*100);
-        const col=isPeak?'linear-gradient(90deg,#d97706,#fbbf24)':'linear-gradient(90deg,rgba(45,212,191,.3),rgba(45,212,191,.7))';
-        const row=document.createElement('div');
-        row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:5px';
-        row.innerHTML=
-          `<div style="width:36px;font-size:9px;color:${isPeak?'#fbbf24':'var(--muted)'};text-align:right;font-family:var(--mono);flex-shrink:0">${_anFmtHr(b.h)}</div>`+
-          `<div style="flex:1;height:12px;background:rgba(45,212,191,.08);border-radius:6px;overflow:hidden">`+
-            `<div style="height:100%;width:${pct}%;background:${col};border-radius:6px;transition:width .4s"></div>`+
-          `</div>`+
-          `<div style="width:52px;font-size:9px;font-family:var(--mono);color:${isPeak?'#fbbf24':'var(--text)'};${isPeak?'font-weight:700':''};flex-shrink:0">${b.avgL.toFixed(1)} L${isPeak?' ⭐':''}</div>`;
-        todEl.appendChild(row);
-      });
-    }
-  }
-
-  // ── Usage events ───────────────────────────────────────────────────────
-  const evList=e('an-ev-list');
-  const evCount=e('an-ev-count');
-  const evs=d.events||[];
-  if(evCount)evCount.textContent=evs.length+' events';
-  if(e('an-total-ev'))e('an-total-ev').textContent=evs.length;
-  if(evList){
-    if(!evs.length){
-      evList.innerHTML='<div style="text-align:center;padding:18px;color:var(--muted);font-size:10px;font-family:var(--head);letter-spacing:1px">NO EVENTS RECORDED YET</div>';
-    } else {
-      evList.innerHTML='';
-      const typeIcon={drain:'💧',fill:'🚿',rapid_drain:'⚡',rapid_fill:'⚡'};
-      const typeLabel={drain:'Water Used',fill:'Tank Filled',rapid_drain:'Rapid Drain — check pipes',rapid_fill:'Rapid Fill'};
-      const typeIconBg={drain:'rgba(239,68,68,.1)',fill:'rgba(34,197,94,.1)',rapid_drain:'rgba(245,158,11,.1)',rapid_fill:'rgba(34,197,94,.1)'};
-      evs.forEach(ev=>{
-        const isDrain=ev.type==='drain'||ev.type==='rapid_drain';
-        const isRapid=ev.type==='rapid_drain'||ev.type==='rapid_fill';
-        // device now - event age
-        const age=_anFmtAge(now,ev.ms);
-        const volStr=(isDrain?'− ':'+') + ev.volL.toFixed(0)+' L';
-        const volCol=isDrain?'var(--danger)':'var(--ok)';
-        const div=document.createElement('div');
-        div.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(45,212,191,.06)';
-        div.innerHTML=
-          `<div style="width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:${typeIconBg[ev.type]||'rgba(45,212,191,.1)'}">${typeIcon[ev.type]||'💧'}</div>`+
-          `<div style="flex:1;min-width:0">`+
-            `<div style="font-size:12px;font-weight:600;color:var(--text)">${typeLabel[ev.type]||ev.type}${isRapid?' <span style="font-size:9px;background:rgba(245,158,11,.2);color:#fbbf24;padding:1px 5px;border-radius:6px;font-family:var(--head)">RAPID</span>':''}</div>`+
-            `<div style="font-size:10px;color:var(--muted);margin-top:2px;font-family:var(--mono)">${age} &nbsp;·&nbsp; ${ev.before}% → ${ev.after}%</div>`+
-          `</div>`+
-          `<div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700;font-family:var(--mono);color:${volCol}">${volStr}</div></div>`;
-        evList.appendChild(div);
-      });
-    }
-  }
-
-  // ── Footer row ──────────────────────────────────────────────────────────
-  if(e('an-uptime'))e('an-uptime').textContent=_anFmtUptime(d.uptime||0);
-  const rf=d.lastRefill||{};
-  if(e('an-last-refill'))e('an-last-refill').textContent=rf.volL>0?Math.round(rf.volL)+' L':'None yet';
+  const maxV=Math.max(...tod.map(t=>t.avgL),0.01);
+  el.innerHTML=tod.map(t=>{
+    const h=Math.max(3,Math.round((t.avgL/maxV)*56));
+    const isNight=t.h<6||t.h>=22;
+    const col=t.n===0?'rgba(45,212,191,.08)':isNight?'rgba(124,58,237,.65)':'rgba(45,212,191,.65)';
+    return`<div title="${t.h}:00 — avg ${t.avgL.toFixed(2)}L, ${t.n} sample${t.n===1?'':'s'}" style="flex:1;height:${h}px;background:${col};border-radius:2px 2px 0 0;min-width:1px;cursor:default"></div>`;
+  }).join('');
 }
 
-// ── CSV export: fetch /report.csv directly from device ────────────────────
-function _anExportCSV(){
-  const ip=cfg.ip||'';
-  if(!ip){showToast('Enter device IP in Settings first','warn',3000);return;}
-  // PWA-safe: create a temporary anchor to trigger the download
-  const url=`http://${ip}/report.csv`;
-  const a=document.createElement('a');
-  a.href=url;
-  a.download='tasni-report.csv';
-  a.target='_blank';
-  a.rel='noopener';
-  a.style.display='none';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(()=>a.remove(),1000);
-  showToast('📥 Downloading report from device…','ok',3500);
+// ── Usage events from firmware ──
+function _anlyRenderEvents(events,deviceTs){
+  const el=document.getElementById('anly-events');if(!el)return;
+  if(!events.length){
+    el.innerHTML='<div style="color:var(--muted);font-size:10px;text-align:center;padding:14px;line-height:1.6">No events yet<br><span style="font-size:9px">Events are logged by the ESP32 firmware when level changes 5%+ for 3+ min</span></div>';
+    return;
+  }
+  const TM={
+    'drain':      {icon:'💧',lbl:'WATER USED',  col:'rgba(45,212,191,.85)',bg:'rgba(45,212,191,.06)',bd:'rgba(45,212,191,.18)'},
+    'fill':       {icon:'🔄',lbl:'TANK FILLED', col:'rgba(52,211,153,.85)',bg:'rgba(52,211,153,.06)',bd:'rgba(52,211,153,.18)'},
+    'rapid_drain':{icon:'⚡',lbl:'RAPID DRAIN', col:'rgba(248,113,113,.85)',bg:'rgba(248,113,113,.08)',bd:'rgba(248,113,113,.25)'},
+    'rapid_fill': {icon:'⚡',lbl:'RAPID FILL',  col:'rgba(251,191,36,.85)', bg:'rgba(251,191,36,.08)', bd:'rgba(251,191,36,.25)'},
+  };
+  el.innerHTML=events.slice(0,20).map(ev=>{
+    const t=TM[ev.type]||TM['drain'];
+    // Age relative to device uptime difference (deviceTs = millis at snapshot)
+    const ageSec=deviceTs>ev.ms?Math.floor((deviceTs-ev.ms)/1000):0;
+    let age;
+    if(ageSec<60)age='just now';
+    else if(ageSec<3600)age=Math.floor(ageSec/60)+' min ago';
+    else if(ageSec<86400)age=Math.floor(ageSec/3600)+'h '+Math.floor((ageSec%3600)/60)+'m ago';
+    else age=Math.floor(ageSec/86400)+'d ago';
+    const isDrain=ev.type==='drain'||ev.type==='rapid_drain';
+    return`<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 10px;background:${t.bg};border:1px solid ${t.bd};border-radius:9px;margin-bottom:6px">
+      <span style="font-size:18px;line-height:1;flex-shrink:0">${t.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:3px">
+          <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${t.col};font-family:var(--head)">${t.lbl}</span>
+          <span style="font-size:9px;color:var(--muted);font-family:var(--mono);white-space:nowrap;flex-shrink:0">${age}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text)">
+          ${ev.before}% → ${ev.after}%
+          &nbsp;<span style="color:${t.col};font-family:var(--mono);font-weight:700">${isDrain?'-':'+'}${ev.volL.toFixed(1)} L</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
-// ── Hook into ingest pipeline to keep analytics live ─────────────────────
-// Triggered after every real sensor reading
-function _anOnIngest(){
-  if(!_displayReady||demoMode)return;
-  _anMaybeRefresh();
-}
-
-// Start polling whenever the analytics tab becomes active
-(function _anPatchGoTab(){
-  const _orig=window.goTab||function(){};
-  // We don't override goTab here; the goTab already calls _anRefresh()
-  // Just start/stop the 30s polling
+// ── On load: eagerly preload cached analytics into memory ─────────
+(async()=>{
+  const cached=await _anlyLoad();
+  if(cached&&cached.data){
+    _anlyData=cached.data;
+    // Don't render immediately — user hasn't opened the tab yet.
+    // Data is held in _anlyData and will render when tab is opened.
+  }
 })();
 </script>
 </body>
