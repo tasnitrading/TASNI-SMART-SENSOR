@@ -741,7 +741,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <div class="tab" id="tab-analytics">
 
     <!-- Action bar -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:0 2px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px">
       <div>
         <div style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--pri)">DEVICE ANALYTICS</div>
         <div id="anly-sync-lbl" style="font-size:10px;color:var(--muted);margin-top:1px">Tap Sync to fetch from ESP32</div>
@@ -755,7 +755,12 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <!-- Source badge -->
     <div id="anly-source" style="margin-bottom:10px;display:none"></div>
 
-    <!-- LIVE SNAPSHOT STRIP fed by WiFi poll + MQTT in real time -->
+    <!-- ══ LIVE SENSOR STRIP ══
+         Fields from /sensor-reading (WiFi) AND MQTT tasni-water/{id}/state:
+         m=levelPct  vol=volumeL  usage=usageRate  s=status  dist=filteredDistance
+         rssi=RSSI   up=uptimeSec  total=totalVolumeL  isFull=isFull
+         Updated every 2.5s by existing WiFi poll + every MQTT packet via ingest()
+    -->
     <div class="anly-live-strip" id="anly-live-strip">
       <div class="anly-live-cell">
         <div class="anly-live-val" id="als-level" style="color:var(--pri)">--</div>
@@ -767,37 +772,64 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
       <div class="anly-live-cell">
         <div class="anly-live-val" id="als-usage" style="color:var(--warn)">--</div>
-        <div class="anly-live-lbl">L/hr Rate</div>
+        <div class="anly-live-lbl">L/hr</div>
       </div>
       <div class="anly-live-cell">
-        <div class="anly-live-val" id="als-status" style="color:var(--muted);font-size:11px">--</div>
+        <div class="anly-live-val" id="als-dist" style="color:var(--muted);font-size:14px">--</div>
+        <div class="anly-live-lbl">Dist cm</div>
+      </div>
+    </div>
+    <!-- Second live row: status / rssi / uptime / isFull -->
+    <div class="anly-live-strip" style="margin-top:6px" id="anly-live-strip2">
+      <div class="anly-live-cell">
+        <div class="anly-live-val" id="als-status" style="color:var(--ok);font-size:12px">--</div>
         <div class="anly-live-lbl">Status</div>
+      </div>
+      <div class="anly-live-cell">
+        <div class="anly-live-val" id="als-rssi" style="color:var(--muted);font-size:14px">--</div>
+        <div class="anly-live-lbl">RSSI dBm</div>
+      </div>
+      <div class="anly-live-cell">
+        <div class="anly-live-val" id="als-uptime" style="color:var(--muted);font-size:13px">--</div>
+        <div class="anly-live-lbl">Uptime</div>
+      </div>
+      <div class="anly-live-cell">
+        <div class="anly-live-val" id="als-isfull" style="color:var(--muted);font-size:12px">--</div>
+        <div class="anly-live-lbl">Full Snsr</div>
       </div>
     </div>
 
-    <!-- FORECAST CARD days remaining from usage rate -->
-    <div class="card" id="anly-forecast-card" style="margin-bottom:12px">
+    <!-- ══ FORECAST CARD ══
+         Days remaining = S.vol / avgDailyL   (avgDailyL from /analytics daily[] NVS data)
+         Fallback: S.usage (L/hr from firmware) × 24 = L/day estimate
+    -->
+    <div class="card" style="margin-top:12px;margin-bottom:12px">
       <div class="card-title" style="margin-bottom:10px">WATER FORECAST</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div style="text-align:center">
-          <div style="font-family:var(--mono);font-size:26px;color:var(--ok)" id="fc-days-val">--</div>
-          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">DAYS REMAINING</div>
+          <div style="font-family:var(--mono);font-size:26px" id="fc-days-val" style="color:var(--ok)">--</div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">DAYS LEFT</div>
           <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">at current usage</div>
         </div>
         <div style="text-align:center">
           <div style="font-family:var(--mono);font-size:26px;color:var(--pri)" id="fc-avg-val">--</div>
-          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">AVG DAILY USE</div>
-          <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Litres/day (7d avg)</div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">AVG DAILY</div>
+          <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">L/day (7d NVS avg)</div>
         </div>
       </div>
-      <div class="fc-bar-wrap"><div class="fc-bar-fill" id="fc-bar" style="width:0%"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:var(--mono)">
-        <span>0%</span><span id="fc-bar-label" style="color:var(--pri)">Tank level</span><span>100%</span>
+      <!-- Level bar: width = S.m (from firmware levelPct) -->
+      <div class="fc-bar-wrap">
+        <div class="fc-bar-fill" id="fc-bar" style="width:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:3px">
+        <span>Empty</span>
+        <span id="fc-bar-label" style="color:var(--pri)">--</span>
+        <span>Full</span>
       </div>
       <div id="fc-refill-tip" style="margin-top:8px;font-size:11px;color:var(--muted);line-height:1.5"></div>
     </div>
 
-    <!-- Leak warning -->
+    <!-- ══ LEAK WARNING ══ (from /analytics JSON field "leak") -->
     <div id="anly-leak" class="hidden card" style="background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.3);padding:12px 14px;margin-bottom:12px">
       <div style="display:flex;gap:10px;align-items:flex-start">
         <span style="font-size:20px">🚨</span>
@@ -808,7 +840,17 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
 
-    <!-- Summary cards 2×3 -->
+    <!-- ══ SUMMARY CARDS ══
+         From /analytics JSON:
+           daily[0].consumedL  = today water used (partial=true row)
+           daily[0].filledL    = today water filled
+           session.peak        = highest level % this boot
+           session.min         = lowest level % this boot
+           session.consumedL   = total litres used this boot
+           lastRefill.volL     = last refill volume (L)
+           lastRefill.ms       = millis timestamp of last refill
+           ts                  = device millis at snapshot time
+    -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div class="card" style="padding:12px;text-align:center">
         <div style="font-family:var(--mono);font-size:22px;color:var(--danger)" id="anly-today-consumed">--</div>
@@ -827,26 +869,29 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
       <div class="card" style="padding:12px;text-align:center">
         <div style="font-family:var(--mono);font-size:22px;color:var(--warn)" id="anly-session-min">--</div>
-        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">SESSION MIN</div>
+        <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">SESSION LOW</div>
         <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">% level</div>
       </div>
       <div class="card" style="padding:12px;text-align:center">
         <div style="font-family:var(--mono);font-size:22px;color:var(--pri)" id="anly-sess-consumed">--</div>
         <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">SESSION USED</div>
-        <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Litres this boot</div>
+        <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Litres (this boot)</div>
       </div>
       <div class="card" style="padding:12px;text-align:center">
         <div style="font-family:var(--mono);font-size:19px;color:var(--ok);line-height:1.2" id="anly-last-refill">--</div>
         <div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">LAST REFILL</div>
-        <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Volume added</div>
+        <div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Volume added (L)</div>
       </div>
     </div>
 
-    <!-- 24-Hour Level History chart -->
+    <!-- ══ 24-HOUR LEVEL HISTORY ══
+         From /analytics JSON: history[] array, index 0=newest, 23=oldest
+         Each value is levelPct recorded once per hour by ESP32 NVS
+    -->
     <div class="card">
       <div class="card-title" style="margin-bottom:10px">24-HOUR LEVEL HISTORY</div>
       <div id="anly-hist-chart" style="width:100%;height:100px;display:flex;align-items:flex-end;gap:2px">
-        <div style="color:var(--muted);font-size:10px;margin:auto;text-align:center;line-height:1.6">No data yet<br><span style="font-size:9px">Sync from device or wait for hourly readings</span></div>
+        <div style="color:var(--muted);font-size:10px;margin:auto;text-align:center;line-height:1.6">No data yet<br><span style="font-size:9px">One reading stored per hour by ESP32 NVS — sync to view</span></div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:5px">
         <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">24h ago</span>
@@ -855,20 +900,40 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
 
-    <!-- 7-Day Daily Summary -->
+    <!-- ══ 7-DAY DAILY SUMMARY ══
+         From /analytics JSON: daily[] array
+         Each row: { date: YYYYMMDD, consumedL, filledL, partial: true/false }
+         "partial:true" = today (in-progress)
+         "partial:false" = completed past day (NVS-persisted across reboots)
+    -->
     <div class="card">
       <div class="card-title" style="margin-bottom:10px">7-DAY DAILY SUMMARY</div>
       <div id="anly-daily-table">
-        <div style="color:var(--muted);font-size:10px;text-align:center;padding:16px;line-height:1.6">No daily data yet<br><span style="font-size:9px">Daily totals accumulate throughout the day and reset at midnight</span></div>
+        <div style="color:var(--muted);font-size:10px;text-align:center;padding:16px;line-height:1.6">No daily data yet<br><span style="font-size:9px">Daily totals accumulate throughout the day — persisted in ESP32 NVS flash</span></div>
       </div>
     </div>
 
-    <!-- Time of Day consumption profile -->
+    <!-- ══ 7-DAY CONSUMPTION AVERAGES ══
+         Computed from daily[] complete rows (partial=false)
+         avg daily consumption, avg refill, highest/lowest day
+    -->
+    <div class="card" id="anly-avgday-card">
+      <div class="card-title" style="margin-bottom:10px">CONSUMPTION AVERAGES</div>
+      <div id="anly-avgday-body">
+        <div style="color:var(--muted);font-size:10px;text-align:center;padding:14px">Sync from device to see averages</div>
+      </div>
+    </div>
+
+    <!-- ══ HOURLY USAGE PROFILE ══
+         From /analytics JSON: tod[] array, 24 buckets h0..h23
+         Each: { h: hour, avgL: avg litres consumed per sample, n: sample count }
+         Built by ESP32 firmware from 1-minute samples over time
+    -->
     <div class="card">
       <div class="card-title" style="margin-bottom:4px">HOURLY USAGE PROFILE</div>
-      <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Avg litres consumed per hour — 24h pattern</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Avg L consumed per hour — built from ESP32 1-min samples</div>
       <div id="anly-tod-chart" style="width:100%;height:60px;display:flex;align-items:flex-end;gap:1px">
-        <div style="color:var(--muted);font-size:10px;margin:auto">No profile data yet</div>
+        <div style="color:var(--muted);font-size:10px;margin:auto">No profile data yet — needs several hours of runtime</div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:4px">
         <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">12AM</span>
@@ -879,29 +944,28 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       </div>
     </div>
 
-    <!-- Usage Events from ESP32 firmware -->
+    <!-- ══ FIRMWARE USAGE EVENTS ══
+         From /analytics JSON: events[] array (newest-first, up to 20)
+         Each: { ms: device_millis, before: %, after: %, delta: %, type: "drain"|"fill"|"rapid_drain"|"rapid_fill", volL: float }
+         ESP32 only logs events with 5%+ change stable for 3+ minutes
+    -->
     <div class="card">
       <div class="card-title" style="margin-bottom:10px">FIRMWARE EVENTS LOG</div>
-      <div style="font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.5">Real events detected by ESP32: fill / drain / rapid changes confirmed over 3+ minutes</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:10px;line-height:1.5">Real events confirmed by ESP32: fill / drain / rapid — 5%+ change held for 3+ minutes</div>
       <div id="anly-events">
         <div style="color:var(--muted);font-size:10px;text-align:center;padding:16px;line-height:1.6">No events yet<br><span style="font-size:9px">Events appear after 5%+ level changes lasting 3+ minutes</span></div>
       </div>
     </div>
 
-    <!-- Average daily consumption summary -->
-    <div class="card" id="anly-avgday-card" style="margin-bottom:12px">
-      <div class="card-title" style="margin-bottom:10px">CONSUMPTION SUMMARY</div>
-      <div id="anly-avgday-body">
-        <div style="color:var(--muted);font-size:10px;text-align:center;padding:14px">Sync data to see consumption averages</div>
-      </div>
-    </div>
-
-    <!-- Download CSV -->
+    <!-- ══ DOWNLOAD FULL REPORT ══
+         Fetches GET /report.csv from ESP32
+         3-section CSV: 7-day summary + 24h history + events log
+    -->
     <div class="card" style="margin-bottom:20px">
       <div class="card-title" style="margin-bottom:8px">DOWNLOAD FULL REPORT</div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">Downloads a 3-section CSV from your ESP32 containing: 7-day daily summary, 24h hour-by-hour history, and complete usage events log.</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">Downloads a 3-section CSV directly from your ESP32: 7-day daily summary, 24h hour-by-hour history, and complete usage events log.</p>
       <button class="btn btn-p btn-full" onclick="downloadCSV()" style="padding:14px;font-size:13px">⬇ DOWNLOAD REPORT.CSV</button>
-      <div id="anly-csv-note" style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center;line-height:1.5">Device must be reachable on local WiFi.<br>Open in Excel, Google Sheets, or any CSV viewer.</div>
+      <div id="anly-csv-note" style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center;line-height:1.5">Device must be on local WiFi.<br>Opens in Excel, Google Sheets, or any CSV viewer.</div>
     </div>
 
   </div><!-- end tab-analytics -->
@@ -3143,17 +3207,21 @@ function renderAnalytics(d,fromCache=false,cacheTs=null){
   // Summary cards
   const daily=d.daily||[];
   const today=daily.find(x=>x.partial)||null;
-  _anlySet('anly-today-consumed',today?today.consumedL.toFixed(1):'--');
-  _anlySet('anly-today-filled',  today?today.filledL.toFixed(1):'--');
+  _anlySet('anly-today-consumed',today?today.consumedL.toFixed(1)+'L':'--');
+  _anlySet('anly-today-filled',  today?today.filledL.toFixed(1)+'L':'--');
   const pk=(d.session&&d.session.peak>=0)?d.session.peak:'--';
   const mn=(d.session&&d.session.min>=0&&d.session.min<=100)?d.session.min:'--';
   _anlySet('anly-session-peak', pk!=='--'?pk+'%':'--');
   _anlySet('anly-session-min',  mn!=='--'?mn+'%':'--');
-  _anlySet('anly-sess-consumed',(d.session&&d.session.consumedL>0)?d.session.consumedL.toFixed(1):'--');
+  _anlySet('anly-sess-consumed',(d.session&&d.session.consumedL>0)?d.session.consumedL.toFixed(1)+'L':'--');
+  // lastRefill: ms is device millis; ts is device millis at snapshot — compute age
   const rf=d.lastRefill;
   if(rf&&rf.volL>0){
-    const ageH=d.ts&&rf.ms?(Math.floor((d.ts-rf.ms)/3600000)):0;
-    _anlySet('anly-last-refill',rf.volL.toFixed(0)+'L'+(ageH>0?`<span style="font-size:9px;color:var(--muted);display:block"> ${ageH}h ago</span>`:''));
+    const ageMs=d.ts&&rf.ms?(d.ts-rf.ms):0;
+    const ageH=Math.floor(ageMs/3600000);
+    const ageM=Math.floor((ageMs%3600000)/60000);
+    const ageStr=ageH>0?`${ageH}h ${ageM}m ago`:ageM>0?`${ageM}m ago`:'just now';
+    _anlySet('anly-last-refill',rf.volL.toFixed(0)+'L<span style="font-size:9px;color:var(--muted);display:block">'+ageStr+'</span>');
   }else{_anlySet('anly-last-refill','--');}
 
   // Charts
@@ -3188,7 +3256,7 @@ function _anlyRenderHistChart(history,tankL){
 // ── 7-day daily table ──
 function _anlyRenderDailyTable(daily){
   const el=document.getElementById('anly-daily-table');if(!el)return;
-  const rows=daily.filter(d=>d.dateCode>0);
+  const rows=daily.filter(d=>d.date>0);
   if(!rows.length){
     el.innerHTML='<div style="color:var(--muted);font-size:10px;text-align:center;padding:14px;line-height:1.6">No daily data yet<br><span style="font-size:9px">Daily totals accumulate throughout the day</span></div>';
     return;
@@ -3198,7 +3266,7 @@ function _anlyRenderDailyTable(daily){
   </div>`;
   const body=rows.map(r=>{
     const net=r.filledL-r.consumedL;
-    const dc=String(r.dateCode).padStart(8,'0');
+    const dc=String(r.date).padStart(8,'0');
     const dd=dc.slice(6,8),mm=dc.slice(4,6);
     const netCol=net>=0?'var(--ok)':'var(--danger)';
     const todayBadge=r.partial?` <span style="font-size:8px;background:rgba(251,191,36,.15);color:var(--warn);padding:1px 5px;border-radius:4px;font-family:var(--head);font-weight:700">TODAY</span>`:'';
@@ -3272,273 +3340,231 @@ function _anlyRenderEvents(events,deviceTs){
   const cached=await _anlyLoad();
   if(cached&&cached.data){
     _anlyData=cached.data;
-    // Don't render immediately — user hasn't opened the tab yet.
-    // Data is held in _anlyData and will render when tab is opened.
+    // Data held in _anlyData; rendered when tab opens
   }
 })();
 
 // ═══════════════════════════════════════════════════════════════════
-//  ANALYTICS LIVE STRIP — updates from WiFi poll / MQTT via ingest()
-//  No core logic changed — purely additive rendering layer
+//  ANALYTICS LIVE STRIP
+//  Reads directly from S — the live state object kept by ingest().
+//  S fields set from /sensor-reading (WiFi) and MQTT tasni-water/{id}/state:
+//    S.m       = level %         (field "m" from WiFi / "level" from MQTT)
+//    S.vol     = volume L        (field "vol" / "volume")
+//    S.usage   = usage rate L/hr (field "usage")
+//    S.s       = status string   (field "s" / "status")
+//    S.dist    = distance cm     (field "dist")
+//    S.rssi    = RSSI dBm        (field "rssi")
+//    S.up      = uptime sec      (field "up" / "uptime")
+//    S.isFull  = 1 or 0          (field "isFull")
+//    S.total   = total volume L  (field "total")
+//  Updated every 2.5s by WiFi poll + on every MQTT message
 // ═══════════════════════════════════════════════════════════════════
 
-// Track whether user is on analytics tab
 let _anlyTabOpen = false;
+let _anlyLiveTick = null;
 
-// Patch goTab to track analytics open state and start/stop auto-refresh
-const _origGoTabAnly = goTab;
-// eslint-disable-next-line no-global-assign
+// ── Render live strip from S (called on tick + on tab open) ────────
+function _anlyRenderLiveStrip() {
+  const live = _displayReady && S.connected && !demoMode;
+
+  // Row 1: level / vol / usage / dist
+  const lvlEl = document.getElementById('als-level');
+  if (lvlEl) {
+    if (live && S.m != null) {
+      const col = S.m < 10 ? 'var(--danger)' : S.m < 30 ? 'var(--warn)' : S.m >= 75 ? 'var(--ok)' : 'var(--pri)';
+      lvlEl.style.color = col;
+      lvlEl.textContent = S.m + '%';
+    } else { lvlEl.style.color='var(--muted)'; lvlEl.textContent='--'; }
+  }
+  const volEl = document.getElementById('als-vol');
+  if (volEl) volEl.textContent = (live && S.vol != null) ? Math.round(S.vol) : '--';
+
+  const usageEl = document.getElementById('als-usage');
+  if (usageEl) {
+    if (live && S.usage != null && S.usage > 0) {
+      usageEl.textContent = S.usage.toFixed(1);
+      usageEl.style.color = S.usage > 50 ? 'var(--danger)' : S.usage > 20 ? 'var(--warn)' : 'var(--ok)';
+    } else { usageEl.textContent = '0.0'; usageEl.style.color = 'var(--ok)'; }
+  }
+  const distEl = document.getElementById('als-dist');
+  if (distEl) distEl.textContent = (live && S.dist != null) ? S.dist.toFixed(1) : '--';
+
+  // Row 2: status / rssi / uptime / isFull
+  const statEl = document.getElementById('als-status');
+  if (statEl) {
+    if (live && S.s) {
+      const sc = {
+        'FULL TANK':'var(--ok)', 'Full':'var(--ok)', 'Good':'var(--pri)',
+        'Medium':'var(--warn)', 'Low':'var(--warn)', 'Critical':'var(--danger)', 'Offline':'var(--muted)'
+      };
+      statEl.style.color = sc[S.s] || 'var(--muted)';
+      statEl.textContent = S.s;
+    } else { statEl.style.color='var(--muted)'; statEl.textContent = S.connected ? 'LIVE' : 'OFFLINE'; }
+  }
+  const rssiEl = document.getElementById('als-rssi');
+  if (rssiEl) {
+    if (live && S.rssi) {
+      rssiEl.textContent = S.rssi;
+      rssiEl.style.color = S.rssi > -60 ? 'var(--ok)' : S.rssi > -75 ? 'var(--warn)' : 'var(--danger)';
+    } else { rssiEl.textContent='--'; rssiEl.style.color='var(--muted)'; }
+  }
+  const upEl = document.getElementById('als-uptime');
+  if (upEl) upEl.textContent = (live && S.up) ? fmtUp(S.up) : '--';
+
+  const fullEl = document.getElementById('als-isfull');
+  if (fullEl) {
+    if (live) {
+      fullEl.textContent = S.isFull ? '✅ FULL' : '—';
+      fullEl.style.color = S.isFull ? 'var(--ok)' : 'var(--muted)';
+    } else { fullEl.textContent='--'; fullEl.style.color='var(--muted)'; }
+  }
+
+  // Live dot
+  const dotEl = document.getElementById('als-live-dot');
+  if (dotEl) dotEl.innerHTML = live ? '<span class="live-indicator"></span>' : '';
+}
+
+// ── Forecast card ──────────────────────────────────────────────────
+// Days remaining = current volume / avg daily consumption
+// Source of truth:
+//   currentVol  → S.vol  (L/hr from /sensor-reading or MQTT "volume" field)
+//   avgDailyL   → analytics daily[] complete rows (NVS-persisted in ESP32)
+//   liveRateL   → S.usage (L/hr from firmware) × 24 → daily estimate fallback
+function _anlyRenderForecast(ad) {
+  const daysEl    = document.getElementById('fc-days-val');
+  const avgEl     = document.getElementById('fc-avg-val');
+  const barEl     = document.getElementById('fc-bar');
+  const barLblEl  = document.getElementById('fc-bar-label');
+  const tipEl     = document.getElementById('fc-refill-tip');
+  if (!daysEl) return;
+
+  // 1. Avg daily from NVS daily[] complete rows
+  let avgDailyL = null;
+  if (ad && ad.daily) {
+    const comp = ad.daily.filter(r => !r.partial && r.consumedL > 0);
+    if (comp.length) avgDailyL = comp.reduce((s,r)=>s+r.consumedL,0) / comp.length;
+  }
+
+  // 2. Live usage rate fallback: S.usage (L/hr) × 24
+  const liveRateDay = (S.usage && S.usage > 0) ? S.usage * 24 : null;
+
+  // 3. Best estimate
+  const bestDay = avgDailyL || liveRateDay;
+
+  // 4. Current volume from S (live sensor)
+  const curVol = (S.vol && S.vol > 0) ? S.vol : (ad && ad.live && ad.live.volL > 0 ? ad.live.volL : null);
+  const tankL  = S.total || (ad && ad.tank) || 1000;
+
+  // Days remaining
+  if (bestDay && bestDay > 0 && curVol && curVol > 0) {
+    const days = curVol / bestDay;
+    if (days < 1) {
+      const hrs = Math.round(days * 24);
+      daysEl.style.color = hrs < 12 ? 'var(--danger)' : 'var(--warn)';
+      daysEl.textContent = hrs + 'h';
+    } else {
+      daysEl.style.color = days < 2 ? 'var(--danger)' : days < 5 ? 'var(--warn)' : 'var(--ok)';
+      daysEl.textContent = days > 99 ? '99+' : days.toFixed(1);
+    }
+    if (tipEl) {
+      const refDate = new Date(Date.now() + days * 86400000);
+      const label = days < 1 ? 'in a few hours' : `by ${refDate.toLocaleDateString('en-IN',{weekday:'short',month:'short',day:'numeric'})}`;
+      const icon = days < 2 ? '🚨' : days < 5 ? '⚠️' : '💧';
+      tipEl.innerHTML = `${icon} At <strong>${bestDay.toFixed(0)} L/day</strong> usage — water runs out <strong style="color:${days<2?'var(--danger)':days<5?'var(--warn)':'var(--pri)'}">${label}</strong>. ${avgDailyL ? '(7-day NVS avg)' : '(live rate estimate)'}`;
+    }
+  } else {
+    daysEl.style.color = 'var(--muted)'; daysEl.textContent = '--';
+    if (tipEl) tipEl.textContent = avgDailyL == null && liveRateDay == null
+      ? 'Sync from device — usage data needed for forecast.'
+      : curVol == null ? 'Live sensor data needed — ensure WiFi or MQTT is connected.' : '';
+  }
+
+  // Avg daily
+  if (avgEl) {
+    if (avgDailyL) {
+      avgEl.style.color = avgDailyL > tankL*0.5 ? 'var(--danger)' : avgDailyL > tankL*0.25 ? 'var(--warn)' : 'var(--pri)';
+      avgEl.textContent = Math.round(avgDailyL) + 'L';
+    } else if (liveRateDay) {
+      avgEl.style.color = 'var(--warn)';
+      avgEl.textContent = '~' + Math.round(liveRateDay) + 'L';
+    } else { avgEl.style.color='var(--muted)'; avgEl.textContent='--'; }
+  }
+
+  // Level bar from S.m (live firmware levelPct)
+  const pct = (S.m != null && _displayReady) ? S.m : (ad && ad.live && ad.live.level != null ? ad.live.level : null);
+  if (barEl && pct != null) {
+    const p = Math.max(0, Math.min(100, pct));
+    barEl.style.width = p + '%';
+    barEl.style.background = p < 10 ? 'linear-gradient(90deg,var(--danger),rgba(248,113,113,.4))'
+      : p < 30 ? 'linear-gradient(90deg,var(--warn),rgba(251,191,36,.4))'
+      : 'linear-gradient(90deg,var(--ok),var(--pri))';
+    if (barLblEl) barLblEl.textContent = p + '% · ' + (S.vol != null ? Math.round(S.vol) + 'L' : '');
+  }
+}
+
+// ── Consumption averages card (from /analytics daily[] NVS data) ───
+function _anlyRenderAvgDay(ad) {
+  const el = document.getElementById('anly-avgday-body');
+  if (!el || !ad) return;
+  const daily = (ad.daily || []).filter(r => r.dateCode > 0 || r.date > 0);  if (!daily.length) {
+    el.innerHTML='<div style="color:var(--muted);font-size:10px;text-align:center;padding:14px">No daily data yet — check back after 24h of device runtime</div>';
+    return;
+  }
+  const comp = daily.filter(r => !r.partial && r.consumedL > 0);
+  const today = daily.find(r => r.partial);
+  const tankL = ad.tank || S.total || 1000;
+  const avgC = comp.length ? comp.reduce((s,r)=>s+r.consumedL,0)/comp.length : null;
+  const avgF = comp.length ? comp.reduce((s,r)=>s+r.filledL,0)/comp.length : null;
+  const totC = daily.reduce((s,r)=>s+r.consumedL,0);
+  const totF = daily.reduce((s,r)=>s+r.filledL,0);
+  const maxC = comp.length ? Math.max(...comp.map(r=>r.consumedL)) : 0;
+  const minC = comp.length ? Math.min(...comp.map(r=>r.consumedL)) : 0;
+  const rows = [];
+  if (today) rows.push({lbl:"Today (in progress)", val: Math.round(today.consumedL)+'L used / '+Math.round(today.filledL)+'L filled', col:'var(--pri)', badge:'TODAY'});
+  if (avgC != null) rows.push({lbl:'Avg Daily Consumption', val: Math.round(avgC)+' L/day', col:'var(--danger)'});
+  if (avgF != null) rows.push({lbl:'Avg Daily Refill', val: Math.round(avgF)+' L/day', col:'var(--ok)'});
+  rows.push({lbl:'Total Consumed ('+daily.length+'d)', val: Math.round(totC)+' L', col:'var(--warn)'});
+  rows.push({lbl:'Total Refilled', val: Math.round(totF)+' L', col:'var(--pri)'});
+  if (maxC>0) rows.push({lbl:'Highest Day', val: Math.round(maxC)+' L', col:'var(--danger)'});
+  if (minC>0 && comp.length>1) rows.push({lbl:'Lowest Day', val: Math.round(minC)+' L', col:'var(--ok)'});
+  el.innerHTML = rows.map(r=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:12px;color:var(--muted)">${r.lbl}${r.badge?` <span style="font-size:8px;background:rgba(251,191,36,.15);color:var(--warn);padding:1px 5px;border-radius:4px;font-family:var(--head);font-weight:700">${r.badge}</span>`:''}</div>
+      <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${r.col}">${r.val}</div>
+    </div>`).join('');
+}
+
+// ── Patch renderAnalytics to call new renderers ────────────────────
+// renderAnalytics is a function declaration — reassign to extend it
+const _origRenderAnly = renderAnalytics;
+renderAnalytics = function(d, fromCache, cacheTs) {
+  _origRenderAnly(d, fromCache, cacheTs);
+  _anlyRenderForecast(d);
+  _anlyRenderAvgDay(d);
+};
+
+// ── Patch goTab to start/stop live tick ────────────────────────────
+const _origGoTabBase = goTab;
 goTab = function(name, btn) {
-  _origGoTabAnly(name, btn);
+  _origGoTabBase(name, btn);
   if (name === 'analytics') {
     _anlyTabOpen = true;
     _anlyStartAuto();
-    // Immediately render live strip from current S state
     _anlyRenderLiveStrip();
-    _anlyRenderForecast(_anlyData);
+    if (_anlyData) { _anlyRenderForecast(_anlyData); _anlyRenderAvgDay(_anlyData); }
   } else {
     if (_anlyTabOpen) { _anlyTabOpen = false; _anlyStopAuto(); }
   }
 };
 
-// ── Live strip: reads directly from S (the live device state) ──────
-function _anlyRenderLiveStrip() {
-  const lvlEl   = document.getElementById('als-level');
-  const volEl   = document.getElementById('als-vol');
-  const usageEl = document.getElementById('als-usage');
-  const statEl  = document.getElementById('als-status');
-  const dotEl   = document.getElementById('als-live-dot');
-  if (!lvlEl) return;
-
-  const connected = S.connected && _displayReady && !demoMode;
-
-  // Level
-  if (S.m != null && connected) {
-    const lvlCol = S.m < 10 ? 'var(--danger)' : S.m < 30 ? 'var(--warn)' : S.m >= 75 ? 'var(--ok)' : 'var(--pri)';
-    lvlEl.style.color = lvlCol;
-    lvlEl.textContent = S.m + '%';
-  } else {
-    lvlEl.style.color = 'var(--muted)';
-    lvlEl.textContent = '--';
+// ── 3-second tick: refresh live strip while analytics tab is open ──
+clearInterval(_anlyLiveTick);
+_anlyLiveTick = setInterval(() => {
+  if (_anlyTabOpen && _displayReady) {
+    _anlyRenderLiveStrip();
+    _anlyRenderForecast(_anlyData);
   }
-
-  // Volume
-  if (S.vol != null && connected) {
-    volEl.textContent = Math.round(S.vol);
-  } else {
-    volEl.textContent = '--';
-  }
-
-  // Usage rate (from firmware via MQTT/WiFi — same field ESP32 publishes)
-  if (S.usage != null && S.usage > 0 && connected) {
-    usageEl.textContent = S.usage.toFixed(1);
-    usageEl.style.color = S.usage > 50 ? 'var(--danger)' : S.usage > 20 ? 'var(--warn)' : 'var(--ok)';
-  } else {
-    usageEl.textContent = '--';
-    usageEl.style.color = 'var(--muted)';
-  }
-
-  // Status
-  if (S.s && connected) {
-    const statusColors = { 'FULL TANK': 'var(--ok)', 'Full': 'var(--ok)', 'Good': 'var(--pri)', 'Medium': 'var(--warn)', 'Low': 'var(--warn)', 'Critical': 'var(--danger)' };
-    statEl.style.color = statusColors[S.s] || 'var(--muted)';
-    statEl.textContent = S.s;
-  } else {
-    statEl.style.color = 'var(--muted)';
-    statEl.textContent = connected ? 'OK' : 'OFFLINE';
-  }
-
-  // Live pulse dot — shown only when real-time data is flowing
-  if (dotEl) {
-    dotEl.innerHTML = connected ? '<span class="live-indicator"></span>' : '';
-  }
-}
-
-// ── Forecast card: uses live usage rate + current volume ───────────
-// Falls back to 7-day daily average if live usage rate is 0
-function _anlyRenderForecast(analyticsData) {
-  const daysEl     = document.getElementById('fc-days-val');
-  const avgEl      = document.getElementById('fc-avg-val');
-  const barEl      = document.getElementById('fc-bar');
-  const barLblEl   = document.getElementById('fc-bar-label');
-  const tipEl      = document.getElementById('fc-refill-tip');
-  if (!daysEl) return;
-
-  // ── Avg daily consumption from 7-day daily data (firmware-provided) ──
-  let avgDailyL = null;
-  if (analyticsData && analyticsData.daily) {
-    const completeDays = analyticsData.daily.filter(d => !d.partial && d.consumedL > 0);
-    if (completeDays.length > 0) {
-      avgDailyL = completeDays.reduce((s, d) => s + d.consumedL, 0) / completeDays.length;
-    }
-    // Include today's partial if no complete days yet
-    if (avgDailyL == null) {
-      const today = analyticsData.daily.find(d => d.partial && d.consumedL > 0);
-      if (today) avgDailyL = today.consumedL;
-    }
-  }
-
-  // ── Usage rate: prefer live firmware rate (L/hr × 24 = L/day) ──
-  let liveRateDaily = null;
-  const liveUsage = (analyticsData && analyticsData.live && analyticsData.live.usage > 0)
-    ? analyticsData.live.usage
-    : (S.usage && S.usage > 0 ? S.usage : null);
-  if (liveUsage && liveUsage > 0) {
-    liveRateDaily = liveUsage * 24; // L/hr → L/day
-  }
-
-  // Best estimate: prefer avg daily from history, else live rate
-  const bestDailyL = avgDailyL || liveRateDaily;
-
-  // Current volume
-  const currentVol = (analyticsData && analyticsData.live && analyticsData.live.volL > 0)
-    ? analyticsData.live.volL
-    : (S.vol && S.vol > 0 ? S.vol : null);
-  const tankVol = (analyticsData && analyticsData.tank) || S.total || 1000;
-  const currentPct = (analyticsData && analyticsData.live && analyticsData.live.level != null)
-    ? analyticsData.live.level
-    : S.m;
-
-  // ── Days remaining ──
-  if (bestDailyL && bestDailyL > 0 && currentVol && currentVol > 0) {
-    const days = currentVol / bestDailyL;
-    if (days < 1) {
-      const hrs = Math.round(days * 24);
-      daysEl.style.color = hrs < 12 ? 'var(--danger)' : 'var(--warn)';
-      daysEl.textContent = hrs + 'h';
-    } else if (days > 99) {
-      daysEl.style.color = 'var(--ok)';
-      daysEl.textContent = '99+';
-    } else {
-      daysEl.style.color = days < 2 ? 'var(--danger)' : days < 4 ? 'var(--warn)' : 'var(--ok)';
-      daysEl.textContent = days.toFixed(1);
-    }
-    // Refill tip
-    if (tipEl) {
-      const refillDate = new Date(Date.now() + days * 86400000);
-      const opts = { weekday: 'long', month: 'short', day: 'numeric' };
-      const dayLabel = days < 1 ? 'in a few hours' : `by ${refillDate.toLocaleDateString('en-IN', opts)}`;
-      const urgency = days < 2 ? '🚨 ' : days < 5 ? '⚠️ ' : '💧 ';
-      tipEl.innerHTML = `${urgency}At ${bestDailyL.toFixed(0)} L/day usage, water will run out <strong style="color:${days<2?'var(--danger)':days<5?'var(--warn)':'var(--pri)'}">${dayLabel}</strong>. Consider refilling beforehand.`;
-    }
-  } else {
-    daysEl.style.color = 'var(--muted)';
-    daysEl.textContent = '--';
-    if (tipEl) tipEl.textContent = 'Usage rate not available — needs a few hours of runtime to calculate.';
-  }
-
-  // ── Avg daily display ──
-  if (avgEl) {
-    if (avgDailyL && avgDailyL > 0) {
-      avgEl.style.color = avgDailyL > tankVol * 0.5 ? 'var(--danger)' : avgDailyL > tankVol * 0.25 ? 'var(--warn)' : 'var(--pri)';
-      avgEl.textContent = Math.round(avgDailyL) + 'L';
-    } else if (liveRateDaily) {
-      avgEl.style.color = 'var(--warn)';
-      avgEl.textContent = '~' + Math.round(liveRateDaily) + 'L';
-    } else {
-      avgEl.style.color = 'var(--muted)';
-      avgEl.textContent = '--';
-    }
-  }
-
-  // ── Tank level progress bar ──
-  if (barEl && currentPct != null) {
-    const pct = Math.max(0, Math.min(100, currentPct));
-    barEl.style.width = pct + '%';
-    barEl.style.background = pct < 10 ? 'linear-gradient(90deg,var(--danger),rgba(248,113,113,.5))'
-      : pct < 30 ? 'linear-gradient(90deg,var(--warn),rgba(251,191,36,.5))'
-      : 'linear-gradient(90deg,var(--ok),var(--pri))';
-    if (barLblEl) barLblEl.textContent = pct + '% — ' + (currentVol ? Math.round(currentVol) + 'L' : '');
-  }
-}
-
-// ── Average daily consumption summary card ─────────────────────────
-function _anlyRenderAvgDayCard(analyticsData) {
-  const el = document.getElementById('anly-avgday-body');
-  if (!el || !analyticsData) return;
-
-  const daily = (analyticsData.daily || []).filter(d => d.dateCode > 0);
-  const complete = daily.filter(d => !d.partial && d.consumedL > 0);
-  const today = daily.find(d => d.partial);
-  const tankL = analyticsData.tank || S.total || 1000;
-
-  if (!daily.length) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:10px;text-align:center;padding:14px">No daily data yet — check back after 24h of device runtime</div>';
-    return;
-  }
-
-  const avgConsume = complete.length ? complete.reduce((s, d) => s + d.consumedL, 0) / complete.length : null;
-  const avgFill    = complete.length ? complete.reduce((s, d) => s + d.filledL, 0) / complete.length : null;
-  const totalConsumed = daily.reduce((s, d) => s + d.consumedL, 0);
-  const totalFilled   = daily.reduce((s, d) => s + d.filledL, 0);
-  const maxConsume = complete.length ? Math.max(...complete.map(d => d.consumedL)) : 0;
-  const minConsume = complete.length ? Math.min(...complete.map(d => d.consumedL)) : 0;
-
-  const rows = [
-    { lbl: 'Avg Daily Consumption', val: avgConsume != null ? Math.round(avgConsume) + ' L/day' : '--', col: 'var(--danger)' },
-    { lbl: 'Avg Daily Refill', val: avgFill != null ? Math.round(avgFill) + ' L/day' : '--', col: 'var(--ok)' },
-    { lbl: 'Total Consumed (' + daily.length + ' day' + (daily.length > 1 ? 's' : '') + ')', val: Math.round(totalConsumed) + ' L', col: 'var(--warn)' },
-    { lbl: 'Total Refilled', val: Math.round(totalFilled) + ' L', col: 'var(--pri)' },
-    { lbl: 'Highest Day', val: maxConsume > 0 ? Math.round(maxConsume) + ' L' : '--', col: 'var(--danger)' },
-    { lbl: 'Lowest Day', val: minConsume > 0 && complete.length ? Math.round(minConsume) + ' L' : '--', col: 'var(--ok)' },
-  ];
-  if (today) {
-    rows.unshift({ lbl: "Today's Usage (so far)", val: Math.round(today.consumedL) + ' L', col: 'var(--pri)', badge: 'TODAY' });
-  }
-
-  el.innerHTML = rows.map(r => `
-    <div class="avg-daily-row">
-      <div style="font-size:12px;color:var(--muted)">${r.lbl}${r.badge ? ` <span style="font-size:8px;background:rgba(251,191,36,.15);color:var(--warn);padding:1px 5px;border-radius:4px;font-family:var(--head);font-weight:700">${r.badge}</span>` : ''}</div>
-      <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${r.col}">${r.val}</div>
-    </div>`).join('');
-}
-
-// ── Hook into ingest(): update live strip when analytics tab is open ──
-// This is ADDITIVE — it does NOT touch ingest() core logic in any way.
-// We use a MutationObserver-free approach: a light periodic tick only
-// active when the analytics tab is open, reading directly from S.
-let _anlyLiveTick = null;
-function _startAnlyLiveTick() {
-  clearInterval(_anlyLiveTick);
-  _anlyLiveTick = setInterval(() => {
-    if (_anlyTabOpen && _displayReady) {
-      _anlyRenderLiveStrip();
-      // Also update forecast live strip if we have cached analytics data
-      if (_anlyData) _anlyRenderForecast(_anlyData);
-    }
-  }, 3000); // every 3s — matches WiFi poll cadence
-}
-_startAnlyLiveTick();
-
-// ── Patch renderAnalytics to also call new render functions ──────────
-const _origRenderAnalytics = renderAnalytics;
-// eslint-disable-next-line no-global-assign
-renderAnalytics = function(d, fromCache, cacheTs) {
-  _origRenderAnalytics(d, fromCache, cacheTs);
-  _anlyRenderForecast(d);
-  _anlyRenderAvgDayCard(d);
-  // Update live strip with firmware live snapshot if provided in analytics JSON
-  if (d && d.live) {
-    const liveEl = document.getElementById('als-level');
-    if (liveEl) {
-      // Only override if S is not already live (i.e. analytics used as source of truth)
-      if (!_displayReady || !S.connected) {
-        const lvl = d.live.level;
-        const vol = d.live.volL;
-        const usage = d.live.usage;
-        const stat = d.live.status;
-        const lvlCol = lvl < 10 ? 'var(--danger)' : lvl < 30 ? 'var(--warn)' : lvl >= 75 ? 'var(--ok)' : 'var(--pri)';
-        const statColors = { 'FULL TANK': 'var(--ok)', 'Full': 'var(--ok)', 'Good': 'var(--pri)', 'Medium': 'var(--warn)', 'Low': 'var(--warn)', 'Critical': 'var(--danger)' };
-        document.getElementById('als-level').style.color = lvlCol;
-        document.getElementById('als-level').textContent = lvl != null ? lvl + '%' : '--';
-        document.getElementById('als-vol').textContent = vol != null ? Math.round(vol) : '--';
-        document.getElementById('als-usage').textContent = usage > 0 ? usage.toFixed(1) : '--';
-        document.getElementById('als-status').style.color = statColors[stat] || 'var(--muted)';
-        document.getElementById('als-status').textContent = stat || '--';
-      }
-    }
-  }
-};
+}, 3000);
 </script>
 </body>
 </html>
