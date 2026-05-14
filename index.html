@@ -2967,7 +2967,7 @@ function goTab(name,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
-  if(name==='analytics'){unlockAch(1);anlyFetch();}
+  if(name==='analytics'){unlockAch(1);}
   if(name==='tips'){unlockAch(5);renderTips();}
   if(name==='settings'){unlockAch(4);_updateTgStatus();_renderTgCmds();}
 }
@@ -3257,37 +3257,46 @@ function anlyDraw(d) {
 //        (ESP32 publishes every 5 minutes on the same MQTT connection)
 // ═══════════════════════════════════════════════════════════════════
 
-var _anlyLoaded = false;   // has data been fetched at least once this session?
+var _anlyLoaded = false;
+var _anlyFetching = false;
 
-// Called by Sync button and automatically when analytics tab is opened
+// Called by Sync button, tab open, and auto-start
 function anlyFetch() {
-  var ip = cfg.ip || (S.ip || '');
+  if (_anlyFetching) return;
+  var ip = cfg.ip || '';
   if (!ip) {
-    // No IP configured — show message and prompt
-    document.getElementById('anly-hdr-sub').textContent = 'No device IP — go to Settings and enter your ESP32 IP.';
+    var subEl = document.getElementById('anly-hdr-sub');
+    if (subEl) subEl.textContent = 'No device IP — go to Settings and enter your ESP32 IP.';
+    anlyCacheFallback();
     return;
   }
+  _anlyFetching = true;
   var btn = document.getElementById('anly-sync-btn');
   if (btn) { btn.textContent = '…'; btn.disabled = true; }
 
-  fetch('http://' + ip + '/analytics', { signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined })
+  fetch('http://' + ip + '/analytics', {
+    signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(8000) : undefined
+  })
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     })
     .then(function(d) {
       _anlyLoaded = true;
+      _anlyFetching = false;
       anlyDraw(d);
       anlySetSrc('wifi');
-      // Cache in SW IndexedDB so the service worker can serve it when offline
+      // ── Save to IndexedDB so cache fallback and SW both work ──
+      _anlySave(d);
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'STORE_ANALYTICS', data: d });
       }
       if (btn) { btn.textContent = '⟳ Sync'; btn.disabled = false; }
+      showToast('✅ Report synced from ESP32', 'ok', 2000);
     })
-    .catch(function(e) {
+    .catch(function() {
+      _anlyFetching = false;
       if (btn) { btn.textContent = '⟳ Sync'; btn.disabled = false; }
-      // Try cached data from SW IndexedDB
       anlyCacheFallback();
     });
 }
@@ -3337,62 +3346,84 @@ function mqttIngestAnalytics(payload) {
   } catch(e) { /* malformed JSON — ignore */ }
 }
 
-// ── Wire into existing MQTT message handler ──────────────────────────
-// The app's existing onMqttMessage / mqttClient.onMessageArrived is already
-// defined. We extend it here without touching the core ingest() logic.
-(function() {
-  var _origMsg = window.onMqttMessage;
-  window.onMqttMessage = function(topic, payload) {
-    if (_origMsg) _origMsg(topic, payload);
-    // Analytics topic: tasni-water/{any}/analytics
-    if (typeof topic === 'string' && topic.indexOf('/analytics') !== -1) {
-      mqttIngestAnalytics(payload);
-    }
+// ── MQTT analytics: subscribe to analytics topic on connect ──────────
+// Patches _connectPrimary and _connectBackup's subscribe calls so the
+// analytics topic is always subscribed alongside the state topic.
+// Also intercepts the real .on('message') handlers directly — the only
+// path where MQTT payloads actually arrive in this app.
+(function () {
+  // Patch mqttPrimary subscribe + message after connect fires
+  var _origConnectPrimary = _connectPrimary;
+  _connectPrimary = function (mc) {
+    _origConnectPrimary(mc);
+    // Wait a tick for mqttPrimary to be assigned then patch its message handler
+    setTimeout(function () {
+      if (!mqttPrimary) return;
+      mqttPrimary.on('message', function (topic, pl, pkt) {
+        if (pkt && pkt.retain === true) return; // skip retained
+        if (typeof topic === 'string' && topic.indexOf('/analytics') !== -1) {
+          try { mqttIngestAnalytics(pl.toString()); } catch (e) {}
+        }
+      });
+      // Subscribe to analytics topic on the same connection
+      var atopic = (mc.topic || 'tasni-water/+/state').replace('/state', '/analytics').replace('/+/', '/+/');
+      mqttPrimary.subscribe('tasni-water/+/analytics', { qos: 0 });
+    }, 500);
+  };
+
+  var _origConnectBackup = _connectBackup;
+  _connectBackup = function (mc) {
+    _origConnectBackup(mc);
+    setTimeout(function () {
+      if (!mqttBackup) return;
+      mqttBackup.on('message', function (topic, pl, pkt) {
+        if (pkt && pkt.retain === true) return;
+        if (typeof topic === 'string' && topic.indexOf('/analytics') !== -1) {
+          try { mqttIngestAnalytics(pl.toString()); } catch (e) {}
+        }
+      });
+      mqttBackup.subscribe('tasni-water/+/analytics', { qos: 0 });
+    }, 500);
   };
 })();
 
-// ── Auto-fetch when analytics tab is opened (if not loaded yet) ──────
-// Wraps the existing goTab function — does not change its core logic.
-(function() {
+// ── Auto-fetch when analytics tab is opened ───────────────────────────
+(function () {
   var _origGoTab = goTab;
-  goTab = function(name, btn) {
+  goTab = function (name, btn) {
     _origGoTab(name, btn);
-    if (name === 'analytics' && !_anlyLoaded) {
-      // Small delay so the tab animation completes first
-      setTimeout(anlyFetch, 150);
+    if (name === 'analytics') {
+      // Always re-fetch on tab open (fresh data), but debounce if already in flight
+      setTimeout(anlyFetch, 120);
     }
   };
 })();
 
-// ── On app start: auto-fetch analytics data ──────────────────────────
-// Triggered once after the splash screen disappears and device IP is known.
-// This ensures the Report tab has data ready the moment the user opens it.
-(function() {
-  function _anlyAutoStart() {
-    var ip = cfg.ip || (S.ip || '');
-    if (ip && !_anlyLoaded) {
+// ── On app start: fetch analytics once IP is known ───────────────────
+(function () {
+  var _attempts = 0;
+  function _tryFetch() {
+    var ip = cfg.ip || '';
+    if (ip) {
       anlyFetch();
-    } else if (!ip) {
-      // Try again after 5 seconds in case WiFi is still connecting
-      setTimeout(function() {
-        var ip2 = cfg.ip || (S.ip || '');
-        if (ip2 && !_anlyLoaded) anlyFetch();
-      }, 5000);
+    } else if (_attempts < 4) {
+      _attempts++;
+      setTimeout(_tryFetch, 3000); // retry every 3s up to 4 times
     }
   }
-  // Wait for splash to clear (2s) then try
-  setTimeout(_anlyAutoStart, 2500);
+  // First attempt after splash clears (2.5s)
+  setTimeout(_tryFetch, 2500);
 })();
 
-// ── On load: restore cached analytics from SW IndexedDB ─────────────
-(async function() {
+// ── On load: immediately show cached analytics while fresh data loads ──
+(async function () {
   try {
     var cached = await _anlyLoad();
-    if (cached && cached.data && !_anlyLoaded) {
+    if (cached && cached.data) {
       anlyDraw(cached.data);
       anlySetSrc('cache');
     }
-  } catch(e) { /* IndexedDB not available */ }
+  } catch (e) {}
 })();
 
 </script>
