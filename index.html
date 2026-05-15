@@ -53,20 +53,7 @@ main::-webkit-scrollbar-thumb{background:var(--brite);border-radius:2px}
 /* ══════════════════════════════════
    BOOT LOADING OVERLAY
 ══════════════════════════════════ */
-.boot-loading{
-  position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  background:rgba(4,13,26,.97);backdrop-filter:blur(8px);
-  transition:opacity .5s ease,visibility .5s ease;
-}
-.boot-loading.gone{opacity:0;visibility:hidden;pointer-events:none;}
-.boot-loading-icon{font-size:48px;margin-bottom:16px;animation:bootDrop 1.2s ease-in-out infinite;}
-@keyframes bootDrop{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-.boot-loading-title{font-family:var(--head);font-size:16px;font-weight:900;color:var(--pri);letter-spacing:3px;margin-bottom:6px;}
-.boot-loading-sub{font-family:var(--sans);font-size:12px;color:var(--muted);letter-spacing:2px;margin-bottom:24px;}
-.boot-loading-bar-wrap{width:200px;height:4px;background:rgba(45,212,191,.12);border-radius:2px;overflow:hidden;}
-.boot-loading-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--purple),var(--pri));border-radius:2px;transition:width .3s linear;}
-.boot-loading-count{font-family:var(--mono);font-size:11px;color:rgba(45,212,191,.5);margin-top:10px;letter-spacing:1px;}
+.boot-loading{display:none!important;}
 
 /* ══════════════════════════════════
    ULTRA REALISTIC TANK
@@ -708,6 +695,72 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     </div>
   </div>
 
+  <!-- ANALYTICS -->
+  <div class="tab" id="tab-analytics">
+    <div class="card" style="padding:14px 14px 10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="card-title" style="margin-bottom:2px">WATER ANALYTICS</div>
+          <div id="an-sync-lbl" style="font-size:10px;color:var(--muted)">Tap Sync to pull latest from device</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-o btn-sm" onclick="syncAnalytics()" id="an-sync-btn" style="font-size:10px">⟳ SYNC</button>
+          <button class="btn btn-p btn-sm" onclick="downloadCSV()" id="an-dl-btn" style="font-size:10px">⬇ CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live snapshot row -->
+    <div class="stats-grid" id="an-live-grid" style="margin-bottom:12px">
+      <div class="stat"><div class="stat-lbl">Today Used</div><div class="stat-val"><span id="an-today-used">--</span><span class="stat-unit"> L</span></div></div>
+      <div class="stat"><div class="stat-lbl">Today Added</div><div class="stat-val"><span id="an-today-filled">--</span><span class="stat-unit"> L</span></div></div>
+      <div class="stat"><div class="stat-lbl">Session Used</div><div class="stat-val"><span id="an-session-used">--</span><span class="stat-unit"> L</span></div></div>
+      <div class="stat"><div class="stat-lbl">Avg Daily</div><div class="stat-val"><span id="an-avg-daily">--</span><span class="stat-unit"> L</span></div></div>
+      <div class="stat"><div class="stat-lbl">Session Peak</div><div class="stat-val"><span id="an-peak">--</span><span class="stat-unit">%</span></div></div>
+      <div class="stat"><div class="stat-lbl">Leak Status</div><div class="stat-val" id="an-leak" style="font-size:13px">--</div></div>
+    </div>
+
+    <!-- 24-Hour Level History chart -->
+    <div class="card">
+      <div class="card-title">24-HOUR LEVEL HISTORY</div>
+      <canvas id="an-history-chart" style="width:100%;height:120px;display:block"></canvas>
+      <div id="an-history-empty" style="text-align:center;padding:20px;color:var(--muted);font-size:12px;display:none">No hourly data yet — sync from device</div>
+    </div>
+
+    <!-- Time of Day consumption bar chart -->
+    <div class="card">
+      <div class="card-title">CONSUMPTION BY HOUR (L/hr avg)</div>
+      <canvas id="an-tod-chart" style="width:100%;height:110px;display:block"></canvas>
+      <div id="an-tod-empty" style="text-align:center;padding:20px;color:var(--muted);font-size:12px;display:none">No time-of-day data yet</div>
+    </div>
+
+    <!-- 7-Day Daily Summary table -->
+    <div class="card">
+      <div class="card-title">7-DAY DAILY SUMMARY</div>
+      <div id="an-daily-table"><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">Sync from device to view history</div></div>
+    </div>
+
+    <!-- Usage Events log -->
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        USAGE EVENTS <span id="an-events-count" style="font-size:10px;color:var(--muted);font-weight:400"></span>
+      </div>
+      <div id="an-events-log"><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">Sync from device to view events</div></div>
+    </div>
+
+    <!-- Last Refill info -->
+    <div class="card" id="an-refill-card" style="display:none">
+      <div class="card-title">LAST REFILL</div>
+      <div id="an-refill-info"></div>
+    </div>
+
+    <!-- Persistent note -->
+    <div style="text-align:center;padding:6px 8px 16px;font-size:10px;color:var(--muted);line-height:1.6">
+      Analytics data stored on-device (NVS) — survives power cuts.<br>
+      Synced to browser IndexedDB — persists after app close.
+    </div>
+  </div>
+
   <!-- TIPS -->
   <div class="tab" id="tab-tips">
     <div class="tip-hero">
@@ -719,89 +772,6 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div id="allTips"></div>
     <div class="sec-hd" style="margin-top:18px">ACHIEVEMENTS</div>
     <div class="ach-grid" id="achGrid"></div>
-  </div>
-
-  <!-- ═══════════════════ REPORT TAB ═══════════════════ -->
-  <div class="tab" id="tab-analytics">
-    <!-- Action bar -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div>
-        <div style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--pri)">DEVICE REPORT</div>
-        <div id="anly-sync-lbl" style="font-size:10px;color:var(--muted);margin-top:1px">Tap SYNC for live data from ESP32</div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-o btn-sm" id="anly-sync-btn" onclick="fetchAnalytics()">⟳ SYNC</button>
-        <button class="btn btn-p btn-sm" id="anly-csv-btn" onclick="downloadCSV()">⬇ CSV</button>
-      </div>
-    </div>
-
-    <!-- Source badge -->
-    <div id="anly-source" style="margin-bottom:10px;display:none"></div>
-
-    <!-- Leak warning -->
-    <div id="anly-leak" class="hidden card" style="background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.3);padding:12px 14px;margin-bottom:12px">
-      <div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:20px">🚨</span>
-        <div><div style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--danger)">POSSIBLE LEAK DETECTED</div>
-          <div style="font-size:11px;color:rgba(248,113,113,.8);margin-top:3px;line-height:1.5">ESP32 detected &gt;5% level drop over 3 hours with no usage events. Check valves &amp; pipes.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 6 summary cards -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <div class="card" style="padding:12px;text-align:center"><div style="font-family:var(--mono);font-size:22px;color:var(--danger)" id="anly-today-consumed">--</div><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">TODAY USED</div><div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Litres</div></div>
-      <div class="card" style="padding:12px;text-align:center"><div style="font-family:var(--mono);font-size:22px;color:var(--ok)" id="anly-today-filled">--</div><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">TODAY FILLED</div><div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Litres</div></div>
-      <div class="card" style="padding:12px;text-align:center"><div style="font-family:var(--mono);font-size:22px;color:var(--pri)" id="anly-session-peak">--</div><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">SESSION PEAK</div><div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">% level</div></div>
-      <div class="card" style="padding:12px;text-align:center"><div style="font-family:var(--mono);font-size:22px;color:var(--warn)" id="anly-session-min">--</div><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">SESSION MIN</div><div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">% level</div></div>
-      <div class="card" style="padding:12px;text-align:center"><div style="font-family:var(--mono);font-size:22px;color:var(--pri)" id="anly-sess-consumed">--</div><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">SESSION USED</div><div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Litres this boot</div></div>
-      <div class="card" style="padding:12px;text-align:center"><div style="font-family:var(--mono);font-size:19px;color:var(--ok);line-height:1.2" id="anly-last-refill">--</div><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head);margin-top:3px">LAST REFILL</div><div style="font-size:9px;color:rgba(180,220,255,.3);margin-top:1px">Volume added</div></div>
-    </div>
-
-    <!-- 24h history bar chart -->
-    <div class="card">
-      <div class="card-title">24-HOUR LEVEL HISTORY</div>
-      <div id="anly-hist-chart" style="width:100%;height:100px;display:flex;align-items:flex-end;gap:2px">
-        <div style="color:var(--muted);font-size:10px;margin:auto;text-align:center;line-height:1.7">No hourly data<br><span style="font-size:9px">Sync from device or wait for hourly readings</span></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:5px">
-        <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">24h ago</span>
-        <span style="font-size:9px;color:var(--pri);font-family:var(--mono)">Now ▶</span>
-      </div>
-    </div>
-
-    <!-- 7-day table -->
-    <div class="card">
-      <div class="card-title">7-DAY DAILY SUMMARY</div>
-      <div id="anly-daily-table"><div style="color:var(--muted);font-size:10px;text-align:center;padding:16px;line-height:1.6">No daily data<br><span style="font-size:9px">Persists across boots in ESP32 NVS flash</span></div></div>
-    </div>
-
-    <!-- Hourly usage profile -->
-    <div class="card">
-      <div class="card-title">HOURLY USAGE PROFILE</div>
-      <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Average litres consumed per hour of day</div>
-      <div id="anly-tod-chart" style="width:100%;height:60px;display:flex;align-items:flex-end;gap:1px">
-        <div style="color:var(--muted);font-size:10px;margin:auto">No profile data — needs 24h+ runtime</div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:4px">
-        <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">12AM</span>
-        <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">12PM</span>
-        <span style="font-size:9px;color:var(--muted);font-family:var(--mono)">11PM</span>
-      </div>
-    </div>
-
-    <!-- Firmware events -->
-    <div class="card">
-      <div class="card-title">FIRMWARE EVENTS LOG</div>
-      <div id="anly-events"><div style="color:var(--muted);font-size:10px;text-align:center;padding:16px;line-height:1.6">No events<br><span style="font-size:9px">Logged by ESP32 after 5%+ changes lasting 3+ min</span></div></div>
-    </div>
-
-    <!-- Download CSV -->
-    <div class="card" style="margin-bottom:20px">
-      <div class="card-title">DOWNLOAD FULL REPORT</div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">Downloads a 3-section CSV from ESP32 — daily totals, 24h history, events log. Open in Excel or Google Sheets.</p>
-      <button class="btn btn-p btn-full" onclick="downloadCSV()" style="padding:14px;font-size:13px">⬇ DOWNLOAD REPORT.CSV FROM DEVICE</button>
-      <div style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center">Requires device on local WiFi — enter IP in Settings first</div>
-    </div>
   </div>
 </main>
 
@@ -820,13 +790,13 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     <span class="nb-lbl">Settings</span>
   </button>
+  <button class="nb" id="nb-analytics" onclick="goTab('analytics',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span class="nb-lbl">Analytics</span>
+  </button>
   <button class="nb" id="nb-tips" onclick="goTab('tips',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
     <span class="nb-lbl">Tips</span>
-  </button>
-  <button class="nb" id="nb-analytics" onclick="goTab('analytics',this)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    <span class="nb-lbl">Report</span>
   </button>
 </nav>
 
@@ -887,15 +857,14 @@ const analyticsSession={
 };
 
 // ── BOOT DISPLAY GUARD ──
-// Buffers all incoming data for 3 seconds to prevent stale retained
-// MQTT messages from flashing on screen at startup.
-// After 3s OR after 2 confirmed readings, commits buffered data and unlocks.
-// This is much faster than the old 10s guard while still filtering most stale data.
+// Requires 2 consecutive REAL device readings before displaying anything.
+// This prevents stale MQTT retained messages (e.g. old 79%) showing on open.
+// Demo mode sets _displayReady itself but does NOT write analytics/history.
 let _displayReady=false;
 let _bootGuardActive=true;
 let _realReadingCount=0;
-const _BOOT_MS=3000; // 3-second window (down from 10s)
-const _bootStart=Date.now();
+const _BOOT_MS=10000; // hard 10-second NIL lock on every PWA open
+const _bootStart=Date.now(); // timestamp when page loaded
 
 // Hourly history persisted in localStorage for 24h chart continuity
 const HOURLY_KEY='tasni_hourly_v1';
@@ -923,9 +892,16 @@ const _bootGuardTimer=setTimeout(()=>{
   const _cnt=document.getElementById('bootCount');
   const _ov=document.getElementById('bootLoading');
   if(!_bar||!_cnt||!_ov)return;
+
+  // If no device configured at all — dismiss immediately after splash (2.5s)
+  if(!cfg.ip&&!cfg.broker){
+    setTimeout(()=>_ov.classList.add('gone'),2500);
+    return;
+  }
+
   let _pct=0;
   const _iv=setInterval(()=>{
-    _pct=Math.min(95,_pct+1.2); // fills to 95% in ~8s, waits for real data to complete
+    _pct=Math.min(95,_pct+1.2);
     _bar.style.width=_pct+'%';
     const _rem=Math.max(0,Math.ceil((_BOOT_MS-(Date.now()-_bootStart))/1000));
     _cnt.textContent=_rem>0?'Verifying device… '+_rem+'s':'Waiting for first reading…';
@@ -939,11 +915,11 @@ const _bootGuardTimer=setTimeout(()=>{
       setTimeout(()=>_ov.classList.add('gone'),400);
     }
   },200);
-  // Safety: always dismiss after 25s even if no data
+  // Safety: always dismiss after 12s (reduced from 25s)
   setTimeout(()=>{
     clearInterval(_iv);clearInterval(_pollReady);
     _ov.classList.add('gone');
-  },25000);
+  },12000);
 })();
 
 // ═══════════════════════════════════════════
@@ -1154,59 +1130,18 @@ function startConnections(){
 // ═══════════════════════════════════════════
 //  LOCAL WIFI POLL
 // ═══════════════════════════════════════════
-// ── HTTPS→HTTP detection ─────────────────────────────────────────
-// Browsers silently block fetch('http://...') from HTTPS pages.
-// We detect the TypeError, show instructions once, and keep MQTT as fallback.
-let _httpsWarnShown = false;
-function _showHttpsBlockWarning(ip){
-  if(_httpsWarnShown) return;
-  _httpsWarnShown = true;
-  showToast('⚠️ HTTPS page cannot reach local ESP32 — see Tank tab for help','warn',6000);
-  // Inject a helper banner into the dashboard tab
-  const dash = document.getElementById('tab-dashboard');
-  if(!dash) return;
-  const box = document.createElement('div');
-  box.id = 'https-warn-box';
-  box.style.cssText='background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:11px;line-height:1.7;color:var(--text)';
-  box.innerHTML=`<div style="font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--warn);margin-bottom:5px">⚠ LOCAL WIFI BLOCKED (HTTPS → HTTP)</div>
-This page is served over <strong>HTTPS</strong>. Browsers block direct HTTP connections to your ESP32.<br><br>
-<strong>Option 1 — Access device directly (local network):</strong><br>
-<a href="http://${ip}/" target="_blank" rel="noopener" style="color:var(--pri);font-weight:700;text-decoration:underline">Open http://${ip}/ in a new tab</a><br><br>
-<strong>Option 2 — Use MQTT (works from anywhere):</strong><br>
-Configure broker in Settings → MQTT. Both WiFi &amp; MQTT can run simultaneously.`;
-  // Insert after chips row
-  const chips = dash.querySelector('.chips');
-  if(chips && chips.nextSibling) dash.insertBefore(box, chips.nextSibling);
-  else dash.insertBefore(box, dash.firstChild);
-}
-
 function startPoll(ip){
   if(pollingTimer)clearInterval(pollingTimer);
   fetchSensor(ip);
   pollingTimer=setInterval(()=>fetchSensor(ip),2500);
 }
-
 async function fetchSensor(ip){
   try{
-    const ctrl=new AbortController();
-    const tid=setTimeout(()=>ctrl.abort(),3000);
-    const r=await fetch(`http://${ip}/sensor-reading`,{signal:ctrl.signal});
-    clearTimeout(tid);
-    if(!r.ok)throw new Error('HTTP '+r.status);
+    const r=await fetch(`http://${ip}/sensor-reading`,{signal:AbortSignal.timeout(3000)});
+    if(!r.ok)throw new Error();
     const d=await r.json();
-    // WiFi is working — remove any HTTPS warning box if present
-    const wb=document.getElementById('https-warn-box');
-    if(wb)wb.remove();
-    _httpsWarnShown=false;
-    setChip('chip-local',true);
-    ingest(d,false);
-  }catch(e){
-    setChip('chip-local',false);
-    // TypeError = network block (mixed content, no route, or CORS)
-    if(location.protocol==='https:'&&e.name!=='AbortError'){
-      _showHttpsBlockWarning(ip);
-    }
-  }
+    setChip('chip-local',true); ingest(d,false);
+  }catch{setChip('chip-local',false);}
   updatePill();
 }
 
@@ -1264,13 +1199,8 @@ function _buildMqttOpts(mc){
 }
 
 function _makeUrl(mc){
-  // Strip any protocol prefix and path the user may have pasted
-  const raw=(mc.host||'').replace(/^wss?:\/\//,'').replace(/\/.*$/,'').trim();
-  // Plain-WS ports: 8083, 8880, 8881, 1884
-  // BUT browsers BLOCK ws:// from HTTPS pages (mixed content) → must force wss://
-  const mustSecure=(location.protocol==='https:');
-  const plainPorts=[8083,8880,8881,1884,1880];
-  const proto=(mustSecure||!plainPorts.includes(Number(mc.port)))?'wss':'ws';
+  const raw=(mc.host||'').replace(/^wss?:\/\//,'');
+  const proto=(mc.port===8083||mc.port===8880||mc.port===8081||mc.port===1884)?'ws':'wss'; // 8084/443/8881/8885 → wss (TLS); 8083/8880 → ws (plain)
   return`${proto}://${raw}:${mc.port}/mqtt`;
 }
 
@@ -1286,23 +1216,15 @@ function _connectPrimary(mc){
       _lastAck=Date.now();_primaryOk=true;_updateBrokerPills();unlockAch(3);
       const t=mc.topic||'tasni-water/+/state';
       mqttPrimary.subscribe(t,{qos:1});
-      // Also receive analytics published every 5 min by ESP32 firmware
-      mqttPrimary.subscribe('tasni-water/+/analytics',{qos:0});
       showToast(_silent?'🔄 Primary reconnected':'☁️ Primary MQTT connected','ok',2000);
       _silent=true;
       _startHBPrimary(mc);
     });
     mqttPrimary.on('message',(_t,pl,pkt)=>{
       _lastAck=Date.now();
-      // Retained flag: skip ONLY after display is ready (not during boot guard).
-      // During boot guard we WANT the retained message as a seed value — it will be
-      // shown after the 3-second guard expires, then overwritten by live messages.
-      if(pkt&&pkt.retain===true&&_displayReady){return;}
-      try{
-        const d=JSON.parse(pl.toString());
-        if(_t&&_t.endsWith('/analytics')){_handleMqttAnalytics(d);}
-        else{ingestMQTT(d);}
-      }catch(e){console.warn('[TASNI] MQTT-P parse:',e);}
+      // ALWAYS skip retained packets — they are broker-cached old values, never live sensor data
+      if(pkt&&pkt.retain===true){return;}
+      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT-P JSON:',e);}
     });
     mqttPrimary.on('reconnect',()=>{_primaryOk=false;_updateBrokerPills();});
     mqttPrimary.on('close',()=>{_primaryOk=false;_updateBrokerPills();});
@@ -1327,20 +1249,15 @@ function _connectBackup(mc){
       _lastAck2=Date.now();_backupOk=true;_updateBrokerPills();
       const t=(mc.topic||_mqttCfg?.topic||'tasni-water/+/state');
       mqttBackup.subscribe(t,{qos:1});
-      mqttBackup.subscribe('tasni-water/+/analytics',{qos:0});
       showToast(_silent2?'🔄 Backup reconnected':'☁️ Backup MQTT connected','ok',2000);
       _silent2=true;
       _startHBBackup(mc);
     });
     mqttBackup.on('message',(_t,pl,pkt)=>{
       _lastAck2=Date.now();
-      // Same rule: allow retained during boot guard, skip after display ready
-      if(pkt&&pkt.retain===true&&_displayReady){return;}
-      try{
-        const d=JSON.parse(pl.toString());
-        if(_t&&_t.endsWith('/analytics')){_handleMqttAnalytics(d);}
-        else{ingestMQTT(d);}
-      }catch(e){console.warn('[TASNI] MQTT-B parse:',e);}
+      // ALWAYS skip retained packets — they are broker-cached old values, never live sensor data
+      if(pkt&&pkt.retain===true){return;}
+      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT-B JSON:',e);}
     });
     mqttBackup.on('reconnect',()=>{_backupOk=false;_updateBrokerPills();});
     mqttBackup.on('close',()=>{_backupOk=false;_updateBrokerPills();});
@@ -1413,50 +1330,16 @@ async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await n
 
 // ═══════════════════════════════════════════
 //  MQTT FIELD MAP
-//  ESP32 publishToCloud() sends:
-//    device, name, level, volume, status,
-//    dist, trend, usage, empty, full, total,
-//    rssi, heap, uptime, cal, boot, ts, fw, isFull
 // ═══════════════════════════════════════════
 function ingestMQTT(d){
   ingest({
-    m:      d.level   ?? d.m,        // level % integer
-    vol:    d.volume  ?? d.vol,       // current volume litres
-    total:  d.total,                  // tank capacity litres
-    s:      d.status  ?? d.s,        // status string
-    dist:   d.dist,                   // sensor distance cm
-    t:      d.trend   ?? d.t,        // trend arrow string
-    usage:  d.usage,                  // usage rate L/hr
-    up:     d.uptime  ?? d.up,       // uptime seconds
-    rssi:   d.rssi,                   // WiFi RSSI dBm
-    boot:   d.boot,                   // boot count
-    isFull: d.isFull,                 // 1 if dist <= full threshold
-    name:   d.name,                   // tank name from device
-  }, true);
-}
-
-// ── Analytics JSON arriving via MQTT tasni-water/{id}/analytics ──
-// ESP32 firmware publishes buildAnalyticsJSON() every 5 minutes.
-// Cache it in IndexedDB so Report tab shows it even after browser restart.
-function _handleMqttAnalytics(data){
-  if(!data||typeof data!=='object')return;
-  try{
-    // Save to the analytics IndexedDB used by the Report tab
-    const req=indexedDB.open('tasni_anly_db',1);
-    req.onupgradeneeded=e=>e.target.result.createObjectStore('cache');
-    req.onsuccess=e=>{
-      const db=e.target.result;
-      const tx=db.transaction('cache','readwrite');
-      tx.objectStore('cache').put({data,ts:Date.now()},'latest');
-    };
-  }catch(_){}
-  // If Report tab is open, render immediately
-  const tab=document.getElementById('tab-analytics');
-  if(tab&&tab.classList.contains('active')&&typeof renderAnalytics==='function'){
-    renderAnalytics(data,false);
-    const lbl=document.getElementById('anly-sync-lbl');
-    if(lbl)lbl.textContent='Updated via MQTT '+new Date().toLocaleTimeString();
-  }
+    m:    d.level??d.m,       vol:  d.volume??d.vol,
+    total:d.total,            s:    d.status??d.s,
+    dist: d.dist,             t:    d.trend??d.t,
+    usage:d.usage,            up:   d.uptime??d.up,
+    rssi: d.rssi,             boot: d.boot,
+    isFull:d.isFull,          name: d.name,
+  },true);
 }
 function setChip(id,on){document.getElementById(id).classList.toggle('on',on);}
 function updatePill(){
@@ -1563,23 +1446,17 @@ function _commitPending(){
 }
 
 function ingest(d,fromMQTT=false){
-  // ── BOOT GUARD ──
-  // Buffer all packets for 3 seconds. After 3s (or 2 confirmed readings),
-  // commit the buffered data and unlock the display.
-  // We now ACCEPT retained messages during this window so the first MQTT
-  // packet (retained = last known device state) seeds the display immediately.
+  // ── BOOT GUARD — COMPLETE SPIKE SHIELD ──
+  // ALL data (retained OR live, MQTT OR WiFi) is buffered during boot guard.
+  // S.m is NEVER updated until 10s have elapsed. This is the only reliable way
+  // to prevent stale retained broker values (e.g. old 79%) appearing on screen.
   if(!_displayReady){
+    // Buffer: always keep the LATEST reading so we display freshest on unlock
     _pendingIngest=d;
-    S.connected=true;
+    S.connected=true; // mark as connected so UI chip works
     const _elapsed=Date.now()-_bootStart;
-
-    // Count genuine level readings (non-null, valid percentage)
-    if(_elapsed>500&&d.m!=null&&parseInt(d.m)>=0&&parseInt(d.m)<=100){
-      _realReadingCount++;
-    }
-
-    // Unlock after 3s OR after 2 confirmed readings
-    if(_elapsed>=_BOOT_MS||_realReadingCount>=2){
+    if(_elapsed>=_BOOT_MS){
+      // 10 seconds have elapsed — commit buffered data and unlock display
       _commitPending();
       _displayReady=true;
       clearTimeout(_bootGuardTimer);
@@ -1587,8 +1464,9 @@ function ingest(d,fromMQTT=false){
       if(!demoMode)setTimeout(()=>{try{playConnectSound();}catch(_){}},200);
       _autoPromptNotif();
     } else {
+      // Still inside 10s window — keep NIL on screen, wait for fresher data
       renderDash();
-      return;
+      return; // do NOT proceed to analytics, alerts, or chart updates
     }
   }
 
@@ -2991,238 +2869,366 @@ function goTab(name,btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');
   if(name==='alerts'){unread=0;document.getElementById('alertBadge').classList.add('hidden');renderAlertLog();}
-  if(name==='analytics'){
-    unlockAch(1);
-    // Show cached data instantly while live fetch is in progress
-    if(window._anlyCached&&window._anlyCached.data){
-      renderAnalytics(window._anlyCached.data,true,window._anlyCached.ts);
-    }
-    fetchAnalytics(true);
-  }
+  if(name==='analytics'){unlockAch(1);_anTabOpen();}
   if(name==='tips'){unlockAch(5);renderTips();}
   if(name==='settings'){unlockAch(4);_updateTgStatus();_renderTgCmds();}
 }
-function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
 
-// ═══════════════════════════════════════════════════════════════════════
-//  ANALYTICS / REPORT ENGINE
-//  Data sources (in priority order):
-//    1. Live fetch from ESP32 GET /analytics (local WiFi)
-//    2. MQTT topic tasni-water/+/analytics (remote, every 5 min)
-//    3. IndexedDB cache (survives browser close / page reload)
-//  CSV: fetches GET /report.csv from ESP32 directly
-// ═══════════════════════════════════════════════════════════════════════
-const _ANLY_DB='tasni_anly_db', _ANLY_ST='cache', _ANLY_KEY='latest';
-let _anlyFetching=false;
+// ═══════════════════════════════════════════════════════════
+//  ANALYTICS ENGINE — IndexedDB persistence + ESP32 sync
+//  Endpoint: GET /analytics  (JSON)
+//  Endpoint: GET /report.csv (download)
+//  Data persists in browser IndexedDB across app close/open.
+//  Background sync via Service Worker keeps data fresh.
+// ═══════════════════════════════════════════════════════════
 
-// ── IndexedDB helpers ──
-function _anlyOpenDb(){
-  return new Promise((res,rej)=>{
-    const req=indexedDB.open(_ANLY_DB,1);
-    req.onupgradeneeded=e=>e.target.result.createObjectStore(_ANLY_ST);
-    req.onsuccess=e=>res(e.target.result);
-    req.onerror=e=>rej(e.target.error);
+const AN_DB_NAME  = 'tasni_analytics_v1';
+const AN_DB_STORE = 'snapshots';
+const AN_KEY      = 'latest';
+
+// In-memory cache of last fetched analytics payload
+let _anData = null;
+let _anFetching = false;
+
+// ── IndexedDB open ──
+function _anOpenDb() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(AN_DB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(AN_DB_STORE);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
   });
 }
-async function _anlySave(data){
-  try{const db=await _anlyOpenDb();await new Promise((res,rej)=>{const tx=db.transaction(_ANLY_ST,'readwrite');tx.objectStore(_ANLY_ST).put({data,ts:Date.now()},_ANLY_KEY);tx.oncomplete=res;tx.onerror=e=>rej(e.target.error);});}catch(_){}
+async function _anSave(data) {
+  try {
+    const db = await _anOpenDb();
+    await new Promise((res, rej) => {
+      const tx = db.transaction(AN_DB_STORE, 'readwrite');
+      tx.objectStore(AN_DB_STORE).put(data, AN_KEY);
+      tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
+    });
+  } catch(e) { console.warn('[AN] IDB save failed:', e); }
 }
-async function _anlyLoad(){
-  try{const db=await _anlyOpenDb();return await new Promise(res=>{const req=db.transaction(_ANLY_ST,'readonly').objectStore(_ANLY_ST).get(_ANLY_KEY);req.onsuccess=e=>res(e.target.result||null);req.onerror=()=>res(null);});}catch(_){return null;}
+async function _anLoad() {
+  try {
+    const db = await _anOpenDb();
+    return await new Promise((res, rej) => {
+      const tx  = db.transaction(AN_DB_STORE, 'readonly');
+      const req = tx.objectStore(AN_DB_STORE).get(AN_KEY);
+      req.onsuccess = e => res(e.target.result ?? null);
+      req.onerror   = e => rej(e.target.error);
+    });
+  } catch(e) { return null; }
 }
 
-// ── Fetch analytics from ESP32 /analytics ──
-async function fetchAnalytics(silent=false){
-  if(_anlyFetching)return;
-  const ip=cfg.ip;
-  if(!ip){
-    if(!silent)showToast('⚠️ No device IP — enter in Settings','warn',3000);
-    const c=await _anlyLoad();
-    if(c&&c.data)renderAnalytics(c.data,true,c.ts);
-    else document.getElementById('anly-sync-lbl').textContent='No IP configured — set in Settings';
+// ── Sync from ESP32 ──
+async function syncAnalytics(silent) {
+  const ip = cfg.ip;
+  if (!ip) { if (!silent) showToast('⚠️ Add device IP in Settings first', 'warn', 3000); return; }
+  if (_anFetching) return;
+  _anFetching = true;
+  const btn = document.getElementById('an-sync-btn');
+  if (btn) { btn.textContent = '⟳ …'; btn.disabled = true; }
+  try {
+    const r = await fetch(`http://${ip}/analytics`, { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    d._fetchedAt = Date.now();
+    _anData = d;
+    await _anSave(d);
+    _renderAnalytics(d);
+    // Push config + level to SW for background monitoring
+    navigator.serviceWorker?.controller?.postMessage({ type:'STORE_LEVEL', level: d.live?.level ?? 0 });
+    if (!silent) showToast('✅ Analytics synced from device', 'ok', 2500);
+    const lbl = document.getElementById('an-sync-lbl');
+    if (lbl) lbl.textContent = 'Last sync: ' + new Date(d._fetchedAt).toLocaleTimeString();
+  } catch(e) {
+    if (!silent) showToast('⚠️ Could not reach device: ' + e.message, 'warn', 3500);
+    // Try to show persisted data
+    if (!_anData) {
+      const cached = await _anLoad();
+      if (cached) { _anData = cached; _renderAnalytics(cached); }
+    }
+  } finally {
+    _anFetching = false;
+    if (btn) { btn.textContent = '⟳ SYNC'; btn.disabled = false; }
+  }
+}
+
+// ── Download CSV from device ──
+async function downloadCSV() {
+  const ip = cfg.ip;
+  if (!ip) { showToast('⚠️ Add device IP in Settings first', 'warn', 3000); return; }
+  const btn = document.getElementById('an-dl-btn');
+  if (btn) { btn.textContent = '⬇ …'; btn.disabled = true; }
+  try {
+    const r = await fetch(`http://${ip}/report.csv`, { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const ts   = new Date().toISOString().slice(0,10);
+    a.href = url; a.download = `TASNI_Report_${ts}.csv`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast('✅ Report downloaded', 'ok', 2500);
+  } catch(e) {
+    showToast('⚠️ Download failed: ' + e.message, 'warn', 3500);
+  } finally {
+    if (btn) { btn.textContent = '⬇ CSV'; btn.disabled = false; }
+  }
+}
+
+// ── Render analytics data into DOM ──
+function _renderAnalytics(d) {
+  if (!d) return;
+
+  // ── Live snapshot stats ──
+  const today = d.daily && d.daily[0] ? d.daily[0] : null;
+  const todayUsed   = today ? today.consumedL.toFixed(0) : '--';
+  const todayFilled = today ? today.filledL.toFixed(0)   : '--';
+  document.getElementById('an-today-used').textContent   = todayUsed;
+  document.getElementById('an-today-filled').textContent = todayFilled;
+  document.getElementById('an-session-used').textContent = d.session ? d.session.consumedL.toFixed(0) : '--';
+  document.getElementById('an-peak').textContent = (d.session && d.session.peak >= 0) ? d.session.peak : '--';
+
+  // Average daily from completed days
+  const completed = d.daily ? d.daily.filter(x => !x.partial) : [];
+  if (completed.length > 0) {
+    const avgL = completed.reduce((s, x) => s + x.consumedL, 0) / completed.length;
+    document.getElementById('an-avg-daily').textContent = avgL.toFixed(0);
+  } else {
+    document.getElementById('an-avg-daily').textContent = '--';
+  }
+
+  // Leak status
+  const leakEl = document.getElementById('an-leak');
+  if (d.leak) {
+    leakEl.innerHTML = '<span style="color:var(--danger);font-weight:700">⚠ LEAK?</span>';
+  } else {
+    leakEl.innerHTML = '<span style="color:var(--ok)">✓ OK</span>';
+  }
+
+  // ── 24-hour history canvas chart ──
+  _drawHistoryChart(d.history || []);
+
+  // ── Time-of-day bar chart ──
+  _drawTodChart(d.tod || []);
+
+  // ── 7-day daily table ──
+  const dtbl = document.getElementById('an-daily-table');
+  if (d.daily && d.daily.length > 0) {
+    const rows = d.daily.map(day => {
+      const net = day.filledL - day.consumedL;
+      const dc  = String(day.date); // YYYYMMDD
+      const dateStr = dc.length === 8 ?
+        `${dc.slice(6,8)}-${dc.slice(4,6)}-${dc.slice(0,4)}` : dc;
+      const netStr = (net >= 0 ? '+' : '') + net.toFixed(0);
+      const tag = day.partial ? '<span style="font-size:9px;color:var(--pri);font-family:var(--head);margin-left:4px">TODAY</span>' : '';
+      return `<div style="display:flex;align-items:center;border-bottom:1px solid var(--border);padding:8px 0;gap:8px;font-size:12px">
+        <div style="flex:1.2;font-family:var(--mono);font-size:11px;color:var(--muted)">${dateStr}${tag}</div>
+        <div style="flex:1;text-align:right;color:var(--danger)">-${parseFloat(day.consumedL).toFixed(0)} L</div>
+        <div style="flex:1;text-align:right;color:var(--ok)">+${parseFloat(day.filledL).toFixed(0)} L</div>
+        <div style="flex:1;text-align:right;color:${net>=0?'var(--ok)':'var(--danger)'};font-weight:700">${netStr} L</div>
+      </div>`;
+    }).join('');
+    dtbl.innerHTML = `<div style="display:flex;gap:8px;font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--muted);padding-bottom:6px;border-bottom:1px solid var(--border);font-family:var(--head)">
+      <div style="flex:1.2">DATE</div>
+      <div style="flex:1;text-align:right">USED</div>
+      <div style="flex:1;text-align:right">ADDED</div>
+      <div style="flex:1;text-align:right">NET</div>
+    </div>` + rows;
+  } else {
+    dtbl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No daily data yet — check back tomorrow</div>';
+  }
+
+  // ── Events log ──
+  const evLog  = document.getElementById('an-events-log');
+  const evCount = document.getElementById('an-events-count');
+  if (d.events && d.events.length > 0) {
+    evCount.textContent = `(${d.events.length})`;
+    const typeIcon = { drain:'💧', fill:'⬆️', rapid_drain:'🚨', rapid_fill:'⚡' };
+    const typeCol  = { drain:'var(--muted)', fill:'var(--ok)', rapid_drain:'var(--danger)', rapid_fill:'var(--warn)' };
+    evLog.innerHTML = d.events.slice(0,20).map(ev => {
+      const icon = typeIcon[ev.type] || '·';
+      const col  = typeCol[ev.type]  || 'var(--muted)';
+      const ageMs = d.ts - ev.ms;
+      const ageSec = Math.round(ageMs / 1000);
+      const ageStr = ageSec < 60 ? 'just now' : ageSec < 3600 ?
+        Math.floor(ageSec/60)+'m ago' : Math.floor(ageSec/3600)+'h '+Math.floor((ageSec%3600)/60)+'m ago';
+      const sign = ev.delta < 0 ? '' : '+';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="font-size:16px">${icon}</span>
+        <div style="flex:1">
+          <div style="color:${col};font-weight:600">${ev.type.replace('_',' ').toUpperCase()}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:1px">${ev.before}% → ${ev.after}% &nbsp;|&nbsp; ${sign}${ev.volL} L &nbsp;|&nbsp; ${ageStr}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    evCount.textContent = '';
+    evLog.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No events yet — events appear after 5%+ level changes lasting 3+ min</div>';
+  }
+
+  // ── Last refill ──
+  const rcCard = document.getElementById('an-refill-card');
+  const rcInfo = document.getElementById('an-refill-info');
+  if (d.lastRefill && d.lastRefill.volL > 0) {
+    rcCard.style.display = 'block';
+    const ageMs  = d.ts - d.lastRefill.ms;
+    const ageSec = Math.round(ageMs / 1000);
+    const ageStr = ageSec < 60 ? 'just now' : ageSec < 3600 ?
+      Math.floor(ageSec/60)+'m ago' : Math.floor(ageSec/3600)+'h '+Math.floor((ageSec%3600)/60)+'m ago';
+    rcInfo.innerHTML = `<div style="font-size:22px;font-weight:700;color:var(--ok);font-family:var(--head)">${d.lastRefill.volL.toFixed(0)} L</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">added ${ageStr}</div>`;
+  } else {
+    rcCard.style.display = 'none';
+  }
+}
+
+// ── Canvas bar/line helpers (no dependencies) ──
+function _drawHistoryChart(hist) {
+  const canvas = document.getElementById('an-history-chart');
+  const empty  = document.getElementById('an-history-empty');
+  if (!canvas) return;
+  const valid = hist.filter(v => v >= 0);
+  if (valid.length === 0) {
+    canvas.style.display = 'none';
+    empty.style.display  = '';
     return;
   }
-  _anlyFetching=true;
-  const btn=document.getElementById('anly-sync-btn');
-  if(btn){btn.textContent='⟳…';btn.disabled=true;}
-  try{
-    const ctrl=new AbortController();
-    setTimeout(()=>ctrl.abort(),8000);
-    const r=await fetch(`http://${ip}/analytics`,{signal:ctrl.signal});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const data=await r.json();
-    await _anlySave(data);
-    renderAnalytics(data,false);
-    document.getElementById('anly-sync-lbl').textContent='Live — updated '+new Date().toLocaleTimeString();
-    if(!silent)showToast('✅ Analytics synced from ESP32','ok',2000);
-  }catch(e){
-    if(!silent){
-      if(location.protocol==='https:'&&e.name!=='AbortError'){
-        showToast('⚠️ HTTPS blocks local fetch — use MQTT or open ESP32 directly','warn',4000);
-      } else {
-        showToast('⚠️ Device unreachable — showing cached data','warn',3000);
-      }
-    }
-    const c=await _anlyLoad();
-    if(c&&c.data)renderAnalytics(c.data,true,c.ts);
-    else document.getElementById('anly-sync-lbl').textContent='Device offline — no cached data';
-  }finally{
-    _anlyFetching=false;
-    if(btn){btn.textContent='⟳ SYNC';btn.disabled=false;}
+  canvas.style.display = 'block';
+  empty.style.display  = 'none';
+  const W = canvas.parentElement.clientWidth - 28;
+  const H = 110;
+  canvas.width  = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { t: 8, r: 4, b: 20, l: 28 };
+  const cw  = W - pad.l - pad.r;
+  const ch  = H - pad.t - pad.b;
+  const n   = hist.length; // 24
+  const xStep = cw / (n - 1);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(45,212,191,0.08)'; ctx.lineWidth = 1;
+  [25, 50, 75, 100].forEach(v => {
+    const y = pad.t + ch * (1 - v / 100);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(180,220,255,0.3)'; ctx.font = '8px Share Tech Mono,monospace';
+    ctx.fillText(v + '%', 2, y + 3);
+  });
+
+  // Area fill
+  const grad = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
+  grad.addColorStop(0, 'rgba(45,212,191,0.25)');
+  grad.addColorStop(1, 'rgba(45,212,191,0.02)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  let first = true;
+  for (let i = n - 1; i >= 0; i--) {
+    const v   = hist[i];
+    const xi  = pad.l + (n - 1 - i) * xStep;
+    const yi  = v >= 0 ? pad.t + ch * (1 - v / 100) : H - pad.b;
+    if (v < 0 || first) { ctx.moveTo(xi, yi); if (v >= 0) first = false; }
+    else ctx.lineTo(xi, yi);
   }
-}
+  ctx.lineTo(pad.l + (n - 1) * xStep, H - pad.b);
+  ctx.lineTo(pad.l, H - pad.b); ctx.closePath(); ctx.fill();
 
-// ── Download /report.csv from ESP32 ──
-async function downloadCSV(){
-  const ip=cfg.ip;
-  if(!ip){showToast('⚠️ No device IP — enter in Settings','warn',3000);return;}
-  const btn=document.getElementById('anly-csv-btn');
-  if(btn){btn.textContent='⬇…';btn.disabled=true;}
-  try{
-    showToast('📊 Fetching CSV from ESP32…','info',3000);
-    const ctrl=new AbortController();
-    setTimeout(()=>ctrl.abort(),15000);
-    const r=await fetch(`http://${ip}/report.csv`,{signal:ctrl.signal});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const text=await r.text();
-    const blob=new Blob([text],{type:'text/csv;charset=utf-8;'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;
-    const d=new Date();
-    a.download='TASNI_Report_'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'.csv';
-    document.body.appendChild(a);a.click();
-    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1200);
-    showToast('✅ Report saved — open in Excel or Google Sheets','ok',4000);
-  }catch(e){
-    if(location.protocol==='https:'&&e.name!=='AbortError'){
-      showToast('⚠️ HTTPS blocks local fetch — open http://'+ip+'/ directly','warn',5000);
-    } else {
-      showToast('⚠️ Could not fetch CSV from device','warn',4000);
-    }
-  }finally{
-    if(btn){btn.textContent='⬇ CSV';btn.disabled=false;}
+  // Line
+  ctx.strokeStyle = 'rgba(45,212,191,0.9)'; ctx.lineWidth = 1.5;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath(); first = true;
+  for (let i = n - 1; i >= 0; i--) {
+    const v  = hist[i]; if (v < 0) { first = true; continue; }
+    const xi = pad.l + (n - 1 - i) * xStep;
+    const yi = pad.t + ch * (1 - v / 100);
+    if (first) { ctx.moveTo(xi, yi); first = false; } else ctx.lineTo(xi, yi);
   }
+  ctx.stroke();
+
+  // X-axis labels (0, 6, 12, 18, 24 h)
+  ctx.fillStyle = 'rgba(180,220,255,0.4)'; ctx.font = '8px Share Tech Mono,monospace';
+  [0, 6, 12, 18, 23].forEach(i => {
+    const xi = pad.l + i * xStep;
+    ctx.fillText(i === 0 ? '24h' : i === 23 ? 'now' : (i)+'h', xi - 8, H - 4);
+  });
 }
 
-// ── Render all analytics sections ──
-function renderAnalytics(d,fromCache=false,cacheTs=null){
-  // Source badge
-  const src=document.getElementById('anly-source');
-  if(src){
-    src.style.display='block';
-    const age=cacheTs?Math.round((Date.now()-cacheTs)/60000):0;
-    src.innerHTML=fromCache
-      ?`<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:20px;font-size:10px;font-weight:700;font-family:var(--head);color:var(--warn);letter-spacing:1px">📦 CACHED — ${age>0?age+' min ago':'Recent'}</div>`
-      :`<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.2);border-radius:20px;font-size:10px;font-weight:700;font-family:var(--head);color:var(--pri);letter-spacing:1px">⚡ LIVE — from ESP32</div>`;
+function _drawTodChart(tod) {
+  const canvas = document.getElementById('an-tod-chart');
+  const empty  = document.getElementById('an-tod-empty');
+  if (!canvas) return;
+  const nonZero = tod.filter(b => b.avgL > 0);
+  if (nonZero.length === 0) {
+    canvas.style.display = 'none'; empty.style.display = ''; return;
   }
-  // Leak
-  const lk=document.getElementById('anly-leak');
-  if(lk){d.leak?lk.classList.remove('hidden'):lk.classList.add('hidden');}
-  // Summary cards
-  const daily=d.daily||[];const today=daily.find(x=>x.partial)||null;
-  _anSet('anly-today-consumed',today?today.consumedL.toFixed(1):'--');
-  _anSet('anly-today-filled',  today?today.filledL.toFixed(1):'--');
-  const pk=d.session&&d.session.peak>=0?d.session.peak+'%':'--';
-  const mn=d.session&&d.session.min>=0&&d.session.min<=100?d.session.min+'%':'--';
-  _anSet('anly-session-peak', pk);
-  _anSet('anly-session-min',  mn);
-  _anSet('anly-sess-consumed',(d.session&&d.session.consumedL>0)?d.session.consumedL.toFixed(1):'--');
-  const rf=d.lastRefill;
-  if(rf&&rf.volL>0){
-    const ageH=d.ts&&rf.ms?Math.floor((d.ts-rf.ms)/3600000):0;
-    _anSet('anly-last-refill',rf.volL.toFixed(0)+'L'+(ageH>0?`<span style="font-size:9px;color:var(--muted);display:block">${ageH}h ago</span>`:''));
-  } else {_anSet('anly-last-refill','--');}
-  // Charts
-  _anHistChart(d.history||[],d.tank||1000);
-  _anDailyTable(d.daily||[]);
-  _anTodChart(d.tod||[]);
-  _anEvents(d.events||[],d.ts||0);
+  canvas.style.display = 'block'; empty.style.display = 'none';
+  const W = canvas.parentElement.clientWidth - 28;
+  const H = 100;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { t: 6, r: 4, b: 18, l: 30 };
+  const cw  = W - pad.l - pad.r;
+  const ch  = H - pad.t - pad.b;
+  const n   = 24;
+  const barW = Math.max(2, Math.floor(cw / n) - 1);
+  const maxV = Math.max(...tod.map(b => b.avgL), 1);
+
+  tod.forEach((b, i) => {
+    if (b.avgL <= 0) return;
+    const x = pad.l + i * (cw / n);
+    const bh = Math.max(2, (b.avgL / maxV) * ch);
+    const y  = pad.t + ch - bh;
+    // Colour by hour: night=purple, morning=cyan, afternoon=yellow, evening=orange
+    const hue = i < 6 ? '#7c3aed' : i < 12 ? '#2DD4BF' : i < 18 ? '#fbbf24' : '#f87171';
+    ctx.fillStyle = hue + 'bb';
+    ctx.fillRect(x, y, barW, bh);
+  });
+
+  // Y axis label max
+  ctx.fillStyle = 'rgba(180,220,255,0.35)'; ctx.font = '8px Share Tech Mono,monospace';
+  ctx.fillText(maxV.toFixed(1), 2, pad.t + 8);
+  // X axis: 0, 6, 12, 18
+  [0, 6, 12, 18].forEach(h => {
+    const x = pad.l + h * (cw / n);
+    const labels = ['12am','6am','12pm','6pm'];
+    ctx.fillText(labels[h/6], x - 8, H - 3);
+  });
 }
 
-function _anSet(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
-
-function _anHistChart(history,tankL){
-  const el=document.getElementById('anly-hist-chart');if(!el)return;
-  const vals=history.slice(0,24).slice().reverse(); // oldest→newest L→R
-  if(vals.every(v=>v<0)){el.innerHTML='<div style="color:var(--muted);font-size:10px;margin:auto;text-align:center;line-height:1.7">No hourly data yet<br><span style="font-size:9px">One sample stored per hour by firmware</span></div>';return;}
-  el.innerHTML=vals.map((v,i)=>{
-    if(v<0)return`<div style="flex:1;height:4px;align-self:flex-end;background:rgba(45,212,191,.08);border-radius:2px 2px 0 0" title="No data"></div>`;
-    const h=Math.max(4,Math.round((v/100)*96));
-    const col=v<10?'rgba(248,113,113,.85)':v<30?'rgba(251,191,36,.8)':v>=75?'rgba(52,211,153,.7)':'rgba(45,212,191,.7)';
-    const isNow=i===vals.length-1;
-    return`<div title="${v}% · ${Math.round(v/100*tankL)}L · ${24-i-1}h ago" style="flex:1;height:${h}px;background:${col};border-radius:2px 2px 0 0${isNow?';outline:1px solid var(--pri);outline-offset:1px':''}"></div>`;
-  }).join('');
-}
-
-function _anDailyTable(daily){
-  const el=document.getElementById('anly-daily-table');if(!el)return;
-  const rows=daily.filter(d=>d.dateCode>0);
-  if(!rows.length){el.innerHTML='<div style="color:var(--muted);font-size:10px;text-align:center;padding:14px">No daily data — accumulates throughout the day</div>';return;}
-  const hdr=`<div style="display:grid;grid-template-columns:3fr 2fr 2fr 2fr;gap:2px;padding:5px 4px;border-bottom:1px solid var(--border);margin-bottom:4px">
-    ${['DATE','USED L','FILL L','NET L'].map(h=>`<div style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--muted);font-family:var(--head)">${h}</div>`).join('')}</div>`;
-  const body=rows.map(r=>{
-    const net=r.filledL-r.consumedL;
-    const dc=String(r.dateCode).padStart(8,'0');
-    const dd=dc.slice(6,8),mm=dc.slice(4,6);
-    const netC=net>=0?'var(--ok)':'var(--danger)';
-    const tb=r.partial?` <span style="font-size:8px;background:rgba(251,191,36,.15);color:var(--warn);padding:1px 5px;border-radius:4px;font-family:var(--head);font-weight:700">TODAY</span>`:'';
-    return`<div style="display:grid;grid-template-columns:3fr 2fr 2fr 2fr;gap:2px;padding:6px 4px;border-bottom:1px solid rgba(45,212,191,.04)">
-      <div style="font-family:var(--mono);font-size:11px;color:var(--text)">${dd}/${mm}${tb}</div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--danger)">${r.consumedL.toFixed(0)}</div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--ok)">${r.filledL.toFixed(0)}</div>
-      <div style="font-family:var(--mono);font-size:11px;color:${netC};font-weight:700">${net>=0?'+':''}${net.toFixed(0)}</div>
-    </div>`;
-  }).join('');
-  el.innerHTML=hdr+body;
-}
-
-function _anTodChart(tod){
-  const el=document.getElementById('anly-tod-chart');if(!el)return;
-  if(!tod.length||tod.every(t=>t.n===0)){el.innerHTML='<div style="color:var(--muted);font-size:10px;margin:auto">No profile data yet</div>';return;}
-  const maxV=Math.max(...tod.map(t=>t.avgL),0.01);
-  el.innerHTML=tod.map(t=>{
-    const h=Math.max(3,Math.round((t.avgL/maxV)*56));
-    const col=t.n===0?'rgba(45,212,191,.06)':(t.h<6||t.h>=22)?'rgba(124,58,237,.65)':'rgba(45,212,191,.65)';
-    return`<div title="${t.h}:00 — avg ${t.avgL.toFixed(2)}L, ${t.n} sample${t.n===1?'':'s'}" style="flex:1;height:${h}px;background:${col};border-radius:2px 2px 0 0;min-width:1px"></div>`;
-  }).join('');
-}
-
-function _anEvents(events,deviceTs){
-  const el=document.getElementById('anly-events');if(!el)return;
-  if(!events.length){el.innerHTML='<div style="color:var(--muted);font-size:10px;text-align:center;padding:14px;line-height:1.6">No events yet<br><span style="font-size:9px">Logged when level changes 5%+ for 3+ consecutive minutes</span></div>';return;}
-  const TM={
-    drain:      {icon:'💧',lbl:'WATER USED',  col:'rgba(45,212,191,.85)',bg:'rgba(45,212,191,.06)',bd:'rgba(45,212,191,.18)'},
-    fill:       {icon:'🔄',lbl:'TANK FILLED', col:'rgba(52,211,153,.85)',bg:'rgba(52,211,153,.06)',bd:'rgba(52,211,153,.18)'},
-    rapid_drain:{icon:'⚡',lbl:'RAPID DRAIN', col:'rgba(248,113,113,.85)',bg:'rgba(248,113,113,.08)',bd:'rgba(248,113,113,.25)'},
-    rapid_fill: {icon:'⚡',lbl:'RAPID FILL',  col:'rgba(251,191,36,.85)', bg:'rgba(251,191,36,.08)', bd:'rgba(251,191,36,.25)'},
-  };
-  el.innerHTML=events.slice(0,20).map(ev=>{
-    const t=TM[ev.type]||TM.drain;
-    const ageSec=deviceTs>ev.ms?Math.floor((deviceTs-ev.ms)/1000):0;
-    const age=ageSec<60?'just now':ageSec<3600?Math.floor(ageSec/60)+' min ago':ageSec<86400?Math.floor(ageSec/3600)+'h '+Math.floor((ageSec%3600)/60)+'m ago':Math.floor(ageSec/86400)+'d ago';
-    const isDrain=ev.type==='drain'||ev.type==='rapid_drain';
-    return`<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 10px;background:${t.bg};border:1px solid ${t.bd};border-radius:9px;margin-bottom:6px">
-      <span style="font-size:18px;line-height:1;flex-shrink:0">${t.icon}</span>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:3px">
-          <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${t.col};font-family:var(--head)">${t.lbl}</span>
-          <span style="font-size:9px;color:var(--muted);font-family:var(--mono);white-space:nowrap">${age}</span>
-        </div>
-        <div style="font-size:12px;color:var(--text)">${ev.before}% → ${ev.after}% &nbsp;<span style="color:${t.col};font-family:var(--mono);font-weight:700">${isDrain?'-':'+'}${ev.volL.toFixed(1)} L</span></div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ── On load: preload cached analytics into memory ──
-(async()=>{
-  const c=await _anlyLoad();
-  if(c&&c.data){
-    // Don't render yet — user hasn't opened the tab.
-    // Store in window so goTab can render it immediately on first open.
-    window._anlyCached=c;
+// ── Auto-load cached data on tab open + auto-sync if device connected ──
+async function _anTabOpen() {
+  // Load IndexedDB cache first (instant, works offline)
+  if (!_anData) {
+    const cached = await _anLoad();
+    if (cached) { _anData = cached; _renderAnalytics(cached); }
+  } else {
+    _renderAnalytics(_anData);
   }
-})();
-</script>
+  // Auto-sync if device IP configured
+  if (cfg.ip) { syncAnalytics(true); }
+}
+
+// Patch goTab to trigger analytics load
+const _origGoTab = goTab;
+// override below — handled inline in goTab already via name==='analytics'
+
+// ── Auto background analytics sync every 5 min when app is open ──
+setInterval(() => {
+  if (cfg.ip && document.getElementById('tab-analytics')?.classList.contains('active')) {
+    syncAnalytics(true);
+  }
+}, 5 * 60 * 1000);
+
+// ── Load persisted analytics on startup ──
+_anLoad().then(cached => { if (cached) { _anData = cached; } });
+
+function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
+
 </body>
 </html>
