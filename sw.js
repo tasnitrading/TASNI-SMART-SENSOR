@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════
-//  TASNI Water Monitor — Service Worker v3.1
+//  TASNI Water Monitor — Service Worker v3.0
 //  Background MQTT polling + aggressive notifications
-//  Analytics caching via IndexedDB — report survives browser close
 //  Works when app is closed, in sleep, screen off
 // ═══════════════════════════════════════════════════════════
 
@@ -123,10 +122,6 @@ self.addEventListener('message', e => {
     storeSwState('lastLevel', e.data.level);
     storeSwState('lastTs', Date.now());
   }
-  // Cache the analytics payload so it survives browser close
-  if (e.data && e.data.type === 'STORE_ANALYTICS') {
-    storeSwState('analytics', { data: e.data.data, ts: Date.now() });
-  }
   if (e.data && e.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
@@ -209,21 +204,6 @@ async function backgroundCheck() {
         vibrate: [100, 50, 100],
         data: { url: './', level: 100, type: 'full' }
       });
-    }
-
-    // ── Silently refresh analytics cache in background ──
-    // This ensures the Report tab always has fresh data when opened,
-    // even if the browser was closed for hours.
-    try {
-      const ar = await fetch(`http://${cfg.ip}/analytics`, {
-        signal: AbortSignal.timeout(5000)
-      }).catch(() => null);
-      if (ar && ar.ok) {
-        const anlyData = await ar.json();
-        await storeSwState('analytics', { data: anlyData, ts: Date.now() });
-      }
-    } catch (_) {
-      // Analytics fetch failing is non-critical — sensor alerts still fire
     }
 
   } catch (err) {
