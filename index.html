@@ -425,11 +425,6 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="sec-hd">LOCAL WIFI (SAME NETWORK)</div>
     <div class="form-grp"><label class="form-lbl">ESP32 IP Address</label><input class="form-in" id="s-ip" type="text" placeholder="e.g. 192.168.1.100" autocomplete="off"></div>
     <p style="font-size:11px;color:var(--muted);margin-top:-8px;margin-bottom:14px">Find the IP on the OLED at boot, or in your router's DHCP list.</p>
-    <div id="mixedContentWarning" class="info-box hidden" style="border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.08)">
-      <strong>⚠️ Browser is blocking local requests</strong><br>
-      This app is loaded over a secure connection (https), and browsers block it from talking directly to your device's plain http:// address on the local network. Live local polling and any "save to device" buttons below won't work from here.<br><br>
-      <a href="#" id="openLocalDashLink" target="_blank" rel="noopener" style="color:var(--pri);font-weight:700;text-decoration:underline">Open Device Dashboard Directly ↗</a> to configure WiFi, calibration, etc. Use MQTT (below) for live readings in this app instead.
-    </div>
     <div class="sec-hd">MQTT REMOTE (FROM ANYWHERE)</div>
     <div class="info-box"><strong>⚠️ Browser MQTT</strong><br>ESP32 publishes on port <strong>8883 (TLS)</strong>. Browsers need WebSocket MQTT. Configure your broker's WS/WSS listener. Topic: <strong>tasni-water/+/state</strong></div>
     <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--pri);margin-bottom:8px;font-family:var(--head)">PRIMARY BROKER</div>
@@ -1071,37 +1066,7 @@ function startConnections(){
 // ═══════════════════════════════════════════
 //  LOCAL WIFI POLL
 // ═══════════════════════════════════════════
-// If this app is served over https, browsers block plain http:// fetches to
-// the ESP32's local dashboard (mixed content). This isn't a WiFi/firmware
-// problem -- the request never leaves the browser. Detect it once and show
-// a clear explanation instead of a silent/generic "device unreachable" loop.
-function _isMixedContentRisk(){
-  return location.protocol==='https:';
-}
-let _mixedContentWarned=false;
-function _checkMixedContentWarning(ip){
-  const box=document.getElementById('mixedContentWarning');
-  const link=document.getElementById('openLocalDashLink');
-  if(!box)return;
-  if(ip&&_isMixedContentRisk()){
-    box.classList.remove('hidden');
-    if(link)link.href=`http://${ip}/`;
-    if(!_mixedContentWarned){
-      _mixedContentWarned=true;
-      showToast('⚠️ Local mode blocked by browser security (https page → http device). See Settings for details.','warn',6000);
-    }
-  } else {
-    box.classList.add('hidden');
-  }
-}
-
-function _unreachableMsg(){
-  return _isMixedContentRisk()
-    ? 'Blocked by browser security — open device dashboard directly'
-    : 'Device unreachable';
-}
 function startPoll(ip){
-  _checkMixedContentWarning(ip);
   if(pollingTimer)clearInterval(pollingTimer);
   fetchSensor(ip);
   pollingTimer=setInterval(()=>fetchSensor(ip),2500);
@@ -2580,7 +2545,7 @@ async function saveWifi(){
       startPoll(ip);
     }catch(e){
       // Connection error — credentials already saved locally
-      showToast('⚠️ '+_unreachableMsg()+' — credentials saved locally','warn',4000);
+      showToast('⚠️ Device unreachable — credentials saved locally','warn',3000);
       startPoll(ip);
     }
   } else {
@@ -2692,7 +2657,7 @@ async function saveTelegram(){
         showToast('⚠️ Device returned error — check IP','warn',3500);
       }
     }catch(e){
-      showToast('⚠️ '+_unreachableMsg()+' — credentials saved locally','warn',4000);
+      showToast('⚠️ Device unreachable — credentials saved locally','warn',3000);
     }
   } else {
     showToast('✅ Telegram saved — add device IP to push to device','info',3500);
@@ -2754,19 +2719,19 @@ async function saveCalib(){
   saveCfg({emptyDist:empty,fullDist:full,volume,tankName:name});
   S.total=parseFloat(volume)||1000;
   document.getElementById('tankNameLbl').textContent=name.toUpperCase();
-  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});showToast('✅ Calibration saved to device','ok',3000);}catch{showToast('⚠️ '+_unreachableMsg()+' — saved locally','warn',4000);}}
+  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});showToast('✅ Calibration saved to device','ok',3000);}catch{showToast('⚠️ Device unreachable — saved locally','warn',3000);}}
 }
 async function captureEmpty(){
   if(!cfg.ip){showToast('⚠️ Enter device IP first','warn',3000);return;}
   try{const r=await fetch(`http://${cfg.ip}/capture-empty`);const d=await r.json();
     if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);showToast('📷 Empty captured: '+d.empty.toFixed(1)+' cm','ok',3000);}
     else showToast('⚠️ '+(d.msg||'Sensor error'),'warn',3000);
-  }catch{showToast('⚠️ '+_unreachableMsg()+' ('+cfg.ip+')','warn',4000);}
+  }catch{showToast('⚠️ Could not reach device at '+cfg.ip,'warn',3000);}
 }
 async function saveSheets(){
   const ip=cfg.ip,deploymentid=g('c-shid'),sheetname=g('c-shname'),enabled=document.getElementById('c-shenable').checked;
   saveCfg({sheetsId:deploymentid,sheetsName:sheetname});
-  if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});showToast('✅ Sheets saved to device','ok',3000);}catch{showToast('⚠️ '+_unreachableMsg()+' — saved locally','warn',4000);}}
+  if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});showToast('✅ Sheets saved to device','ok',3000);}catch{showToast('⚠️ Device unreachable — saved locally','warn',3000);}}
 }
 function saveMQTT(){
   const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8084,mquser=g('c-mquser'),mqpass=g('c-mqpass');
