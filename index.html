@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
-<title>TASNI Water Monitor v2.1</title>
+<title>TASNI Water Monitor v2.2.0</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
 <style>
@@ -401,7 +401,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 <!-- STARTUP SPLASH (2s, non-blocking) -->
 <div id="splash">
   <div class="splash-logo">TASNI®</div>
-  <div class="splash-sub">WATER MONITOR v2.1</div>
+  <div class="splash-sub">WATER MONITOR v2.2.0</div>
   <div class="splash-bar"><div class="splash-prog" id="splashProg"></div></div>
 </div>
 
@@ -421,7 +421,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">CONNECT DEVICE</div>
-    <div class="modal-sub">Enter your TASNI v2.1 ESP32 details. Local WiFi and MQTT are both optional.</div>
+    <div class="modal-sub">Enter your TASNI v2.2.0 ESP32 details. Local WiFi and MQTT are both optional.</div>
     <div class="sec-hd">LOCAL WIFI (SAME NETWORK)</div>
     <div class="form-grp"><label class="form-lbl">ESP32 IP Address</label><input class="form-in" id="s-ip" type="text" placeholder="e.g. 192.168.1.100" autocomplete="off"></div>
     <p style="font-size:11px;color:var(--muted);margin-top:-8px;margin-bottom:14px">Find the IP on the OLED at boot, or in your router's DHCP list.</p>
@@ -449,7 +449,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 </div>
 
 <header>
-  <div class="brand">TASNI®<small>WATER MONITOR v2.1</small></div>
+  <div class="brand">TASNI®<small>WATER MONITOR v2.2.0</small></div>
   <div class="conn-pill" id="connPill" onclick="document.getElementById('connModal').classList.remove('hidden')">
     <div class="dot" id="dotInd"></div><span id="connLbl">OFFLINE</span>
   </div>
@@ -511,7 +511,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
           <span class="badge b-off" id="statusBadge">WAITING</span>
           <div class="vol-row"><span id="volL">---</span> <span class="vol-total">/ <span id="totalVol">---</span> L</span></div>
           <div class="trend-lbl" id="trendLbl"></div>
-          <div class="upd-lbl" id="updLbl">Waiting for device…</div>
+          <div class="upd-lbl" id="updLbl">Waiting for device…</div><div class="upd-lbl" id="dataStatus" role="status">Waiting for a live device reading</div>
         </div>
       </div>
     </div>
@@ -588,9 +588,14 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
       <div class="acc-h" onclick="toggleAcc(this)"><span>📡 WiFi — Send to Device</span><span class="acc-arr">▾</span></div>
       <div class="acc-b">
         <div class="form-grp"><label class="form-lbl">ESP32 IP Address</label><input class="form-in" id="c-ip" type="text" placeholder="192.168.1.100"></div>
+        <div class="form-grp"><label class="form-lbl">Device Password</label><input class="form-in" id="c-devkey" type="password" placeholder="From device label / AP setup"></div>
+        <p style="font-size:11px;color:#7a9ab8;margin:-4px 0 10px">Same password used to join the device's setup WiFi hotspot. Required to send settings to the device.</p>
         <div class="form-grp"><label class="form-lbl">WiFi SSID</label><input class="form-in" id="c-ssid" type="text"></div>
-        <div class="form-grp"><label class="form-lbl">WiFi Password</label><input class="form-in" id="c-pass" type="password"></div>
-        <button class="btn btn-p btn-full" onclick="saveWifi()">Send WiFi to Device</button>
+        <div class="form-grp"><label class="form-lbl">WiFi Password</label><input class="form-in" id="c-pass" type="password" autocomplete="new-password" placeholder="Blank keeps password for the same SSID"></div>
+        <div class="form-grp"><label><input id="c-open" type="checkbox"> Open network (no Wi-Fi password)</label></div>
+        <button id="wifiSaveButton" class="btn btn-p btn-full" onclick="saveWifi()">Send WiFi to Device</button>
+        <p id="wifiUpdateStatus" role="status" style="font-size:12px;line-height:1.6;color:var(--muted)">Use the same Wi-Fi as the device, or join its TASNI setup hotspot. No USB cable or button is required. The previous network is kept if a new connection fails.</p>
+        <button class="btn btn-full" onclick="openDeviceSetup()">Open device setup</button><p style="font-size:12px"><a href="http://192.168.4.1/setup" target="_blank" rel="noopener">Open hotspot recovery (join TASNI Wi-Fi first)</a></p>
       </div>
     </div>
     <div class="card">
@@ -773,6 +778,8 @@ let unread=0,demoMode=false,pollingTimer=null,tipIdx=0,audioCtx=null;
 // Staleness watchdog
 const STALE_MS=30000;
 let _staleTimer=null;
+let _cachedReading=null, _lastMqttSample='', _fetchBusy=false, _wifiSaving=false;
+let _lastLiveAt=0;
 // Analytics — REAL session data only (never demo, never stale)
 const analyticsSession={
   events:[],
@@ -800,8 +807,8 @@ const analyticsSession={
 };
 
 // ── BOOT DISPLAY GUARD ──
-// Requires 2 consecutive REAL device readings before displaying anything.
-// This prevents stale MQTT retained messages (e.g. old 79%) showing on open.
+// Live samples are validated before display. Retained samples have a separate
+// LAST KNOWN display and never trigger live alerts or usage analytics.
 // Demo mode sets _displayReady itself but does NOT write analytics/history.
 let _displayReady=false;
 let _bootGuardActive=true;
@@ -1019,12 +1026,50 @@ window.addEventListener('load',()=>{
 //  CONFIG
 // ═══════════════════════════════════════════
 function saveCfg(u){Object.assign(cfg,u);localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}
+// Use the device dashboard login (admin + device password) for local API requests.
+function deviceAuthHeaders(){
+  const key=document.getElementById('c-devkey')?.value||cfg.devKey||'';
+  const encoded=new TextEncoder().encode('admin:'+key);
+  return key?{Authorization:'Basic '+btoa(String.fromCharCode(...encoded))}:{};
+}
+function deviceBase(ip){
+  const host=String(ip||'').trim().replace(/^https?:\/\//i,'').replace(/\/$/,'');
+  if(!host||!/^[a-z0-9.:[\]-]+$/i.test(host))throw Error('Enter a valid device IP or local hostname');
+  return 'http://'+host;
+}
+function deviceFetch(ip,path,options={}){
+  return fetch(deviceBase(ip)+path,{...options,mode:'cors',credentials:'omit',cache:'no-store',
+    headers:{...deviceAuthHeaders(),...(options.headers||{})},signal:options.signal||AbortSignal.timeout(6000)});
+}
+function openDeviceSetup(){
+  let url='http://192.168.4.1/setup';
+  try{url=deviceBase(g('c-ip')||cfg.ip||'192.168.4.1')+'/setup';}catch(_){}
+  window.open(url,'_blank','noopener');
+}
+function _setDataStatus(text){const el=document.getElementById('dataStatus');if(el)el.textContent=text;}
+function _acceptDeviceTopic(topic,d){
+  const wanted=cfg.topic||'tasni-water/+/state';
+  if(!wanted.includes('+')&&!wanted.includes('#'))return topic===wanted;
+  if(!d.device)return false;
+  if(cfg.selectedDevice&&cfg.selectedDevice!==d.device)return false;
+  if(!cfg.selectedDevice)saveCfg({selectedDevice:d.device});
+  return true;
+}
+function _showCachedReading(d){
+  const level=Number(d.level??d.m);
+  if(!Number.isFinite(level)||level<0||level>100||Number(d.c)===0)return;
+  if(S.connected&&Date.now()-_lastLiveAt<STALE_MS)return;
+  _cachedReading={level,volume:Number(d.volume??d.vol)||0,total:Number(d.total)||1000,
+    dist:Number(d.dist)||0,stamp:d.epoch?new Date(Number(d.epoch)*1000).toLocaleString():String(d.ts||'time unknown'),fw:String(d.fw||'unknown')};
+  document.getElementById('bootLoading')?.classList.add('gone');
+  _setTankAnim(0);renderDash();
+}
 function loadFormValues(){
   const sv=(id,v)=>{if(v!=null&&v!==''&&document.getElementById(id))document.getElementById(id).value=v;};
   sv('s-ip',cfg.ip);sv('s-broker',cfg.broker);sv('s-port',cfg.port||8084);
   sv('s-mquser',cfg.mquser);sv('s-name',cfg.tankName||'Main Tank');sv('s-topic',cfg.topic||'');
   sv('s-broker2',cfg.broker2);sv('s-port2',cfg.port2||8084);sv('s-mquser2',cfg.mquser2);
-  sv('c-ip',cfg.ip);sv('c-ssid',cfg.ssid);sv('c-tgtoken',cfg.tgToken);sv('c-tgchat',cfg.tgChat);
+  sv('c-ip',cfg.ip);sv('c-devkey',cfg.devKey);sv('c-ssid',cfg.ssid);sv('c-tgtoken',cfg.tgToken);sv('c-tgchat',cfg.tgChat);
   sv('c-empty',cfg.emptyDist||125);sv('c-full',cfg.fullDist||10);sv('c-vol',cfg.volume||1000);sv('c-tname',cfg.tankName||'Main Tank');
   sv('c-shid',cfg.sheetsId);sv('c-shname',cfg.sheetsName);
   sv('c-mqb',cfg.broker);sv('c-mqp',cfg.port||8084);
@@ -1072,13 +1117,18 @@ function startPoll(ip){
   pollingTimer=setInterval(()=>fetchSensor(ip),2500);
 }
 async function fetchSensor(ip){
+  if(_fetchBusy||_wifiSaving)return;
+  if(!deviceAuthHeaders().Authorization){setChip('chip-local',false);updatePill();return;}
+  _fetchBusy=true;
   try{
-    const r=await fetch(`http://${ip}/sensor-reading`,{signal:AbortSignal.timeout(3000)});
-    if(!r.ok)throw new Error();
+    const r=await deviceFetch(ip,'/sensor-reading',{signal:AbortSignal.timeout(4000)});
+    if(!r.ok)throw Error('Device HTTP '+r.status);
     const d=await r.json();
-    setChip('chip-local',true); ingest(d,false);
+    setChip('chip-local',true);
+    if(Number(d.c)===0||d.stale===1||Number(d.sampleAgeMs)>12000){_setDataStatus('Device connected · sensor reading unavailable');return;}
+    ingest(d,false);
   }catch{setChip('chip-local',false);}
-  updatePill();
+  finally{_fetchBusy=false;updatePill();}
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1151,16 +1201,17 @@ function _connectPrimary(mc){
     mqttPrimary.on('connect',()=>{
       _lastAck=Date.now();_primaryOk=true;_updateBrokerPills();unlockAch(3);
       const t=mc.topic||'tasni-water/+/state';
-      mqttPrimary.subscribe(t,{qos:1});
+      mqttPrimary.subscribe(t,{qos:1},(err,granted)=>{if(err||!granted?.length||granted.some(x=>x.qos===128))_setDataStatus('Primary subscription denied · check topic permissions');});
       showToast(_silent?'🔄 Primary reconnected':'☁️ Primary MQTT connected','ok',2000);
       _silent=true;
       _startHBPrimary(mc);
     });
     mqttPrimary.on('message',(_t,pl,pkt)=>{
       _lastAck=Date.now();
-      // ALWAYS skip retained packets — they are broker-cached old values, never live sensor data
-      if(pkt&&pkt.retain===true){return;}
-      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT-P JSON:',e);}
+      try{const d=JSON.parse(pl.toString());if(!_acceptDeviceTopic(_t,d))return;
+        if(pkt?.retain){_showCachedReading(d);return;}
+        ingestMQTT(d);
+      }catch(e){console.warn('MQTT-P JSON:',e);}
     });
     mqttPrimary.on('reconnect',()=>{_primaryOk=false;_updateBrokerPills();});
     mqttPrimary.on('close',()=>{_primaryOk=false;_updateBrokerPills();});
@@ -1184,16 +1235,17 @@ function _connectBackup(mc){
     mqttBackup.on('connect',()=>{
       _lastAck2=Date.now();_backupOk=true;_updateBrokerPills();
       const t=(mc.topic||_mqttCfg?.topic||'tasni-water/+/state');
-      mqttBackup.subscribe(t,{qos:1});
+      mqttBackup.subscribe(t,{qos:1},(err,granted)=>{if(err||!granted?.length||granted.some(x=>x.qos===128))_setDataStatus('Backup subscription denied · check topic permissions');});
       showToast(_silent2?'🔄 Backup reconnected':'☁️ Backup MQTT connected','ok',2000);
       _silent2=true;
       _startHBBackup(mc);
     });
     mqttBackup.on('message',(_t,pl,pkt)=>{
       _lastAck2=Date.now();
-      // ALWAYS skip retained packets — they are broker-cached old values, never live sensor data
-      if(pkt&&pkt.retain===true){return;}
-      try{ingestMQTT(JSON.parse(pl.toString()));}catch(e){console.warn('MQTT-B JSON:',e);}
+      try{const d=JSON.parse(pl.toString());if(!_acceptDeviceTopic(_t,d))return;
+        if(pkt?.retain){_showCachedReading(d);return;}
+        ingestMQTT(d);
+      }catch(e){console.warn('MQTT-B JSON:',e);}
     });
     mqttBackup.on('reconnect',()=>{_backupOk=false;_updateBrokerPills();});
     mqttBackup.on('close',()=>{_backupOk=false;_updateBrokerPills();});
@@ -1207,36 +1259,11 @@ function _connectBackup(mc){
 }
 
 function _startHBPrimary(mc){
-  clearInterval(_hbTimer);
-  _hbTimer=setInterval(()=>{
-    if(!mqttPrimary||!mqttPrimary.connected)return;
-    mqttPrimary.publish('tasni-water/web/ping',JSON.stringify({ts:Date.now()}),{qos:0});
-    clearTimeout(_wdTimer);
-    _wdTimer=setTimeout(()=>{
-      if(Date.now()-_lastAck>45000&&_mqttCfg){
-        console.warn('TASNI: primary watchdog — reconnect');
-        _primaryOk=false;_updateBrokerPills();
-        _connectPrimary(_mqttCfg);
-      }
-    },45000);
-  },25000);
+  // MQTT.js owns PINGREQ/PINGRESP and reconnects. A quiet tank is not a dead broker.
+  clearInterval(_hbTimer);clearTimeout(_wdTimer);
 }
 
-function _startHBBackup(mc){
-  clearInterval(_hbTimer2);
-  _hbTimer2=setInterval(()=>{
-    if(!mqttBackup||!mqttBackup.connected)return;
-    mqttBackup.publish('tasni-water/web/ping',JSON.stringify({ts:Date.now()}),{qos:0});
-    clearTimeout(_wdTimer2);
-    _wdTimer2=setTimeout(()=>{
-      if(Date.now()-_lastAck2>45000&&_mqttCfg2){
-        console.warn('TASNI: backup watchdog — reconnect');
-        _backupOk=false;_updateBrokerPills();
-        _connectBackup(_mqttCfg2);
-      }
-    },45000);
-  },25000);
-}
+function _startHBBackup(mc){clearInterval(_hbTimer2);clearTimeout(_wdTimer2);}
 
 // ── Public entry points ──
 function _connectMQTT(mc){_mqttCfg=mc;_silent=false;_connectPrimary(mc);}
@@ -1268,14 +1295,14 @@ async function requestWakeLock(){if(!('wakeLock'in navigator))return;try{await n
 //  MQTT FIELD MAP
 // ═══════════════════════════════════════════
 function ingestMQTT(d){
-  ingest({
-    m:    d.level??d.m,       vol:  d.volume??d.vol,
-    total:d.total,            s:    d.status??d.s,
-    dist: d.dist,             t:    d.trend??d.t,
-    usage:d.usage,            up:   d.uptime??d.up,
-    rssi: d.rssi,             boot: d.boot,
-    isFull:d.isFull,          name: d.name,
-  },true);
+  if(Number(d.c)===0||Number(d.sampleAgeMs)>12000){_setDataStatus('MQTT connected · sensor reading unavailable');return;}
+  if(d.epoch){const age=Date.now()-Number(d.epoch)*1000;if(age>STALE_MS||age< -120000){_showCachedReading(d);return;}}
+  const key=d.device&&d.boot!=null&&d.uptime!=null?[d.device,d.boot,d.uptime,d.level,d.volume].join(':'):'';
+  if(key&&key===_lastMqttSample)return;
+  if(key)_lastMqttSample=key;
+  ingest({m:d.level??d.m,vol:d.volume??d.vol,total:d.total,s:d.status??d.s,
+    dist:d.dist,t:d.trend??d.t,usage:d.usage,up:d.uptime??d.up,rssi:d.rssi,
+    boot:d.boot,isFull:d.isFull,name:d.name,fw:d.fw,device:d.device},true);
 }
 function setChip(id,on){document.getElementById(id).classList.toggle('on',on);}
 function updatePill(){
@@ -1382,29 +1409,13 @@ function _commitPending(){
 }
 
 function ingest(d,fromMQTT=false){
-  // ── BOOT GUARD — COMPLETE SPIKE SHIELD ──
-  // ALL data (retained OR live, MQTT OR WiFi) is buffered during boot guard.
-  // S.m is NEVER updated until 10s have elapsed. This is the only reliable way
-  // to prevent stale retained broker values (e.g. old 79%) appearing on screen.
-  if(!_displayReady){
-    // Buffer: always keep the LATEST reading so we display freshest on unlock
-    _pendingIngest=d;
-    S.connected=true; // mark as connected so UI chip works
-    const _elapsed=Date.now()-_bootStart;
-    if(_elapsed>=_BOOT_MS){
-      // 10 seconds have elapsed — commit buffered data and unlock display
-      _commitPending();
-      _displayReady=true;
-      clearTimeout(_bootGuardTimer);
-      _bootGuardActive=false;
-      if(!demoMode)setTimeout(()=>{try{playConnectSound();}catch(_){}},200);
-      _autoPromptNotif();
-    } else {
-      // Still inside 10s window — keep NIL on screen, wait for fresher data
-      renderDash();
-      return; // do NOT proceed to analytics, alerts, or chart updates
-    }
+  const measured=Number(d.m);
+  if(d.m==null||!Number.isFinite(measured)||measured<0||measured>100)return;
+  for(const field of ['vol','total','dist','usage','up','rssi','boot','isFull']){
+    if(d[field]!=null&&!Number.isFinite(Number(d[field])))return;
   }
+  if(!_displayReady){_displayReady=true;_bootGuardActive=false;clearTimeout(_bootGuardTimer);}
+  _cachedReading=null;
 
   const prev=S.m;
   if(d.m     !=null)S.m     =parseInt(d.m);
@@ -1421,22 +1432,11 @@ function ingest(d,fromMQTT=false){
   if(d.name  !=null)S.name  =d.name;
   S.connected=true;
   S.lastUpdate=new Date();
+  _lastLiveAt=Date.now();
+  _setDataStatus('LIVE'+(d.fw?' · firmware '+d.fw:'')+(d.device?' · '+d.device:''));
 
-  // ── SPIKE FILTER — secondary safety net ──
-  // If a single reading jumps > 20% from the last known value with no fill event,
-  // it is almost certainly sensor noise or a stale broker packet — ignore it.
-  if(prev!=null&&S.m!=null){
-    const _delta=S.m-prev;
-    const _absDelta=Math.abs(_delta);
-    if(_absDelta>20&&fromMQTT){
-      // Sudden spike up: could be a retained/old message — ignore if no fill trend
-      // Sudden drop down: could be sensor glitch — log but don't record as usage
-      console.warn('TASNI spike filter: rejected jump from '+prev+'% to '+S.m+'% (delta='+_delta+'%)');
-      S.m=prev; // revert to last known good value
-      return;
-    }
-  }
-
+  // Sensor noise filtering belongs to the firmware, where raw sensor evidence exists.
+  // The app must not permanently freeze a legitimate level change above 20%.
   // ── Animation: only act when level actually changes ──
   if(prev!=null&&S.m!=null&&S.m!==prev){
     if(S.m>prev){
@@ -1976,6 +1976,8 @@ function _markStale(){
     // Reset level alert band trackers so alerts fire fresh on reconnect
     _lastAlertBandDown = null;
     _lastAlertBandUp   = null;
+    _setDataStatus('No live device reading for 30 seconds · broker status is separate');
+    _setTankAnim(0);
     showToast('📡 No data — device may be offline','warn',4000);
     // Log device offline to alert log (important — max 4/day to avoid spam)
     if(_canLogBrokerAlert()){
@@ -2297,6 +2299,17 @@ function playConnectSound(){
 function renderDash(){
   const fill=document.getElementById('waterFill');
   const body=document.getElementById('tankBody');
+  if(_cachedReading&&(!S.connected||!_displayReady)){
+    const c=_cachedReading;_setTankAnim(0);
+    fill.style.height=c.level+'%';fill.style.background='linear-gradient(to top,#405269,#8293a8)';body.className='tank-body';
+    set('levelNum',c.level+'<span class="pct">%</span>');
+    document.getElementById('lvlBar').style.width=c.level+'%';
+    set('volL',c.volume.toFixed(0));set('totalVol',c.total);set('distCm',c.dist.toFixed(1));
+    set('usageRate','--');set('estEmpty','--');set('uptimeVal','--');set('rssiVal','--');set('bootVal','--');set('trendLbl','');
+    const badge=document.getElementById('statusBadge');badge.className='badge b-off';badge.textContent='LAST KNOWN';
+    document.getElementById('updLbl').textContent='Cached reading · '+c.stamp;
+    _setDataStatus('Waiting for live data · cached firmware '+c.fw);return;
+  }
 
   // ── NIL STATE ──
   // Show NIL if: display not ready yet (boot guard) OR no data OR disconnected
@@ -2521,36 +2534,46 @@ function unlockAch(i){const e=JSON.parse(localStorage.getItem('tasni_ach')||'[0]
 //  SETTINGS HANDLERS
 // ═══════════════════════════════════════════
 async function saveWifi(){
-  const ip=g('c-ip'),ssid=g('c-ssid'),password=g('c-pass');
-  if(!ip){showToast('⚠️ Enter device IP first','warn',3000);return;}
-  // Save all credentials to localStorage immediately
-  saveCfg({ip,ssid,wifiPass:password});
-  unlockAch(4);
-  if(ssid){
-    showToast('Sending WiFi to device…','info',1500);
-    try{
-      const r=await fetch(`http://${ip}/save-wifi`,{method:'POST',body:new URLSearchParams({ssid,password}),signal:AbortSignal.timeout(6000)});
-      if(!r.ok){showToast('⚠️ Device returned error — check credentials','warn',4000);return;}
-      // Validate: re-fetch /status or /config to confirm WiFi accepted
-      // ESP32 typically responds with {ok:true} or {error:'wrong_password'}
-      let resp={};
-      try{resp=await r.json();}catch(_){}
-      if(resp.error==='wrong_password'||resp.status==='wrong_password'){
-        _showCredentialError('WiFi Password','The password for "'+ssid+'" was rejected by the device. Please check and re-enter the correct password.');
-        // Revert stored password to previous
-        saveCfg({wifiPass:''});
-        return;
-      }
-      showToast('✅ WiFi credentials saved to device','ok',3000);
-      startPoll(ip);
-    }catch(e){
-      // Connection error — credentials already saved locally
-      showToast('⚠️ Device unreachable — credentials saved locally','warn',3000);
-      startPoll(ip);
+  if(_wifiSaving)return;
+  const ip=g('c-ip'),devKey=document.getElementById('c-devkey').value||cfg.devKey||'';
+  const ssid=document.getElementById('c-ssid').value,password=document.getElementById('c-pass').value;
+  const open=document.getElementById('c-open').checked;
+  const status=document.getElementById('wifiUpdateStatus'),button=document.getElementById('wifiSaveButton');
+  if(!ip||!devKey||!ssid){showToast('Enter device IP, device password and Wi-Fi SSID','warn',4000);return;}
+  if(new TextEncoder().encode(ssid).length>31){showToast('SSID must contain at most 31 UTF-8 bytes','warn',4000);return;}
+  if(password&&!open&&(new TextEncoder().encode(password).length<8||new TextEncoder().encode(password).length>63)){showToast('Wi-Fi password must contain 8 to 63 bytes','warn',4000);return;}
+  saveCfg({ip,devKey}); // Candidate Wi-Fi credentials are never saved as applied on this phone.
+  _wifiSaving=true;button.disabled=true;
+  status.textContent='Sending to device…';
+  try{
+    const r=await deviceFetch(ip,'/save-wifi',{method:'POST',body:new URLSearchParams({ssid,password,open:open?'1':'0'})});
+    if(r.status===401||r.status===403)throw Error('Wrong device password. This is the dashboard password for user admin.');
+    const d=await r.json();if(!r.ok||!d.ok)throw Error(d.msg||'Device rejected the update');
+    const id=d.id;
+    if(!id||!d.status)throw Error('This firmware cannot confirm a safe Wi-Fi change. Open device setup.');
+    status.textContent='Wi-Fi update '+d.status+'. If the phone loses contact, join the new Wi-Fi or the TASNI hotspot and open 192.168.4.1/setup.';
+    let result=d;
+    for(let n=0;n<40&&!['committed','rolled_back','retrying_previous'].includes(result.status);n++){
+      await new Promise(resolve=>setTimeout(resolve,2000));
+      try{const check=await deviceFetch(ip,'/wifi-update');if(check.ok){const next=await check.json();if(next.id===id)result=next;}}catch(_){}
+      if(['queued','testing','committing'].includes(result.status))status.textContent='Testing new Wi-Fi. Previous credentials are preserved. Recovery: TASNI hotspot → 192.168.4.1/setup.';
+      else status.textContent='Wi-Fi update: '+result.status+' · recovery 192.168.4.1/setup';
     }
-  } else {
-    startPoll(ip);
-  }
+    if(result.status==='committed'){
+      saveCfg({ssid});document.getElementById('c-pass').value='';unlockAch(4);
+      if(result.ip){saveCfg({ip:result.ip});document.getElementById('c-ip').value=result.ip;}
+      status.textContent='New Wi-Fi verified and saved'+(result.ip?' · device IP '+result.ip:'')+'.';
+      showToast('Wi-Fi verified and saved to device','ok',4000);startPoll(cfg.ip);
+    }else if(['rolled_back','retrying_previous'].includes(result.status)){
+      status.textContent='New Wi-Fi failed. The previous credentials are still saved; the device is reconnecting to that network. Recovery: 192.168.4.1/setup.';
+      showToast('New Wi-Fi failed · previous network restored or retrying','warn',5000);
+    }else{
+      status.textContent='Update submitted, but final status is unconfirmed. Join the new network or the TASNI hotspot and open 192.168.4.1/setup. Do not submit again until checked.';
+    }
+  }catch(e){
+    status.textContent=e.message+' If your browser blocks local access, allow Local Network Access in site permissions, or open device setup directly. Connect to the same Wi-Fi or TASNI hotspot. Nothing has been confirmed as saved.';
+    showToast('Wi-Fi update not confirmed — see connection instructions','warn',5000);
+  }finally{_wifiSaving=false;button.disabled=false;}
 }
 
 // ── Credential error modal — clear, actionable wrong-password alert ──
@@ -2648,10 +2671,13 @@ async function saveTelegram(){
     try{
       const r=await fetch(`http://${ip}/save-telegram`,{
         method:'POST',
+        headers:deviceAuthHeaders(),
         body:new URLSearchParams({token,chatid}),
         signal:AbortSignal.timeout(5000)
       });
-      if(r.ok){
+      if(r.status===401){
+        showToast('⚠️ Wrong device password','warn',4000);
+      } else if(r.ok){
         showToast('✅ Telegram saved to device','ok',3000);
       } else {
         showToast('⚠️ Device returned error — check IP','warn',3500);
@@ -2699,7 +2725,8 @@ async function clearTelegram(){
     try{
       await fetch(`http://${ip}/save-telegram`,{
         method:'POST',
-        body:new URLSearchParams({token:'',chatid:''}),
+        headers:deviceAuthHeaders(),
+        body:new URLSearchParams({token:'',chatid:'',clear:'1'}),
         signal:AbortSignal.timeout(4000)
       });
     }catch(_){}
@@ -2719,11 +2746,18 @@ async function saveCalib(){
   saveCfg({emptyDist:empty,fullDist:full,volume,tankName:name});
   S.total=parseFloat(volume)||1000;
   document.getElementById('tankNameLbl').textContent=name.toUpperCase();
-  if(ip){try{await fetch(`http://${ip}/save-calibration`,{method:'POST',body:new URLSearchParams({empty,full,volume})});showToast('✅ Calibration saved to device','ok',3000);}catch{showToast('⚠️ Device unreachable — saved locally','warn',3000);}}
+  if(ip){try{
+    const r=await fetch(`http://${ip}/save-calibration`,{method:'POST',headers:deviceAuthHeaders(),body:new URLSearchParams({empty,full,volume})});
+    if(r.status===401){showToast('⚠️ Wrong device password','warn',3000);return;}
+    if(!r.ok)throw Error('Device returned '+r.status);
+    showToast('✅ Calibration saved to device','ok',3000);
+  }catch{showToast('⚠️ Device unreachable — saved locally','warn',3000);}}
 }
 async function captureEmpty(){
   if(!cfg.ip){showToast('⚠️ Enter device IP first','warn',3000);return;}
-  try{const r=await fetch(`http://${cfg.ip}/capture-empty`);const d=await r.json();
+  try{const r=await fetch(`http://${cfg.ip}/capture-empty`,{headers:deviceAuthHeaders()});
+    if(r.status===401){showToast('⚠️ Wrong device password','warn',3000);return;}
+    const d=await r.json();
     if(d.ok&&d.empty){document.getElementById('c-empty').value=d.empty.toFixed(1);showToast('📷 Empty captured: '+d.empty.toFixed(1)+' cm','ok',3000);}
     else showToast('⚠️ '+(d.msg||'Sensor error'),'warn',3000);
   }catch{showToast('⚠️ Could not reach device at '+cfg.ip,'warn',3000);}
@@ -2731,7 +2765,12 @@ async function captureEmpty(){
 async function saveSheets(){
   const ip=cfg.ip,deploymentid=g('c-shid'),sheetname=g('c-shname'),enabled=document.getElementById('c-shenable').checked;
   saveCfg({sheetsId:deploymentid,sheetsName:sheetname});
-  if(ip&&deploymentid){try{await fetch(`http://${ip}/save-sheets`,{method:'POST',body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});showToast('✅ Sheets saved to device','ok',3000);}catch{showToast('⚠️ Device unreachable — saved locally','warn',3000);}}
+  if(ip&&deploymentid){try{
+    const r=await fetch(`http://${ip}/save-sheets`,{method:'POST',headers:deviceAuthHeaders(),body:new URLSearchParams({deploymentid,sheetname,enabled:enabled?'on':'off'})});
+    if(r.status===401){showToast('⚠️ Wrong device password','warn',3000);return;}
+    if(!r.ok)throw Error('Device returned '+r.status);
+    showToast('✅ Sheets saved to device','ok',3000);
+  }catch{showToast('⚠️ Device unreachable — saved locally','warn',3000);}}
 }
 function saveMQTT(){
   const host=g('c-mqb'),port=parseInt(g('c-mqp'))||8084,mquser=g('c-mquser'),mqpass=g('c-mqpass');
@@ -2739,7 +2778,7 @@ function saveMQTT(){
   const host2=g('c-mqb2'),port2=parseInt(g('c-mqp2'))||8084,mquser2=g('c-mquser2'),mqpass2=g('c-mqpass2');
   if(!host&&!host2){showToast('Enter at least one broker host','warn');return;}
   // Save all credentials to localStorage immediately
-  saveCfg({broker:host,port,mquser,mqpass,topic,broker2:host2,port2,mquser2,mqpass2});
+  saveCfg({broker:host,port,mquser,mqpass,topic,broker2:host2,port2,mquser2,mqpass2,selectedDevice:topic===cfg.topic?cfg.selectedDevice:null});
   showToast('Connecting to broker…','info',1500);
   // Connect with validation callbacks
   if(host){

@@ -1,10 +1,9 @@
 // ═══════════════════════════════════════════════════════════
-//  TASNI Water Monitor — Service Worker v3.0
-//  Background MQTT polling + aggressive notifications
-//  Works when app is closed, in sleep, screen off
+//  TASNI Water Monitor — Service Worker v2.2.0
+//  Offline app shell and push notification delivery
 // ═══════════════════════════════════════════════════════════
 
-const CACHE = 'tasni-v3';
+const CACHE = 'tasni-v2.2.0';
 const ASSETS = ['./index.html', './manifest.json', './icon.svg'];
 
 // ── Background sync state (shared via IndexedDB) ──
@@ -31,23 +30,21 @@ self.addEventListener('activate', e => {
 });
 
 // ═══════════════════════════════
-//  FETCH — cache-first for assets
+//  FETCH — network-first navigation; authenticated device APIs bypass cache
 // ═══════════════════════════════
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  if (e.request.url.includes('/sensor-reading') || e.request.url.includes('/save-')) return;
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      const net = fetch(e.request).then(res => {
-        if (res.ok) {
-          const c = res.clone();
-          caches.open(CACHE).then(ch => ch.put(e.request, c));
-        }
-        return res;
-      }).catch(() => cached);
-      return cached || net;
-    })
-  );
+  if(e.request.method!=='GET')return;
+  const url=new URL(e.request.url);
+  // Device APIs and authenticated requests must never be cached.
+  if(url.origin!==self.location.origin||e.request.headers.has('Authorization'))return;
+  if(e.request.mode==='navigate'||url.pathname.endsWith('/index.html')){
+    e.respondWith(fetch(e.request,{cache:'no-cache'}).then(async res=>{
+      if(res.ok){const cache=await caches.open(CACHE);await cache.put(e.request,res.clone());}
+      return res;
+    }).catch(()=>caches.match(e.request).then(cached=>cached||Response.error())));
+  }else{
+    e.respondWith(caches.match(e.request).then(cached=>cached||fetch(e.request)));
+  }
 });
 
 // ═══════════════════════════════
@@ -133,7 +130,7 @@ self.addEventListener('message', e => {
 async function backgroundCheck() {
   try {
     const cfg = await getSwState('config');
-    if (!cfg || !cfg.ip) return;
+    if (!cfg || !cfg.ip || cfg.selfNotify === false) return;
 
     const lastLevel = await getSwState('lastLevel');
     const lastTs = await getSwState('lastTs') || 0;
