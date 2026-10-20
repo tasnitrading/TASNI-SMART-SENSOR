@@ -1,7 +1,7 @@
 {
   "name": "TASNI Water Monitor",
   "short_name": "TASNI",
-  "description": "TASNI v2.2.0 Water Tank Level Monitor — live dashboard, MQTT, alerts, analytics.",
+  "description": "TASNI v2.3.0 Water Tank Level Monitor — live dashboard, MQTT, alerts, analytics.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#040d1a",

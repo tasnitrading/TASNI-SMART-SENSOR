@@ -1,0 +1,1 @@
+globalThis.TASNI_PUSH_CONFIG = {"serviceId":"89cd693e9258a9944e8ca1c40463a66d","publicJwk":{"key_ops":[],"ext":true,"kty":"EC","x":"zwhS6Yx7kzgBtmMeceKTM1ueI675BIsULrUMcEB_rdI","y":"zrTYCv_FShP-UyUtJilxJeeM3lZYm2CCr3RWQHi438I","crv":"P-256"},"vapidPublicKey":"BGCvxPWcMd7Y0WQxDO3VUaOmh7AA81ORm1GVax6c2Gk-QHqXjX-265o_mrk3h67gvENahNVP8eALavjtxeBxjtw","version":"2.3.0"};

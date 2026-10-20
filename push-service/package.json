@@ -1,0 +1,7 @@
+{
+  "name":"tasni-background-alert-service","version":"2.3.0","private":true,
+  "description":"Private MQTT to Web Push service for TASNI water monitors",
+  "engines":{"node":">=24.0.0"},
+  "scripts":{"start":"node server/service.cjs","provision":"node server/provision.cjs","test":"node --test tests/*.test.cjs"},
+  "dependencies":{"mqtt":"5.16.1","web-push":"3.6.7"}
+}

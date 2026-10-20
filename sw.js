@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════
-//  TASNI Water Monitor — Service Worker v2.2.0
+//  TASNI Water Monitor — Service Worker v2.3.0
 //  Offline app shell and push notification delivery
 // ═══════════════════════════════════════════════════════════
 
-const CACHE = 'tasni-v2.2.0';
-const ASSETS = ['./index.html', './manifest.json', './icon.svg'];
+const CACHE = 'tasni-v2.3.0';
+const ASSETS = ['./index.html', './manifest.json', './icon.svg', './push-config.js', './push-protocol.js', './push-client.js'];
 
 // ── Background sync state (shared via IndexedDB) ──
 const DB_NAME = 'tasni_sw_db';
@@ -51,24 +51,23 @@ self.addEventListener('fetch', e => {
 //  PUSH — rich notifications
 // ═══════════════════════════════
 self.addEventListener('push', e => {
-  const d = e.data ? e.data.json() : { title: 'TASNI Alert', body: 'Water level update' };
-  const opts = {
-    body: d.body || '',
-    icon: './icon.svg',
-    badge: './icon.svg',
-    tag: d.tag || 'tasni-alert',
-    requireInteraction: !!d.critical,
-    renotify: true,
-    vibrate: d.critical ? [200, 80, 200, 80, 400, 80, 400] : [150, 60, 150],
-    data: { url: './', level: d.level, type: d.type },
-    actions: d.critical ? [
-      { action: 'view', title: '📊 Open Dashboard' },
-      { action: 'dismiss', title: 'Dismiss' }
-    ] : [
-      { action: 'view', title: 'View Dashboard' }
-    ]
-  };
-  e.waitUntil(self.registration.showNotification(d.title || 'TASNI Water Monitor', opts));
+  e.waitUntil((async()=>{
+    let d;try{d=e.data?.json();}catch{d=null;}
+    if(!d||typeof d.title!=='string')return;
+    if(d.expiresAt&&Date.now()>d.expiresAt)return;
+    const key='push-seen:'+String(d.alertId||'unknown');
+    const sequence=Number(d.sequence)||0,previous=await getSwState(key);
+    if(previous&&previous.sequence>=sequence)return;
+    const silent=d.sound===false;
+    const opts={body:String(d.body||'').slice(0,700),icon:'./icon.svg',badge:'./icon.svg',
+      tag:String(d.tag||'tasni-alert'),requireInteraction:d.critical===true,renotify:true,silent,
+      timestamp:Number(d.createdAt)||Date.now(),data:{url:d.url||'./',alertId:d.alertId,device:d.device,level:d.level,type:d.type},
+      actions:d.critical?[{action:'ack',title:'Acknowledge'},{action:'view',title:'Open tank'}]:[{action:'view',title:'Open tank'}]};
+    if(!silent)opts.vibrate=d.critical?[300,100,300,100,600,100,300]:[150,60,150];
+    await self.registration.showNotification(String(d.title).slice(0,128),opts);
+    await storeSwState(key,{sequence,at:Date.now()});
+    await storeSwState('lastPush',{alertId:d.alertId,kind:d.kind,title:d.title,body:d.body,sequence,at:Date.now()});
+  })());
 });
 
 // ═══════════════════════════════
@@ -76,36 +75,19 @@ self.addEventListener('push', e => {
 // ═══════════════════════════════
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  if (e.action === 'dismiss') return;
-  e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      for (const c of list) {
-        if ('focus' in c) return c.focus();
+  e.waitUntil((async()=>{
+    const d=e.notification.data||{},id=/^[a-f0-9]{32}$/.test(d.alertId||'')?d.alertId:null;
+    let url=new URL('./',self.registration.scope);
+    if(id){url.searchParams.set('alert',id);if(e.action==='ack')url.searchParams.set('ack','1');}
+    const list=await clients.matchAll({type:'window',includeUncontrolled:true});
+    for(const client of list){
+      if(client.url.startsWith(self.registration.scope)){
+        client.postMessage({type:e.action==='ack'?'ACK_ALERT':'SHOW_ALERT',alertId:id});
+        return client.focus();
       }
-      if (clients.openWindow) return clients.openWindow('./');
-    })
-  );
-});
-
-// ═══════════════════════════════
-//  BACKGROUND SYNC
-//  Fires when network comes back online
-// ═══════════════════════════════
-self.addEventListener('sync', e => {
-  if (e.tag === 'tasni-check') {
-    e.waitUntil(backgroundCheck());
-  }
-});
-
-// ═══════════════════════════════
-//  PERIODIC BACKGROUND SYNC
-//  Android Chrome: fires every ~15 min when app is closed
-//  Requires site to be installed as PWA with high engagement score
-// ═══════════════════════════════
-self.addEventListener('periodicsync', e => {
-  if (e.tag === 'tasni-monitor') {
-    e.waitUntil(backgroundCheck());
-  }
+    }
+    return clients.openWindow(url.href);
+  })());
 });
 
 // ═══════════════════════════════
@@ -123,90 +105,6 @@ self.addEventListener('message', e => {
     self.skipWaiting();
   }
 });
-
-// ═══════════════════════════════
-//  BACKGROUND CHECK — poll device IP when woken
-// ═══════════════════════════════
-async function backgroundCheck() {
-  try {
-    const cfg = await getSwState('config');
-    if (!cfg || !cfg.ip || cfg.selfNotify === false) return;
-
-    const lastLevel = await getSwState('lastLevel');
-    const lastTs = await getSwState('lastTs') || 0;
-    const staleSec = (Date.now() - lastTs) / 1000;
-
-    // Poll the device IP
-    const res = await fetch(`http://${cfg.ip}/sensor-reading`, {
-      signal: AbortSignal.timeout(5000)
-    }).catch(() => null);
-
-    if (!res || !res.ok) {
-      // Device unreachable — alert if stale > 10 minutes
-      if (staleSec > 600) {
-        await self.registration.showNotification('⚠️ TASNI Device Offline', {
-          body: `No data for ${Math.round(staleSec / 60)} minutes. Check your device.`,
-          icon: './icon.svg',
-          badge: './icon.svg',
-          tag: 'tasni-offline',
-          requireInteraction: false,
-          vibrate: [200, 100, 200],
-          data: { url: './' }
-        });
-      }
-      return;
-    }
-
-    const d = await res.json();
-    const level = parseInt(d.m || d.level || 0);
-    const isFull = parseInt(d.isFull || 0);
-
-    // Store new level
-    await storeSwState('lastLevel', level);
-    await storeSwState('lastTs', Date.now());
-
-    // ── Alert logic when app is closed ──
-    const critThreshold = cfg.alertCrit !== false;
-    const lowThreshold = cfg.alertLow !== false;
-
-    if (level < 10 && critThreshold) {
-      await self.registration.showNotification('🚨 CRITICAL: Tank Almost Empty!', {
-        body: `Tank is at ${level}% — only ${d.vol || '?'}L remaining. Refill immediately!`,
-        icon: './icon.svg',
-        badge: './icon.svg',
-        tag: 'tasni-critical',
-        requireInteraction: true,
-        renotify: true,
-        vibrate: [300, 100, 300, 100, 600, 100, 300],
-        data: { url: './', level, type: 'critical' },
-        actions: [{ action: 'view', title: '📊 Open Dashboard' }]
-      });
-    } else if (level < 30 && lastLevel !== null && lastLevel >= 30 && lowThreshold) {
-      await self.registration.showNotification('⚠️ TASNI: Tank Running Low', {
-        body: `Tank dropped to ${level}%. Schedule a refill soon.`,
-        icon: './icon.svg',
-        badge: './icon.svg',
-        tag: 'tasni-low',
-        requireInteraction: false,
-        vibrate: [200, 80, 200],
-        data: { url: './', level, type: 'low' }
-      });
-    } else if (isFull === 1 && lastLevel !== null && lastLevel < 95) {
-      await self.registration.showNotification('💧 TASNI: Tank is Full!', {
-        body: 'Water tank has been completely filled.',
-        icon: './icon.svg',
-        badge: './icon.svg',
-        tag: 'tasni-full',
-        requireInteraction: false,
-        vibrate: [100, 50, 100],
-        data: { url: './', level: 100, type: 'full' }
-      });
-    }
-
-  } catch (err) {
-    console.warn('[TASNI SW] backgroundCheck error:', err);
-  }
-}
 
 // ═══════════════════════════════
 //  IndexedDB helpers

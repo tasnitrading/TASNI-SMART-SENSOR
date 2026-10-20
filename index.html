@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
-<title>TASNI Water Monitor v2.2.0</title>
+<title>TASNI Water Monitor v2.3.0</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
 <style>
@@ -401,7 +401,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 <!-- STARTUP SPLASH (2s, non-blocking) -->
 <div id="splash">
   <div class="splash-logo">TASNI®</div>
-  <div class="splash-sub">WATER MONITOR v2.2.0</div>
+  <div class="splash-sub">WATER MONITOR v2.3.0</div>
   <div class="splash-bar"><div class="splash-prog" id="splashProg"></div></div>
 </div>
 
@@ -421,7 +421,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">CONNECT DEVICE</div>
-    <div class="modal-sub">Enter your TASNI v2.2.0 ESP32 details. Local WiFi and MQTT are both optional.</div>
+    <div class="modal-sub">Enter your TASNI v2.3.0 ESP32 details. Local WiFi and MQTT are both optional.</div>
     <div class="sec-hd">LOCAL WIFI (SAME NETWORK)</div>
     <div class="form-grp"><label class="form-lbl">ESP32 IP Address</label><input class="form-in" id="s-ip" type="text" placeholder="e.g. 192.168.1.100" autocomplete="off"></div>
     <p style="font-size:11px;color:var(--muted);margin-top:-8px;margin-bottom:14px">Find the IP on the OLED at boot, or in your router's DHCP list.</p>
@@ -449,7 +449,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 </div>
 
 <header>
-  <div class="brand">TASNI®<small>WATER MONITOR v2.2.0</small></div>
+  <div class="brand">TASNI®<small>WATER MONITOR v2.3.0</small></div>
   <div class="conn-pill" id="connPill" onclick="document.getElementById('connModal').classList.remove('hidden')">
     <div class="dot" id="dotInd"></div><span id="connLbl">OFFLINE</span>
   </div>
@@ -533,8 +533,17 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <div class="tab" id="tab-alerts">
     <div class="notif-bar hidden" id="notifBar">
       <div class="nb-i">🔔</div>
-      <div style="flex:1"><div style="font-size:14px;font-weight:600;margin-bottom:2px">Enable Push Notifications</div><div style="font-size:11px;color:var(--muted)">Get alerts even when app is in background</div></div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:600;margin-bottom:2px">Enable Push Notifications</div><div style="font-size:11px;color:var(--muted)">Enroll this phone for alerts after closing the app</div></div>
       <button class="btn btn-p btn-sm" onclick="askNotif()">ENABLE</button>
+    </div>
+    <div class="card">
+      <div class="card-title">🔔 Alerts when this app is closed</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.6">Enable once on this phone. Critical alerts request sound and strong vibration, with up to three reminders five minutes apart. Acknowledge an alert to stop its reminders.</p>
+      <div class="form-grp"><label class="form-lbl" for="pushDevicePassword">Device dashboard password</label><input class="form-in" id="pushDevicePassword" type="password" autocomplete="current-password" placeholder="Same device password as Wi-Fi Settings"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn btn-p" onclick="TasniBackground.enable()">ENABLE</button><button class="btn btn-o" onclick="TasniBackground.test()">TEST IN 10 SECONDS</button><button class="btn btn-o" onclick="TasniBackground.disable()">DISABLE</button></div>
+      <p id="pushStatus" role="status" style="font-size:12px;line-height:1.7;color:var(--pri)">Not enrolled for closed-app alerts.</p>
+      <button id="pushAckButton" hidden class="btn btn-p" onclick="TasniBackground.ackCurrent()">ACKNOWLEDGE THIS ALERT</button>
+      <p style="font-size:11px;line-height:1.7;color:var(--muted)">Allow notifications on this phone and turn on notification sound and vibration. Volume and silent mode follow Android settings. The alert service currently runs on your PC, which must stay powered on and online.</p>
     </div>
     <div class="card">
       <div class="card-title">Alert Thresholds</div>
@@ -889,6 +898,7 @@ function saveAlertPrefs(){
     if(el)prefs[id]=el.checked;
   });
   localStorage.setItem(ALERT_PREFS_KEY,JSON.stringify(prefs));
+  globalThis.TasniBackground?.syncPreferences();
 }
 // Attach change listeners after DOM is ready
 function initAlertToggles(){
@@ -963,9 +973,8 @@ window.addEventListener('load',()=>{
             langEn:    document.getElementById('t-lang-en')?.checked,
             langTe:    document.getElementById('t-lang-te')?.checked,
             langUr:    document.getElementById('t-lang-ur')?.checked,
-            // SW must NOT generate its own status/health notifications.
-            // All notifications are dispatched by push() in the main app.
-            // SW role: only relay showNotification() calls from the app.
+            // Local polling is disabled in the worker. Background alerts arrive
+            // through Web Push from the private MQTT alert service.
             selfNotify: false,
           }
         });
@@ -985,18 +994,7 @@ window.addEventListener('load',()=>{
       // ── Force SW update check on every page load ──
       try{ await reg.update(); }catch(_){}
 
-      // ── Periodic Background Sync — keep alerting even if PWA not open ──
-      if('periodicSync' in reg){
-        try{
-          const status = await navigator.permissions.query({name:'periodic-background-sync'});
-          if(status.state === 'granted'){
-            await reg.periodicSync.register('tasni-monitor', {minInterval: 5 * 60 * 1000}); // 5 min
-          }
-        }catch(_){}
-      }
-
-      // ── One-time background sync ──
-      if('sync' in reg){ try{ await reg.sync.register('tasni-check'); }catch(_){} }
+      // Real push delivery is handled by the private alert service.
 
       // ── Listen for SW-initiated messages (e.g. reconnect requests) ──
       navigator.serviceWorker.addEventListener('message', evt => {
@@ -1198,6 +1196,7 @@ function _connectPrimary(mc){
   _primaryOk=false;_updateBrokerPills();
   try{
     mqttPrimary=mqtt.connect(_makeUrl(mc),_buildMqttOpts(mc));
+    globalThis.TasniBackground?.attach(mqttPrimary);
     mqttPrimary.on('connect',()=>{
       _lastAck=Date.now();_primaryOk=true;_updateBrokerPills();unlockAch(3);
       const t=mc.topic||'tasni-water/+/state';
@@ -1232,6 +1231,7 @@ function _connectBackup(mc){
   _backupOk=false;_updateBrokerPills();
   try{
     mqttBackup=mqtt.connect(_makeUrl(mc),_buildMqttOpts(mc));
+    globalThis.TasniBackground?.attach(mqttBackup);
     mqttBackup.on('connect',()=>{
       _lastAck2=Date.now();_backupOk=true;_updateBrokerPills();
       const t=(mc.topic||_mqttCfg?.topic||'tasni-water/+/state');
@@ -1891,7 +1891,7 @@ function push(type,msg,critical=false){
     data: { type, level: S.m, ts: Date.now() }
   };
 
-  if(Notification.permission==='granted'){
+  if(globalThis.Notification?.permission==='granted'&&!globalThis.TasniBackground?.shouldDeferSystemNotification(msg)){
     // Try Service Worker showNotification first (works in background)
     navigator.serviceWorker?.ready.then(reg=>{
       if(reg && reg.showNotification){
@@ -1919,6 +1919,7 @@ function saveNightLeakThreshold(){
   const clamped=Math.max(5,Math.min(500,val));
   document.getElementById('t-nightleak-threshold').value=clamped;
   saveCfg({nightLeakThreshold:clamped});
+  globalThis.TasniBackground?.syncPreferences();
   showToast('Night leak threshold set to '+clamped+' L','ok',2500);
 }
 function loadNightLeakThreshold(){
@@ -2452,35 +2453,12 @@ function startDemo(){
 //  NOTIFICATIONS — SW-backed for background delivery
 // ═══════════════════════════════════════════
 function askNotif(){
-  if(!('Notification' in window)){showToast('Notifications not supported on this browser','warn',3500);return;}
-  Notification.requestPermission().then(p=>{
-    if(p==='granted'){
-      document.getElementById('notifBar').classList.add('hidden');
-      unlockAch(2);
-      showToast('🔔 Notifications active — you will receive background alerts','ok',4000);
-      // Send a silent test to confirm SW path is working
-      navigator.serviceWorker?.ready.then(reg=>{
-        if(reg && reg.showNotification){
-          reg.showNotification('TASNI Notifications Active', {
-            body:'You will now receive water level alerts in the background.',
-            icon:'icon.svg', badge:'icon.svg', silent:true, tag:'tasni-notif-confirm'
-          }).catch(()=>{});
-        }
-      }).catch(()=>{});
-    } else if(p==='denied'){
-      showToast('Notifications blocked — enable in browser settings','warn',5000);
-    }
-  });
+  globalThis.TasniBackground.enable();
 }
 
 function checkNotifPerm(){
-  if(!('Notification' in window)) return;
-  if(Notification.permission==='granted'){
-    document.getElementById('notifBar').classList.add('hidden');
-  } else if(Notification.permission==='default'){
-    // Only show the bar if not yet decided — auto-prompt on first data arrival
-    document.getElementById('notifBar').classList.remove('hidden');
-  }
+  if(!('Notification' in window))return;
+  document.getElementById('notifBar').classList.toggle('hidden',globalThis.TasniBackground?.isEnrolled()||false);
 }
 
 // ── Auto-prompt for notification permission on first real data ──
@@ -2850,5 +2828,6 @@ function goTab(name,btn){
 }
 function toggleAcc(h){h.classList.toggle('open');h.nextElementSibling.classList.toggle('open');}
 </script>
+<script src="push-config.js"></script><script src="push-protocol.js"></script><script src="push-client.js"></script>
 </body>
 </html>
